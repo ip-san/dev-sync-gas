@@ -1,4 +1,5 @@
 import { getConfig, setConfig, addRepository, removeRepository } from "./config/settings";
+import "./init";
 import { getAllRepositoriesData } from "./services/github";
 import { queryDatabase } from "./services/notion";
 import { writeMetricsToSheet, clearOldData, createSummarySheet } from "./services/spreadsheet";
@@ -48,16 +49,17 @@ function createDailyTrigger(): void {
 
 /**
  * 初期セットアップ - スクリプトプロパティを設定
+ * notionToken, notionDatabaseId はオプショナル
  */
 function setup(
   githubToken: string,
-  notionToken: string,
-  notionDatabaseId: string,
-  spreadsheetId: string
+  spreadsheetId: string,
+  notionToken?: string,
+  notionDatabaseId?: string
 ): void {
   setConfig({
     github: { token: githubToken, repositories: [] },
-    notion: { token: notionToken, databaseId: notionDatabaseId },
+    notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
     spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
   });
 

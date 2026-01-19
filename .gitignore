@@ -9,6 +9,9 @@ dist/
 .env
 .env.local
 
+# Secrets
+src/init.ts
+
 # clasp
 .clasprc.json
 

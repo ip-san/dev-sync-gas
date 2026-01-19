@@ -11,8 +11,6 @@ export function getConfig(): Config {
   const repositoriesJson = props.getProperty("GITHUB_REPOSITORIES");
 
   if (!githubToken) throw new Error("GITHUB_TOKEN is not set");
-  if (!notionToken) throw new Error("NOTION_TOKEN is not set");
-  if (!notionDatabaseId) throw new Error("NOTION_DATABASE_ID is not set");
   if (!spreadsheetId) throw new Error("SPREADSHEET_ID is not set");
 
   const repositories: GitHubRepository[] = repositoriesJson
@@ -21,7 +19,7 @@ export function getConfig(): Config {
 
   return {
     github: { token: githubToken, repositories },
-    notion: { token: notionToken, databaseId: notionDatabaseId },
+    notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
     spreadsheet: { id: spreadsheetId, sheetName },
   };
 }

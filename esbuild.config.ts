@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import GasPlugin from "esbuild-gas-plugin";
+import { GasPlugin } from "esbuild-gas-plugin";
 
 await build({
   entryPoints: ["src/main.ts"],

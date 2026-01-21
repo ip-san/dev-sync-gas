@@ -15,10 +15,14 @@ export type PerformanceLevel = "elite" | "high" | "medium" | "low";
 /**
  * Deployment Frequency の閾値（1日あたりのデプロイ数）
  *
- * - Elite: 1日複数回（1回以上/日）
- * - High: 日1回〜週1回（1/7回以上/日）
- * - Medium: 週1回〜月1回（1/30回以上/日）
- * - Low: 月1回未満
+ * DORA公式定義:
+ * - Elite: オンデマンド（1日複数回）
+ * - High: 1日1回〜週1回
+ * - Medium: 週1回〜月1回
+ * - Low: 月1回〜6ヶ月に1回
+ *
+ * 本実装では1日1回以上をElite（daily）として扱います。
+ * 厳密に「複数回/日」を判定するには閾値を調整してください。
  */
 export const DEPLOYMENT_FREQUENCY_THRESHOLDS = {
   /** Elite: 1日1回以上 */
@@ -33,20 +37,29 @@ export const DEPLOYMENT_FREQUENCY_THRESHOLDS = {
 /**
  * Lead Time for Changes の閾値（時間）
  *
+ * DORA公式定義:
  * - Elite: 1時間未満
  * - High: 1日〜1週間
  * - Medium: 1週間〜1ヶ月
  * - Low: 1ヶ月以上
+ *
+ * 本実装（連続的な分類）:
+ * - Elite: 1時間未満
+ * - High: 1時間〜1日未満（公式定義の隙間を埋める）
+ * - Medium: 1日〜1週間未満
+ * - Low: 1週間以上
+ *
+ * 注意: 公式定義では1時間〜1日の間が未定義のため、
+ * 本実装ではHighとして扱っています。
  */
 export const LEAD_TIME_THRESHOLDS = {
   /** Elite: 1時間未満 */
   elite: 1,
-  /** High: 24時間（1日）未満 */
+  /** High: 1時間以上24時間（1日）未満 */
   high: 24,
-  /** Medium: 168時間（1週間）未満 */
+  /** Medium: 1日以上168時間（1週間）未満 */
   medium: 24 * 7,
-  /** Low: 720時間（30日）未満 - これ以上はLow */
-  low: 24 * 30,
+  // Low: 1週間以上
 } as const;
 
 /**

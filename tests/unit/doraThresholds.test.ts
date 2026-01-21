@@ -26,7 +26,7 @@ describe("DORA Thresholds Constants", () => {
     expect(LEAD_TIME_THRESHOLDS.elite).toBe(1); // 1時間
     expect(LEAD_TIME_THRESHOLDS.high).toBe(24); // 1日
     expect(LEAD_TIME_THRESHOLDS.medium).toBe(24 * 7); // 1週間
-    expect(LEAD_TIME_THRESHOLDS.low).toBe(24 * 30); // 30日
+    // Low は medium 以上なので閾値定数は不要
   });
 
   it("Change Failure Rate の閾値が正しく設定されている（%）", () => {

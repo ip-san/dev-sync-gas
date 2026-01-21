@@ -150,11 +150,11 @@ export function calculateDeploymentFrequency(
  *    （環境フィルタはAPI呼び出し時に適用済み、ステータスが取得できている場合のみ）
  * 2. フォールバック: ワークフロー失敗数 / 全ワークフロー実行数
  *
- * 分類基準 (DORA):
+ * 分類基準 (DORA 2024):
  * - Elite: 0-15%
- * - High: 16-30%
- * - Medium: 31-45%
- * - Low: 46%+
+ * - High: 0-15%（Eliteと同じ）
+ * - Medium: 16-30%
+ * - Low: 30%超
  */
 export function calculateChangeFailureRate(
   deployments: GitHubDeployment[],

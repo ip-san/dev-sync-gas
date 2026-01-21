@@ -1,4 +1,6 @@
 import type { NotionTask, ApiResponse } from "../types";
+import type { HttpRequestOptions } from "../interfaces";
+import { getContainer } from "../container";
 
 const NOTION_API_BASE = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
@@ -6,12 +8,13 @@ const NOTION_VERSION = "2022-06-28";
 function fetchNotion<T>(
   endpoint: string,
   token: string,
-  options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {}
+  options: HttpRequestOptions = {}
 ): ApiResponse<T> {
+  const { httpClient } = getContainer();
   const url = `${NOTION_API_BASE}${endpoint}`;
 
   try {
-    const response = UrlFetchApp.fetch(url, {
+    const response = httpClient.fetch<T>(url, {
       ...options,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -22,13 +25,10 @@ function fetchNotion<T>(
       muteHttpExceptions: true,
     });
 
-    const statusCode = response.getResponseCode();
-    const content = response.getContentText();
-
-    if (statusCode >= 200 && statusCode < 300) {
-      return { success: true, data: JSON.parse(content) as T };
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return { success: true, data: response.data };
     }
-    return { success: false, error: `Notion API error: ${statusCode} - ${content}` };
+    return { success: false, error: `Notion API error: ${response.statusCode} - ${response.content}` };
   } catch (error) {
     return { success: false, error: `Request failed: ${error}` };
   }

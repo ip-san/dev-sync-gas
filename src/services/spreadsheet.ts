@@ -1,4 +1,6 @@
 import type { DevOpsMetrics } from "../types";
+import type { Sheet } from "../interfaces";
+import { getContainer } from "../container";
 
 const HEADERS = [
   "Date",
@@ -17,7 +19,8 @@ export function writeMetricsToSheet(
   sheetName: string,
   metrics: DevOpsMetrics[]
 ): void {
-  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(spreadsheetId);
   let sheet = spreadsheet.getSheetByName(sheetName);
 
   if (!sheet) {
@@ -28,7 +31,7 @@ export function writeMetricsToSheet(
   }
 
   if (metrics.length === 0) {
-    Logger.log("⚠️ No metrics to write");
+    logger.log("⚠️ No metrics to write");
     return;
   }
 
@@ -50,14 +53,16 @@ export function writeMetricsToSheet(
   formatSheet(sheet);
 }
 
-function formatSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet): void {
+function formatSheet(sheet: Sheet): void {
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
 
   // 数値列のフォーマット
-  sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat("#,##0");
-  sheet.getRange(2, 5, lastRow - 1, 1).setNumberFormat("#,##0.0");
-  sheet.getRange(2, 8, lastRow - 1, 1).setNumberFormat("#,##0.0");
+  if (lastRow > 1) {
+    sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat("#,##0");
+    sheet.getRange(2, 5, lastRow - 1, 1).setNumberFormat("#,##0.0");
+    sheet.getRange(2, 8, lastRow - 1, 1).setNumberFormat("#,##0.0");
+  }
 
   // 列幅の自動調整
   for (let i = 1; i <= lastCol; i++) {
@@ -70,7 +75,8 @@ export function clearOldData(
   sheetName: string,
   daysToKeep = 90
 ): void {
-  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const { spreadsheetClient } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(spreadsheetId);
   const sheet = spreadsheet.getSheetByName(sheetName);
   if (!sheet) return;
 
@@ -81,7 +87,7 @@ export function clearOldData(
   const rowsToDelete: number[] = [];
 
   for (let i = data.length - 1; i >= 1; i--) {
-    const rowDate = new Date(data[i][0]);
+    const rowDate = new Date(data[i][0] as string);
     if (rowDate < cutoffDate) {
       rowsToDelete.push(i + 1);
     }
@@ -96,9 +102,10 @@ export function createSummarySheet(
   spreadsheetId: string,
   sourceSheetName: string
 ): void {
-  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const { spreadsheetClient } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(spreadsheetId);
   const summarySheetName = `${sourceSheetName} - Summary`;
-  
+
   let summarySheet = spreadsheet.getSheetByName(summarySheetName);
   if (!summarySheet) {
     summarySheet = spreadsheet.insertSheet(summarySheetName);

@@ -1,4 +1,5 @@
 import type { GitHubPullRequest, GitHubWorkflowRun, GitHubRepository, ApiResponse } from "../types";
+import { getContainer } from "../container";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -7,15 +8,12 @@ export interface DateRange {
   until?: Date;
 }
 
-function formatDateForGitHub(date: Date): string {
-  return date.toISOString();
-}
-
 function fetchGitHub<T>(endpoint: string, token: string): ApiResponse<T> {
+  const { httpClient } = getContainer();
   const url = `${GITHUB_API_BASE}${endpoint}`;
 
   try {
-    const response = UrlFetchApp.fetch(url, {
+    const response = httpClient.fetch<T>(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github.v3+json",
@@ -24,13 +22,10 @@ function fetchGitHub<T>(endpoint: string, token: string): ApiResponse<T> {
       muteHttpExceptions: true,
     });
 
-    const statusCode = response.getResponseCode();
-    const content = response.getContentText();
-
-    if (statusCode >= 200 && statusCode < 300) {
-      return { success: true, data: JSON.parse(content) as T };
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return { success: true, data: response.data };
     }
-    return { success: false, error: `GitHub API error: ${statusCode} - ${content}` };
+    return { success: false, error: `GitHub API error: ${response.statusCode} - ${response.content}` };
   } catch (error) {
     return { success: false, error: `Request failed: ${error}` };
   }
@@ -157,26 +152,27 @@ export function getAllRepositoriesData(
   token: string,
   dateRange?: DateRange
 ): { pullRequests: GitHubPullRequest[]; workflowRuns: GitHubWorkflowRun[] } {
+  const { logger } = getContainer();
   const allPRs: GitHubPullRequest[] = [];
   const allRuns: GitHubWorkflowRun[] = [];
 
   for (const repo of repositories) {
-    Logger.log(`📡 Fetching data for ${repo.fullName}...`);
+    logger.log(`📡 Fetching data for ${repo.fullName}...`);
 
     const prsResult = getPullRequests(repo, token, "all", dateRange);
     if (prsResult.success && prsResult.data) {
       allPRs.push(...prsResult.data);
-      Logger.log(`  PRs: ${prsResult.data.length}`);
+      logger.log(`  PRs: ${prsResult.data.length}`);
     } else {
-      Logger.log(`  ⚠️ PR fetch failed: ${prsResult.error}`);
+      logger.log(`  ⚠️ PR fetch failed: ${prsResult.error}`);
     }
 
     const runsResult = getWorkflowRuns(repo, token, dateRange);
     if (runsResult.success && runsResult.data) {
       allRuns.push(...runsResult.data);
-      Logger.log(`  Workflow runs: ${runsResult.data.length}`);
+      logger.log(`  Workflow runs: ${runsResult.data.length}`);
     } else {
-      Logger.log(`  ⚠️ Workflow fetch failed: ${runsResult.error}`);
+      logger.log(`  ⚠️ Workflow fetch failed: ${runsResult.error}`);
     }
   }
 

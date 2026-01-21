@@ -15,6 +15,150 @@ DORA（DevOps Research and Assessment）は、ソフトウェアデリバリー�
 | Change Failure Rate | 本番環境で障害を引き起こしたデプロイの割合 | 安定性 |
 | Mean Time to Recovery | 本番環境の障害から復旧するまでの時間 | 安定性 |
 
+---
+
+## GitHubから取得するデータ
+
+本プロジェクトでは、GitHub APIから3種類のデータを取得してDORA Metricsを計算しています。
+
+### 1. Pull Request（プルリクエスト）
+
+**何を見ているか**: コードの変更履歴
+
+PRはコードの変更をレビューしてもらうための仕組みです。以下の情報を使用します:
+
+| フィールド | 説明 | 使用目的 |
+|------------|------|----------|
+| `created_at` | PRが作成された日時 | Lead Timeのフォールバック計算 |
+| `merged_at` | PRがマージされた日時 | Lead Timeの起点 |
+| `state` | PRの状態（open/closed） | マージ済みPRのフィルタリング |
+
+**GitHubでの確認方法**: リポジトリ → 「Pull requests」タブ → 各PRの詳細
+
+```
+例: あるPRの場合
+- created_at: 2024-01-15 10:00:00  ← PRを作成した時刻
+- merged_at:  2024-01-15 14:00:00  ← マージされた時刻（4時間後）
+```
+
+### 2. Workflow Run（ワークフロー実行）
+
+**何を見ているか**: GitHub Actionsの実行履歴
+
+GitHub Actionsで定義したCI/CDパイプラインの実行結果です:
+
+| フィールド | 説明 | 使用目的 |
+|------------|------|----------|
+| `name` | ワークフロー名 | デプロイ関連かどうかの判定（「deploy」を含むか） |
+| `conclusion` | 実行結果 | 成功/失敗の判定 |
+| `created_at` | 実行開始日時 | 時系列での分析 |
+
+**GitHubでの確認方法**: リポジトリ → 「Actions」タブ
+
+```
+例: ワークフロー実行の場合
+- name: "Deploy to Production"  ← 「deploy」を含むのでデプロイとして認識
+- conclusion: "success"         ← 成功したデプロイ
+- created_at: 2024-01-15 14:30:00
+```
+
+**よくあるワークフロー名の例**:
+- `Deploy to Production` ✅ デプロイとして認識
+- `deploy` ✅ デプロイとして認識
+- `CD - Deploy` ✅ デプロイとして認識
+- `Build and Test` ❌ デプロイとして認識されない
+- `CI` ❌ デプロイとして認識されない
+
+### 3. Deployment（デプロイメント）
+
+**何を見ているか**: GitHub Deploymentsの記録
+
+GitHub Deploymentsは、特定の環境（production, staging等）へのデプロイを追跡する機能です:
+
+| フィールド | 説明 | 使用目的 |
+|------------|------|----------|
+| `environment` | デプロイ先環境名 | 本番環境のフィルタリング |
+| `status` | デプロイのステータス | 成功/失敗の判定 |
+| `created_at` | デプロイ作成日時 | Lead Time, MTTR計算 |
+| `sha` | デプロイしたコミットのSHA | （現在は未使用、将来的にPRとの紐付けに使用予定） |
+
+**GitHubでの確認方法**: リポジトリ → 「Deployments」（右サイドバーの「Environments」セクション）
+
+```
+例: デプロイメントの場合
+- environment: "production"  ← 本番環境へのデプロイ
+- status: "success"          ← 成功
+- created_at: 2024-01-15 14:35:00
+```
+
+**statusの値**:
+| 値 | 意味 | 計算への影響 |
+|----|------|-------------|
+| `success` | 成功 | Deployment Frequency, Lead Timeでカウント |
+| `failure` | 失敗 | CFR, MTTRでカウント |
+| `error` | エラー | CFR, MTTRでカウント |
+| `in_progress` | 進行中 | カウントしない |
+| `queued` | 待機中 | カウントしない |
+| `pending` | 保留中 | カウントしない |
+| `null` | 不明 | ワークフローにフォールバック |
+
+### データ取得の流れ
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      GitHub API                              │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│   Pull Requests │  Workflow Runs  │     Deployments         │
+│                 │                 │                         │
+│  ・created_at   │  ・name         │  ・environment          │
+│  ・merged_at    │  ・conclusion   │  ・status               │
+│  ・state        │  ・created_at   │  ・created_at           │
+└────────┬────────┴────────┬────────┴────────┬────────────────┘
+         │                 │                 │
+         ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    DORA Metrics 計算                         │
+├─────────────────────────────────────────────────────────────┤
+│  Deployment Frequency : Deployments (status=success)        │
+│                        └→ フォールバック: Workflow Runs     │
+│                                                             │
+│  Lead Time for Changes: PRs (merged_at) + Deployments       │
+│                        └→ フォールバック: PRs (created_at)  │
+│                                                             │
+│  Change Failure Rate  : Deployments (status=failure/error)  │
+│                        └→ フォールバック: Workflow Runs     │
+│                                                             │
+│  MTTR                 : Deployments (failure → success)     │
+│                        └→ フォールバック: Workflow Runs     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### あなたのリポジトリでDeploymentsが使われているか確認する方法
+
+1. GitHubでリポジトリを開く
+2. 右サイドバーの「Environments」セクションを確認
+3. 「production」などの環境が表示されていれば、Deployments APIが使用されています
+
+**Deploymentsがない場合**:
+- GitHub Actionsのワークフロー実行データにフォールバックします
+- ワークフロー名に「deploy」が含まれているものがデプロイとして認識されます
+
+**Deploymentsを有効にするには**:
+GitHub Actionsのワークフローで `environment` を指定します:
+
+```yaml
+# .github/workflows/deploy.yml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production  # ← これを追加
+    steps:
+      - name: Deploy
+        run: ./deploy.sh
+```
+
+---
+
 ## 各指標の詳細
 
 ---

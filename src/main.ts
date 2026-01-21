@@ -34,7 +34,7 @@ function syncDevOpsMetrics(dateRange?: DateRange): void {
   const { pullRequests, workflowRuns, deployments } = getAllRepositoriesData(
     config.github.repositories,
     config.github.token,
-    dateRange
+    { dateRange }
   );
 
   Logger.log(`📥 Fetched ${pullRequests.length} PRs, ${workflowRuns.length} workflow runs, ${deployments.length} deployments`);

@@ -6,9 +6,13 @@ import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, DevOpsMetr
  * 定義: コードがコミットされてから本番環境にデプロイされるまでの時間
  *
  * 計算方法:
- * 1. マージされたPRと成功したデプロイメントを関連付け（SHA経由）
- * 2. PRマージ時間からデプロイ完了時間までの差を計算
- * 3. 関連付けできない場合は、PRマージ時間から最も近いデプロイ時間を使用
+ * 1. マージされたPRを取得
+ * 2. マージ後24時間以内の成功デプロイメントを探す（時間ベースのマッチング）
+ * 3. 見つかった場合: マージ→デプロイ時間を計算
+ * 4. 見つからない場合: PR作成→マージ時間を計算（フォールバック）
+ *
+ * 注意: 理想的にはSHAベースでマッチングすべきだが、
+ * GitHub Deployments APIの制約により時間ベースで近似している
  *
  * フォールバック: デプロイメントデータがない場合はPRのマージまでの時間を使用
  */
@@ -63,7 +67,8 @@ export function calculateLeadTime(
  * 定義: 本番環境へのデプロイ頻度
  *
  * 計算方法:
- * 1. GitHub Deployments API から production 環境への成功デプロイをカウント
+ * 1. GitHub Deployments API から成功デプロイをカウント
+ *    （環境フィルタはAPI呼び出し時に適用済み）
  * 2. フォールバック: "deploy" を含むワークフローの成功数を使用
  *
  * 分類基準 (DORA):
@@ -77,20 +82,22 @@ export function calculateDeploymentFrequency(
   runs: GitHubWorkflowRun[],
   periodDays: number
 ): { count: number; frequency: DevOpsMetrics["deploymentFrequency"] } {
-  // 優先: GitHub Deployments API のデータ（production環境、成功のみ）
-  let successfulDeployments = deployments.filter(
-    (d) => d.status === "success" && d.environment.toLowerCase() === "production"
-  );
+  // 優先: GitHub Deployments API のデータ（成功のみ）
+  // 注意: 環境フィルタはgetDeployments()で適用済み
+  const successfulDeploymentCount = deployments.filter(
+    (d) => d.status === "success"
+  ).length;
 
   // フォールバック: ワークフロー実行（"deploy"を含む成功したもの）
-  if (successfulDeployments.length === 0) {
-    const workflowDeployments = runs.filter(
+  let count: number;
+  if (successfulDeploymentCount > 0) {
+    count = successfulDeploymentCount;
+  } else {
+    count = runs.filter(
       (run) => run.conclusion === "success" && run.name.toLowerCase().includes("deploy")
-    );
-    successfulDeployments = workflowDeployments as unknown as GitHubDeployment[];
+    ).length;
   }
 
-  const count = successfulDeployments.length;
   const avgPerDay = count / periodDays;
 
   let frequency: DevOpsMetrics["deploymentFrequency"];
@@ -112,6 +119,7 @@ export function calculateDeploymentFrequency(
  *
  * 計算方法:
  * 1. GitHub Deployments: 失敗ステータスのデプロイ / 全デプロイ
+ *    （環境フィルタはAPI呼び出し時に適用済み）
  * 2. フォールバック: ワークフロー失敗数 / 全ワークフロー実行数
  *
  * 分類基準 (DORA):
@@ -129,13 +137,10 @@ export function calculateChangeFailureRate(
   rate: number;
 } {
   // 優先: GitHub Deployments API
-  const productionDeployments = deployments.filter(
-    (d) => d.environment.toLowerCase() === "production"
-  );
-
-  if (productionDeployments.length > 0) {
-    const total = productionDeployments.length;
-    const failed = productionDeployments.filter(
+  // 注意: 環境フィルタはgetDeployments()で適用済み
+  if (deployments.length > 0) {
+    const total = deployments.length;
+    const failed = deployments.filter(
       (d) => d.status === "failure" || d.status === "error"
     ).length;
     const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
@@ -164,6 +169,7 @@ export function calculateChangeFailureRate(
  *
  * 計算方法:
  * 1. 失敗したデプロイメントを時系列で追跡
+ *    （環境フィルタはAPI呼び出し時に適用済み）
  * 2. 次の成功デプロイメントまでの時間を計算
  * 3. 平均値を算出
  *
@@ -178,13 +184,14 @@ export function calculateMTTR(
   runs: GitHubWorkflowRun[]
 ): number | null {
   // 優先: GitHub Deployments API
-  const productionDeployments = deployments
-    .filter((d) => d.environment.toLowerCase() === "production")
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  // 注意: 環境フィルタはgetDeployments()で適用済み
+  if (deployments.length > 0) {
+    const sortedDeployments = [...deployments].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
 
-  if (productionDeployments.length > 0) {
     return calculateRecoveryTime(
-      productionDeployments.map((d) => ({
+      sortedDeployments.map((d) => ({
         createdAt: d.createdAt,
         isFailure: d.status === "failure" || d.status === "error",
         isSuccess: d.status === "success",

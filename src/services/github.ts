@@ -147,16 +147,29 @@ export function getWorkflowRuns(
   return { success: true, data: allRuns };
 }
 
+export interface GetDeploymentsOptions {
+  environment?: string;
+  dateRange?: DateRange;
+  maxPages?: number;
+  /**
+   * ステータス取得をスキップしてAPI呼び出しを削減
+   * true: ステータスをnullのまま返す（高速）
+   * false: 各デプロイメントのステータスを個別に取得（N+1クエリ）
+   */
+  skipStatusFetch?: boolean;
+}
+
 export function getDeployments(
   repo: GitHubRepository,
   token: string,
-  environment?: string,
-  dateRange?: DateRange,
-  maxPages = 5
+  options: GetDeploymentsOptions = {}
 ): ApiResponse<GitHubDeployment[]> {
+  const { environment, dateRange, maxPages = 5, skipStatusFetch = false } = options;
   const allDeployments: GitHubDeployment[] = [];
+  const deploymentIds: number[] = [];
   let page = 1;
 
+  // Phase 1: デプロイメント一覧を取得
   while (page <= maxPages) {
     let endpoint = `/repos/${repo.fullName}/deployments?per_page=100&page=${page}`;
     if (environment) {
@@ -186,20 +199,14 @@ export function getDeployments(
         continue;
       }
 
-      // Get deployment status
-      const statusResponse = fetchGitHub<any[]>(
-        `/repos/${repo.fullName}/deployments/${deployment.id}/statuses?per_page=1`,
-        token
-      );
-      const latestStatus = statusResponse.success && statusResponse.data?.[0];
-
+      deploymentIds.push(deployment.id);
       allDeployments.push({
         id: deployment.id,
         sha: deployment.sha,
         environment: deployment.environment,
         createdAt: deployment.created_at,
         updatedAt: deployment.updated_at,
-        status: latestStatus?.state ?? null,
+        status: null, // Phase 2で取得
         repository: repo.fullName,
       });
     }
@@ -207,14 +214,44 @@ export function getDeployments(
     page++;
   }
 
+  // Phase 2: ステータスを取得（オプション）
+  // 注意: GASは並行リクエストをサポートしないためN+1クエリになる
+  // 大量のデプロイメントがある場合はskipStatusFetch=trueを推奨
+  if (!skipStatusFetch && allDeployments.length > 0) {
+    const { logger } = getContainer();
+    if (allDeployments.length > 50) {
+      logger.log(`  ⚠️ Fetching status for ${allDeployments.length} deployments (may be slow)`);
+    }
+
+    for (const deployment of allDeployments) {
+      const statusResponse = fetchGitHub<any[]>(
+        `/repos/${repo.fullName}/deployments/${deployment.id}/statuses?per_page=1`,
+        token
+      );
+      if (statusResponse.success && statusResponse.data?.[0]) {
+        deployment.status = statusResponse.data[0].state;
+      }
+    }
+  }
+
   return { success: true, data: allDeployments };
+}
+
+export interface GetAllRepositoriesDataOptions {
+  dateRange?: DateRange;
+  /**
+   * デプロイメント環境名（デフォルト: "production"）
+   * 例: "production", "prod", "live", "main"
+   */
+  deploymentEnvironment?: string;
 }
 
 export function getAllRepositoriesData(
   repositories: GitHubRepository[],
   token: string,
-  dateRange?: DateRange
+  options: GetAllRepositoriesDataOptions = {}
 ): { pullRequests: GitHubPullRequest[]; workflowRuns: GitHubWorkflowRun[]; deployments: GitHubDeployment[] } {
+  const { dateRange, deploymentEnvironment = "production" } = options;
   const { logger } = getContainer();
   const allPRs: GitHubPullRequest[] = [];
   const allRuns: GitHubWorkflowRun[] = [];
@@ -239,8 +276,11 @@ export function getAllRepositoriesData(
       logger.log(`  ⚠️ Workflow fetch failed: ${runsResult.error}`);
     }
 
-    // Fetch deployments (production environment)
-    const deploymentsResult = getDeployments(repo, token, "production", dateRange);
+    // Fetch deployments
+    const deploymentsResult = getDeployments(repo, token, {
+      environment: deploymentEnvironment,
+      dateRange,
+    });
     if (deploymentsResult.success && deploymentsResult.data) {
       allDeployments.push(...deploymentsResult.data);
       logger.log(`  Deployments: ${deploymentsResult.data.length}`);

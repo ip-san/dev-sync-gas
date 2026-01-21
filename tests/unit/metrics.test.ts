@@ -170,7 +170,8 @@ describe("calculateDeploymentFrequency", () => {
     expect(result.frequency).toBe("weekly");
   });
 
-  it("production環境のみカウントする", () => {
+  it("デプロイメントがある場合はワークフローを使用しない", () => {
+    // 環境フィルタはgetDeployments()で適用済みと想定
     const deployments: GitHubDeployment[] = [
       {
         id: 1,
@@ -181,19 +182,23 @@ describe("calculateDeploymentFrequency", () => {
         status: "success",
         repository: "owner/repo",
       },
+    ];
+
+    const runs: GitHubWorkflowRun[] = [
       {
-        id: 2,
-        sha: "sha2",
-        environment: "staging",
+        id: 1,
+        name: "Deploy",
+        status: "completed",
+        conclusion: "success",
         createdAt: "2024-01-02T10:00:00Z",
         updatedAt: "2024-01-02T10:05:00Z",
-        status: "success",
         repository: "owner/repo",
       },
     ];
 
-    const result = calculateDeploymentFrequency(deployments, [], 30);
-    expect(result.count).toBe(1); // productionのみ
+    // deploymentsがあればrunsは無視される
+    const result = calculateDeploymentFrequency(deployments, runs, 30);
+    expect(result.count).toBe(1);
   });
 
   it("成功したデプロイのみカウントする", () => {
@@ -306,7 +311,8 @@ describe("calculateChangeFailureRate", () => {
     expect(result.rate).toBe(50);
   });
 
-  it("production環境のデプロイのみ対象", () => {
+  it("デプロイメントがある場合はワークフローを使用しない", () => {
+    // 環境フィルタはgetDeployments()で適用済みと想定
     const deployments: GitHubDeployment[] = [
       {
         id: 1,
@@ -317,18 +323,22 @@ describe("calculateChangeFailureRate", () => {
         status: "success",
         repository: "owner/repo",
       },
+    ];
+
+    const runs: GitHubWorkflowRun[] = [
       {
-        id: 2,
-        sha: "sha2",
-        environment: "staging",
+        id: 1,
+        name: "Deploy",
+        status: "completed",
+        conclusion: "failure",
         createdAt: "2024-01-02T10:00:00Z",
         updatedAt: "2024-01-02T10:05:00Z",
-        status: "failure", // stagingの失敗は無視
         repository: "owner/repo",
       },
     ];
 
-    const result = calculateChangeFailureRate(deployments, []);
+    // deploymentsがあればrunsは無視される
+    const result = calculateChangeFailureRate(deployments, runs);
     expect(result.total).toBe(1);
     expect(result.failed).toBe(0);
     expect(result.rate).toBe(0);

@@ -8,6 +8,7 @@ import {
   getWorkflowRuns,
   getDeployments,
   getAllRepositoriesData,
+  getIncidents,
 } from "../../src/services/github";
 import { setupTestContainer, teardownTestContainer, type TestContainer } from "../helpers/setup";
 import type { GitHubRepository } from "../../src/types";
@@ -361,6 +362,105 @@ describe("github", () => {
       expect(result.data).toHaveLength(1);
       expect(result.data![0].sha).toBe("new");
     });
+
+    it("部分一致モードで環境名をフィルタリングする", () => {
+      // 部分一致モードではAPIフィルタを使用せず、全件取得してクライアント側でフィルタ
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments?per_page=100&page=1",
+        200,
+        [
+          {
+            id: 1,
+            sha: "prod-v1",
+            environment: "production_v1",
+            created_at: "2024-01-01T10:00:00Z",
+            updated_at: "2024-01-01T10:05:00Z",
+          },
+          {
+            id: 2,
+            sha: "prod-v2",
+            environment: "production_v2",
+            created_at: "2024-01-02T10:00:00Z",
+            updated_at: "2024-01-02T10:05:00Z",
+          },
+          {
+            id: 3,
+            sha: "staging",
+            environment: "staging",
+            created_at: "2024-01-03T10:00:00Z",
+            updated_at: "2024-01-03T10:05:00Z",
+          },
+        ]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments/1/statuses?per_page=1",
+        200,
+        [{ state: "success" }]
+      );
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments/2/statuses?per_page=1",
+        200,
+        [{ state: "success" }]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments?per_page=100&page=2",
+        200,
+        []
+      );
+
+      const result = getDeployments(testRepo, "test-token", {
+        environment: "production",
+        environmentMatchMode: "partial",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(2);
+      expect(result.data![0].environment).toBe("production_v1");
+      expect(result.data![1].environment).toBe("production_v2");
+
+      // APIフィルタを使用していないことを確認
+      const calls = container.httpClient.calls;
+      expect(calls[0].url).not.toContain("environment=");
+    });
+
+    it("部分一致は大文字小文字を区別しない", () => {
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments?per_page=100&page=1",
+        200,
+        [
+          {
+            id: 1,
+            sha: "prod",
+            environment: "PRODUCTION",
+            created_at: "2024-01-01T10:00:00Z",
+            updated_at: "2024-01-01T10:05:00Z",
+          },
+        ]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments/1/statuses?per_page=1",
+        200,
+        [{ state: "success" }]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/deployments?per_page=100&page=2",
+        200,
+        []
+      );
+
+      const result = getDeployments(testRepo, "test-token", {
+        environment: "production",
+        environmentMatchMode: "partial",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+      expect(result.data![0].environment).toBe("PRODUCTION");
+    });
   });
 
   describe("getAllRepositoriesData", () => {
@@ -584,6 +684,222 @@ describe("github", () => {
       // Verify the correct environment was used
       const calls = container.httpClient.calls;
       expect(calls.some((c) => c.url.includes("environment=prod"))).toBe(true);
+    });
+
+    it("部分一致モードで環境名をフィルタリングできる", () => {
+      const repos: GitHubRepository[] = [
+        { owner: "owner", name: "repo", fullName: "owner/repo" },
+      ];
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/owner/repo/pulls?state=all&per_page=100&page=1&sort=updated&direction=desc",
+        200,
+        []
+      );
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/owner/repo/actions/runs?per_page=100&page=1",
+        200,
+        { workflow_runs: [] }
+      );
+      // 部分一致モードではAPIフィルタを使用しない
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/owner/repo/deployments?per_page=100&page=1",
+        200,
+        [
+          {
+            id: 1,
+            sha: "abc",
+            environment: "production_canary",
+            created_at: "2024-01-01T10:00:00Z",
+            updated_at: "2024-01-01T10:05:00Z",
+          },
+        ]
+      );
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/owner/repo/deployments/1/statuses?per_page=1",
+        200,
+        [{ state: "success" }]
+      );
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/owner/repo/deployments?per_page=100&page=2",
+        200,
+        []
+      );
+
+      const result = getAllRepositoriesData(repos, "test-token", {
+        deploymentEnvironment: "production",
+        deploymentEnvironmentMatchMode: "partial",
+      });
+
+      expect(result.deployments).toHaveLength(1);
+      expect(result.deployments[0].environment).toBe("production_canary");
+
+      // APIフィルタを使用していないことを確認
+      const calls = container.httpClient.calls;
+      const deploymentCalls = calls.filter((c) => c.url.includes("/deployments?"));
+      expect(deploymentCalls.every((c) => !c.url.includes("environment="))).toBe(true);
+    });
+  });
+
+  describe("getIncidents", () => {
+    it("インシデント（ラベル付きIssue）を正しく取得する", () => {
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=1&sort=created&direction=desc",
+        200,
+        [
+          {
+            id: 1,
+            number: 42,
+            title: "[Incident] DB connection error",
+            state: "closed",
+            created_at: "2024-01-01T10:00:00Z",
+            closed_at: "2024-01-01T12:00:00Z",
+            labels: [{ name: "incident" }, { name: "p0" }],
+          },
+        ]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=2&sort=created&direction=desc",
+        200,
+        []
+      );
+
+      const result = getIncidents(testRepo, "test-token");
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+      expect(result.data![0].title).toBe("[Incident] DB connection error");
+      expect(result.data![0].labels).toContain("incident");
+      expect(result.data![0].labels).toContain("p0");
+      expect(result.data![0].repository).toBe("test-owner/test-repo");
+    });
+
+    it("カスタムラベルでフィルタリングできる", () => {
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=production-bug%2Cp0&state=all&per_page=100&page=1&sort=created&direction=desc",
+        200,
+        [
+          {
+            id: 1,
+            number: 1,
+            title: "Critical bug",
+            state: "open",
+            created_at: "2024-01-01T10:00:00Z",
+            closed_at: null,
+            labels: [{ name: "production-bug" }, { name: "p0" }],
+          },
+        ]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=production-bug%2Cp0&state=all&per_page=100&page=2&sort=created&direction=desc",
+        200,
+        []
+      );
+
+      const result = getIncidents(testRepo, "test-token", {
+        labels: ["production-bug", "p0"],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it("PRはスキップする", () => {
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=1&sort=created&direction=desc",
+        200,
+        [
+          {
+            id: 1,
+            number: 1,
+            title: "Real incident",
+            state: "closed",
+            created_at: "2024-01-01T10:00:00Z",
+            closed_at: "2024-01-01T12:00:00Z",
+            labels: [{ name: "incident" }],
+          },
+          {
+            id: 2,
+            number: 2,
+            title: "This is a PR",
+            state: "closed",
+            created_at: "2024-01-02T10:00:00Z",
+            closed_at: "2024-01-02T12:00:00Z",
+            labels: [{ name: "incident" }],
+            pull_request: { url: "https://api.github.com/..." }, // PRの場合この属性がある
+          },
+        ]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=2&sort=created&direction=desc",
+        200,
+        []
+      );
+
+      const result = getIncidents(testRepo, "test-token");
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1); // PRはスキップ
+      expect(result.data![0].title).toBe("Real incident");
+    });
+
+    it("日付範囲でフィルタリングする", () => {
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=1&sort=created&direction=desc",
+        200,
+        [
+          {
+            id: 1,
+            number: 1,
+            title: "Old incident",
+            state: "closed",
+            created_at: "2023-01-01T10:00:00Z",
+            closed_at: "2023-01-01T12:00:00Z",
+            labels: [{ name: "incident" }],
+          },
+          {
+            id: 2,
+            number: 2,
+            title: "New incident",
+            state: "closed",
+            created_at: "2024-06-01T10:00:00Z",
+            closed_at: "2024-06-01T12:00:00Z",
+            labels: [{ name: "incident" }],
+          },
+        ]
+      );
+
+      container.httpClient.setJsonResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=2&sort=created&direction=desc",
+        200,
+        []
+      );
+
+      const result = getIncidents(testRepo, "test-token", {
+        dateRange: {
+          since: new Date("2024-01-01"),
+          until: new Date("2024-12-31"),
+        },
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+      expect(result.data![0].title).toBe("New incident");
+    });
+
+    it("APIエラー時はエラーを返す", () => {
+      container.httpClient.setResponse(
+        "https://api.github.com/repos/test-owner/test-repo/issues?labels=incident&state=all&per_page=100&page=1&sort=created&direction=desc",
+        { statusCode: 404, content: "Not Found" }
+      );
+
+      const result = getIncidents(testRepo, "test-token");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("404");
     });
   });
 });

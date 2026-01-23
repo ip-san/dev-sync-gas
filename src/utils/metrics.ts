@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, DevOpsMetrics } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics } from "../types";
 import { getFrequencyCategory } from "../config/doraThresholds";
 
 /** ミリ秒から時間への変換定数 */
@@ -289,24 +289,81 @@ function calculateRecoveryTime(
 }
 
 /**
+ * インシデントメトリクス計算結果
+ */
+export interface IncidentMetricsResult {
+  /** 期間内のインシデント総数 */
+  incidentCount: number;
+  /** 未解決のインシデント数 */
+  openIncidents: number;
+  /** 平均復旧時間（時間）、解決済みインシデントがない場合はnull */
+  mttrHours: number | null;
+}
+
+/**
+ * インシデント（GitHub Issues）ベースのMTTRを計算
+ *
+ * 真のDORA定義に近いMTTR: Issue作成（障害検知）からIssue close（復旧確認）までの時間
+ *
+ * @param incidents - インシデントの配列
+ * @returns インシデントメトリクス
+ */
+export function calculateIncidentMetrics(incidents: GitHubIncident[]): IncidentMetricsResult {
+  const closedIncidents = incidents.filter((i) => i.closedAt !== null);
+  const openIncidents = incidents.filter((i) => i.state === "open");
+
+  if (closedIncidents.length === 0) {
+    return {
+      incidentCount: incidents.length,
+      openIncidents: openIncidents.length,
+      mttrHours: null,
+    };
+  }
+
+  const recoveryTimes = closedIncidents.map((incident) => {
+    const created = new Date(incident.createdAt).getTime();
+    const closed = new Date(incident.closedAt!).getTime();
+    return (closed - created) / MS_TO_HOURS;
+  });
+
+  const totalHours = recoveryTimes.reduce((sum, hours) => sum + hours, 0);
+  const mttrHours = Math.round((totalHours / recoveryTimes.length) * 10) / 10;
+
+  return {
+    incidentCount: incidents.length,
+    openIncidents: openIncidents.length,
+    mttrHours,
+  };
+}
+
+/**
  * リポジトリ単位でDORA metricsを計算する
+ *
+ * @param repository - リポジトリ名
+ * @param prs - プルリクエストの配列
+ * @param runs - ワークフロー実行の配列
+ * @param deployments - デプロイメントの配列
+ * @param periodDays - 計測期間（日数）
+ * @param incidents - インシデントの配列（オプション、真のMTTR計測用）
  */
 export function calculateMetricsForRepository(
   repository: string,
   prs: GitHubPullRequest[],
   runs: GitHubWorkflowRun[],
   deployments: GitHubDeployment[] = [],
-  periodDays = 30
+  periodDays = 30,
+  incidents: GitHubIncident[] = []
 ): DevOpsMetrics {
   const repoPRs = prs.filter((pr) => pr.repository === repository);
   const repoRuns = runs.filter((run) => run.repository === repository);
   const repoDeployments = deployments.filter((d) => d.repository === repository);
+  const repoIncidents = incidents.filter((i) => i.repository === repository);
 
   const { count, frequency } = calculateDeploymentFrequency(repoDeployments, repoRuns, periodDays);
   const { total, failed, rate } = calculateChangeFailureRate(repoDeployments, repoRuns);
   const leadTimeResult = calculateLeadTimeDetailed(repoPRs, repoDeployments);
 
-  return {
+  const metrics: DevOpsMetrics = {
     date: new Date().toISOString().split("T")[0],
     repository,
     deploymentCount: count,
@@ -321,4 +378,12 @@ export function calculateMetricsForRepository(
     changeFailureRate: rate,
     meanTimeToRecoveryHours: calculateMTTR(repoDeployments, repoRuns),
   };
+
+  // インシデントデータがある場合は真のMTTRを追加
+  if (repoIncidents.length > 0) {
+    const incidentMetrics = calculateIncidentMetrics(repoIncidents);
+    metrics.incidentMetrics = incidentMetrics;
+  }
+
+  return metrics;
 }

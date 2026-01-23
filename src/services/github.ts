@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubRepository, ApiResponse } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse } from "../types";
 import { getContainer } from "../container";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -187,8 +187,22 @@ export function getWorkflowRuns(
   return { success: true, data: allRuns };
 }
 
+/** 環境名のマッチングモード */
+export type EnvironmentMatchMode = "exact" | "partial";
+
 export interface GetDeploymentsOptions {
+  /**
+   * デプロイメント環境名
+   * 例: "production", "prod", "staging"
+   */
   environment?: string;
+  /**
+   * 環境名のマッチングモード
+   * - "exact": 完全一致（GitHub APIのフィルタを使用、高速）
+   * - "partial": 部分一致（クライアント側でフィルタ、"production_v2"等にマッチ）
+   * デフォルト: "exact"
+   */
+  environmentMatchMode?: EnvironmentMatchMode;
   dateRange?: DateRange;
   maxPages?: number;
   /**
@@ -217,14 +231,23 @@ export function getDeployments(
   token: string,
   options: GetDeploymentsOptions = {}
 ): ApiResponse<GitHubDeployment[]> {
-  const { environment, dateRange, maxPages = DEFAULT_MAX_PAGES, skipStatusFetch = false } = options;
+  const {
+    environment,
+    environmentMatchMode = "exact",
+    dateRange,
+    maxPages = DEFAULT_MAX_PAGES,
+    skipStatusFetch = false,
+  } = options;
   const allDeployments: GitHubDeployment[] = [];
   let page = 1;
+
+  // 部分一致の場合はAPIフィルタを使用せず、クライアント側でフィルタする
+  const useApiFilter = environment && environmentMatchMode === "exact";
 
   // Phase 1: デプロイメント一覧を取得
   while (page <= maxPages) {
     let endpoint = `/repos/${repo.fullName}/deployments?per_page=${PER_PAGE}&page=${page}`;
-    if (environment) {
+    if (useApiFilter) {
       endpoint += `&environment=${encodeURIComponent(environment)}`;
     }
 
@@ -244,11 +267,21 @@ export function getDeployments(
     for (const deployment of response.data) {
       const createdAt = new Date(deployment.created_at);
 
+      // 期間フィルタリング
       if (dateRange?.until && createdAt > dateRange.until) {
         continue;
       }
       if (dateRange?.since && createdAt < dateRange.since) {
         continue;
+      }
+
+      // 部分一致モードの場合、クライアント側で環境名をフィルタ
+      if (environment && environmentMatchMode === "partial") {
+        const envLower = deployment.environment?.toLowerCase() ?? "";
+        const filterLower = environment.toLowerCase();
+        if (!envLower.includes(filterLower)) {
+          continue;
+        }
       }
 
       allDeployments.push({
@@ -299,6 +332,12 @@ export interface GetAllRepositoriesDataOptions {
    * 例: "production", "prod", "live", "main"
    */
   deploymentEnvironment?: string;
+  /**
+   * 環境名のマッチングモード（デフォルト: "exact"）
+   * - "exact": 完全一致（高速）
+   * - "partial": 部分一致（"production_v2"等にもマッチ）
+   */
+  deploymentEnvironmentMatchMode?: EnvironmentMatchMode;
 }
 
 /**
@@ -314,7 +353,11 @@ export function getAllRepositoriesData(
   token: string,
   options: GetAllRepositoriesDataOptions = {}
 ): { pullRequests: GitHubPullRequest[]; workflowRuns: GitHubWorkflowRun[]; deployments: GitHubDeployment[] } {
-  const { dateRange, deploymentEnvironment = "production" } = options;
+  const {
+    dateRange,
+    deploymentEnvironment = "production",
+    deploymentEnvironmentMatchMode = "exact",
+  } = options;
   const { logger } = getContainer();
   const allPRs: GitHubPullRequest[] = [];
   const allRuns: GitHubWorkflowRun[] = [];
@@ -342,6 +385,7 @@ export function getAllRepositoriesData(
     // Fetch deployments
     const deploymentsResult = getDeployments(repo, token, {
       environment: deploymentEnvironment,
+      environmentMatchMode: deploymentEnvironmentMatchMode,
       dateRange,
     });
     if (deploymentsResult.success && deploymentsResult.data) {
@@ -353,4 +397,93 @@ export function getAllRepositoriesData(
   }
 
   return { pullRequests: allPRs, workflowRuns: allRuns, deployments: allDeployments };
+}
+
+/**
+ * インシデント取得オプション
+ */
+export interface GetIncidentsOptions {
+  /**
+   * インシデントとして認識するラベル
+   * 指定したラベルのいずれかを持つIssueを取得
+   * デフォルト: ["incident"]
+   */
+  labels?: string[];
+  /** 期間フィルタ */
+  dateRange?: DateRange;
+  /** 最大取得ページ数 */
+  maxPages?: number;
+}
+
+/**
+ * リポジトリのインシデント（ラベル付きIssue）を取得
+ *
+ * GitHub IssuesをインシデントトラッキングとしてMTTR計測に使用
+ *
+ * @param repo - 対象リポジトリ
+ * @param token - GitHub Personal Access Token
+ * @param options - 取得オプション
+ * @returns インシデントの配列
+ */
+export function getIncidents(
+  repo: GitHubRepository,
+  token: string,
+  options: GetIncidentsOptions = {}
+): ApiResponse<GitHubIncident[]> {
+  const { labels = ["incident"], dateRange, maxPages = DEFAULT_MAX_PAGES } = options;
+  const allIncidents: GitHubIncident[] = [];
+  let page = 1;
+
+  // ラベルをカンマ区切りで結合
+  const labelsParam = labels.join(",");
+
+  while (page <= maxPages) {
+    // state=all で open/closed 両方を取得
+    const endpoint = `/repos/${repo.fullName}/issues?labels=${encodeURIComponent(labelsParam)}&state=all&per_page=${PER_PAGE}&page=${page}&sort=created&direction=desc`;
+
+    const response = fetchGitHub<any[]>(endpoint, token);
+
+    if (!response.success || !response.data) {
+      if (page === 1) {
+        return response as ApiResponse<GitHubIncident[]>;
+      }
+      break;
+    }
+
+    if (response.data.length === 0) {
+      break;
+    }
+
+    for (const issue of response.data) {
+      // PRはスキップ（Issues APIはPRも返す場合がある）
+      if (issue.pull_request) {
+        continue;
+      }
+
+      const createdAt = new Date(issue.created_at);
+
+      // 期間フィルタリング
+      if (dateRange?.until && createdAt > dateRange.until) {
+        continue;
+      }
+      if (dateRange?.since && createdAt < dateRange.since) {
+        continue;
+      }
+
+      allIncidents.push({
+        id: issue.id,
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        createdAt: issue.created_at,
+        closedAt: issue.closed_at,
+        labels: issue.labels?.map((l: any) => l.name) ?? [],
+        repository: repo.fullName,
+      });
+    }
+
+    page++;
+  }
+
+  return { success: true, data: allIncidents };
 }

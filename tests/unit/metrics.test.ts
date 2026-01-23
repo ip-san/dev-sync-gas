@@ -11,8 +11,9 @@ import {
   calculateChangeFailureRate,
   calculateMTTR,
   calculateMetricsForRepository,
+  calculateIncidentMetrics,
 } from "../../src/utils/metrics";
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment } from "../../src/types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident } from "../../src/types";
 
 describe("calculateLeadTime", () => {
   it("マージされたPRがない場合は0を返す", () => {
@@ -871,5 +872,154 @@ describe("calculateMetricsForRepository", () => {
     expect(metrics.leadTimeMeasurement).toBeDefined();
     expect(metrics.leadTimeMeasurement!.mergeToDeployCount).toBe(1);
     expect(metrics.leadTimeMeasurement!.createToMergeCount).toBe(1);
+  });
+
+  it("インシデントデータがある場合はincidentMetricsを含む", () => {
+    const prs: GitHubPullRequest[] = [];
+    const runs: GitHubWorkflowRun[] = [];
+    const deployments: GitHubDeployment[] = [];
+
+    const incidents: GitHubIncident[] = [
+      {
+        id: 1,
+        number: 1,
+        title: "[Incident] DB connection error",
+        state: "closed",
+        createdAt: "2024-01-01T10:00:00Z",
+        closedAt: "2024-01-01T12:00:00Z", // 2時間後に解決
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+    ];
+
+    const metrics = calculateMetricsForRepository("owner/repo", prs, runs, deployments, 30, incidents);
+
+    expect(metrics.incidentMetrics).toBeDefined();
+    expect(metrics.incidentMetrics!.incidentCount).toBe(1);
+    expect(metrics.incidentMetrics!.openIncidents).toBe(0);
+    expect(metrics.incidentMetrics!.mttrHours).toBe(2);
+  });
+});
+
+describe("calculateIncidentMetrics", () => {
+  it("インシデントがない場合はnullのMTTRを返す", () => {
+    const result = calculateIncidentMetrics([]);
+
+    expect(result.incidentCount).toBe(0);
+    expect(result.openIncidents).toBe(0);
+    expect(result.mttrHours).toBeNull();
+  });
+
+  it("解決済みインシデントのMTTRを計算する", () => {
+    const incidents: GitHubIncident[] = [
+      {
+        id: 1,
+        number: 1,
+        title: "[Incident] Server error",
+        state: "closed",
+        createdAt: "2024-01-01T10:00:00Z",
+        closedAt: "2024-01-01T12:00:00Z", // 2時間後
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+    ];
+
+    const result = calculateIncidentMetrics(incidents);
+
+    expect(result.incidentCount).toBe(1);
+    expect(result.openIncidents).toBe(0);
+    expect(result.mttrHours).toBe(2);
+  });
+
+  it("複数インシデントの平均MTTRを計算する", () => {
+    const incidents: GitHubIncident[] = [
+      {
+        id: 1,
+        number: 1,
+        title: "[Incident] Error 1",
+        state: "closed",
+        createdAt: "2024-01-01T10:00:00Z",
+        closedAt: "2024-01-01T12:00:00Z", // 2時間
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+      {
+        id: 2,
+        number: 2,
+        title: "[Incident] Error 2",
+        state: "closed",
+        createdAt: "2024-01-02T10:00:00Z",
+        closedAt: "2024-01-02T14:00:00Z", // 4時間
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+    ];
+
+    const result = calculateIncidentMetrics(incidents);
+
+    expect(result.incidentCount).toBe(2);
+    expect(result.mttrHours).toBe(3); // (2 + 4) / 2
+  });
+
+  it("未解決インシデントをカウントする", () => {
+    const incidents: GitHubIncident[] = [
+      {
+        id: 1,
+        number: 1,
+        title: "[Incident] Resolved",
+        state: "closed",
+        createdAt: "2024-01-01T10:00:00Z",
+        closedAt: "2024-01-01T12:00:00Z",
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+      {
+        id: 2,
+        number: 2,
+        title: "[Incident] Still open",
+        state: "open",
+        createdAt: "2024-01-02T10:00:00Z",
+        closedAt: null,
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+    ];
+
+    const result = calculateIncidentMetrics(incidents);
+
+    expect(result.incidentCount).toBe(2);
+    expect(result.openIncidents).toBe(1);
+    expect(result.mttrHours).toBe(2); // 解決済みのみ計算
+  });
+
+  it("すべて未解決の場合はnullのMTTRを返す", () => {
+    const incidents: GitHubIncident[] = [
+      {
+        id: 1,
+        number: 1,
+        title: "[Incident] Open 1",
+        state: "open",
+        createdAt: "2024-01-01T10:00:00Z",
+        closedAt: null,
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+      {
+        id: 2,
+        number: 2,
+        title: "[Incident] Open 2",
+        state: "open",
+        createdAt: "2024-01-02T10:00:00Z",
+        closedAt: null,
+        labels: ["incident"],
+        repository: "owner/repo",
+      },
+    ];
+
+    const result = calculateIncidentMetrics(incidents);
+
+    expect(result.incidentCount).toBe(2);
+    expect(result.openIncidents).toBe(2);
+    expect(result.mttrHours).toBeNull();
   });
 });

@@ -1,9 +1,9 @@
 import { getConfig, setConfig, addRepository, removeRepository } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange, getPullRequestsForTasks, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs } from "./services/github";
-import { getTasksForCycleTime, getTasksForCodingTime } from "./services/notion";
-import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet } from "./services/spreadsheet";
-import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime, calculateReworkRate, calculateReviewEfficiency, calculatePRSize } from "./utils/metrics";
+import { getTasksForCycleTime, getTasksForCodingTime, getTasksForSatisfaction } from "./services/notion";
+import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet, writeDeveloperSatisfactionToSheet } from "./services/spreadsheet";
+import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime, calculateReworkRate, calculateReviewEfficiency, calculatePRSize, calculateDeveloperSatisfaction } from "./utils/metrics";
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
 import { createGasAdapters } from "./adapters/gas";
 import type { DevOpsMetrics, CycleTimeMetrics, GitHubPullRequest } from "./types";
@@ -178,7 +178,7 @@ function generateSummary(): void {
  * サイクルタイムを計算してスプレッドシートに書き出す
  *
  * 定義: 着手（Notion）から完了（Notion）までの時間
- * AIの恩恵が最も端的に表れる指標
+ * 仕様理解から実装完了までの効率を測定する指標
  *
  * @param days - 計測期間（日数）デフォルト30日
  * @param completedDateProperty - Notionの完了日プロパティ名（デフォルト: "Date Done"）
@@ -509,7 +509,7 @@ function showReworkRateDetails(days: number = 30): void {
  *
  * 定義: PRの各フェーズでの滞留時間
  * - レビュー待ち時間: Ready for Review → 最初のレビュー
- * - レビュー時間: 最初のレビュー → 承認（長い = AIコードが難解な可能性）
+ * - レビュー時間: 最初のレビュー → 承認（長い = コードが難解な可能性）
  * - マージ待ち時間: 承認 → マージ
  *
  * @param days - 計測期間（日数）デフォルト30日
@@ -756,6 +756,110 @@ function showPRSizeDetails(days: number = 30): void {
 }
 
 /**
+ * 開発者満足度を計算してスプレッドシートに書き出す
+ *
+ * 定義: Notionタスク完了時に入力される満足度スコア（★1〜5）を集計
+ * SPACEフレームワークの「Satisfaction」ディメンションに対応
+ *
+ * @param days - 計測期間（日数）デフォルト30日
+ */
+function syncDeveloperSatisfaction(days: number = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.notion.token || !config.notion.databaseId) {
+    Logger.log("⚠️ Notion integration is not configured. Set notionToken and notionDatabaseId in setup()");
+    return;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const startDateStr = startDate.toISOString().split("T")[0];
+  const endDateStr = endDate.toISOString().split("T")[0];
+  const period = `${startDateStr}〜${endDateStr}`;
+
+  Logger.log(`😊 Calculating Developer Satisfaction for ${days} days`);
+  Logger.log(`   Period: ${period}`);
+
+  const tasksResult = getTasksForSatisfaction(
+    config.notion.databaseId,
+    config.notion.token,
+    startDateStr,
+    endDateStr
+  );
+
+  if (!tasksResult.success || !tasksResult.data) {
+    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+    return;
+  }
+
+  Logger.log(`📥 Fetched ${tasksResult.data.length} tasks with satisfaction data`);
+
+  const satisfactionMetrics = calculateDeveloperSatisfaction(tasksResult.data, period);
+
+  Logger.log(`📊 Developer Satisfaction Results:`);
+  Logger.log(`   Tasks with ratings: ${satisfactionMetrics.taskCount}`);
+  if (satisfactionMetrics.satisfaction.avg !== null) {
+    Logger.log(`   Satisfaction: avg=${satisfactionMetrics.satisfaction.avg}, median=${satisfactionMetrics.satisfaction.median}`);
+    const dist = satisfactionMetrics.satisfaction.distribution;
+    Logger.log(`   Distribution: ★1=${dist.star1}, ★2=${dist.star2}, ★3=${dist.star3}, ★4=${dist.star4}, ★5=${dist.star5}`);
+  } else {
+    Logger.log(`   No satisfaction data found`);
+  }
+
+  writeDeveloperSatisfactionToSheet(config.spreadsheet.id, satisfactionMetrics);
+
+  Logger.log("✅ Developer Satisfaction metrics synced");
+}
+
+/**
+ * 開発者満足度の詳細を表示（デバッグ用）
+ */
+function showDeveloperSatisfactionDetails(days: number = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.notion.token || !config.notion.databaseId) {
+    Logger.log("⚠️ Notion integration is not configured");
+    return;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const startDateStr = startDate.toISOString().split("T")[0];
+  const endDateStr = endDate.toISOString().split("T")[0];
+
+  const tasksResult = getTasksForSatisfaction(
+    config.notion.databaseId,
+    config.notion.token,
+    startDateStr,
+    endDateStr
+  );
+
+  if (!tasksResult.success || !tasksResult.data) {
+    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+    return;
+  }
+
+  const satisfactionMetrics = calculateDeveloperSatisfaction(
+    tasksResult.data,
+    `${startDateStr}〜${endDateStr}`
+  );
+
+  Logger.log(`\n📋 Developer Satisfaction Details (${satisfactionMetrics.taskCount} tasks):\n`);
+  satisfactionMetrics.taskDetails.forEach((task, i) => {
+    Logger.log(`${i + 1}. ${task.title}`);
+    Logger.log(`   Assignee: ${task.assignee ?? "Unassigned"}`);
+    Logger.log(`   Satisfaction: ${"★".repeat(task.satisfactionScore)}${"☆".repeat(5 - task.satisfactionScore)}`);
+    Logger.log(`   Completed: ${task.completedAt}\n`);
+  });
+}
+
+/**
  * 権限テスト用関数 - 初回実行で承認ダイアログを表示
  */
 function testPermissions(): void {
@@ -797,3 +901,5 @@ global.syncReviewEfficiency = syncReviewEfficiency;
 global.showReviewEfficiencyDetails = showReviewEfficiencyDetails;
 global.syncPRSize = syncPRSize;
 global.showPRSizeDetails = showPRSizeDetails;
+global.syncDeveloperSatisfaction = syncDeveloperSatisfaction;
+global.showDeveloperSatisfactionDetails = showDeveloperSatisfactionDetails;

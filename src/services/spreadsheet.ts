@@ -1,4 +1,4 @@
-import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics, ReworkRateMetrics, ReviewEfficiencyMetrics, PRSizeMetrics } from "../types";
+import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics, ReworkRateMetrics, ReviewEfficiencyMetrics, PRSizeMetrics, DeveloperSatisfactionMetrics } from "../types";
 import type { Sheet } from "../interfaces";
 import { getContainer } from "../container";
 
@@ -737,4 +737,115 @@ export function writePRSizeToSheet(
   }
 
   logger.log(`📝 Wrote PR size metrics to sheet "${PR_SIZE_SHEET_NAME}"`);
+}
+
+const DEVELOPER_SATISFACTION_SHEET_NAME = "Developer Satisfaction";
+const DEVELOPER_SATISFACTION_HEADERS = [
+  "Period",
+  "Task Count",
+  "Satisfaction (Avg)",
+  "Satisfaction (Median)",
+  "Satisfaction (Min)",
+  "Satisfaction (Max)",
+  "★1 Count",
+  "★2 Count",
+  "★3 Count",
+  "★4 Count",
+  "★5 Count",
+  "Recorded At",
+];
+
+const DEVELOPER_SATISFACTION_DETAIL_HEADERS = [
+  "Task ID",
+  "Title",
+  "Assignee",
+  "Completed At",
+  "Satisfaction",
+];
+
+/**
+ * 開発者満足度指標をスプレッドシートに書き出す
+ *
+ * 2つのシートを作成/更新:
+ * - "Developer Satisfaction": サマリー情報
+ * - "Developer Satisfaction - Details": 各タスクの詳細
+ */
+export function writeDeveloperSatisfactionToSheet(
+  spreadsheetId: string,
+  metrics: DeveloperSatisfactionMetrics
+): void {
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(spreadsheetId);
+
+  // サマリーシート
+  let summarySheet = spreadsheet.getSheetByName(DEVELOPER_SATISFACTION_SHEET_NAME);
+  if (!summarySheet) {
+    summarySheet = spreadsheet.insertSheet(DEVELOPER_SATISFACTION_SHEET_NAME);
+    summarySheet.getRange(1, 1, 1, DEVELOPER_SATISFACTION_HEADERS.length).setValues([DEVELOPER_SATISFACTION_HEADERS]);
+    summarySheet.getRange(1, 1, 1, DEVELOPER_SATISFACTION_HEADERS.length).setFontWeight("bold");
+    summarySheet.setFrozenRows(1);
+  }
+
+  const dist = metrics.satisfaction.distribution;
+  const summaryRow = [
+    metrics.period,
+    metrics.taskCount,
+    metrics.satisfaction.avg ?? "N/A",
+    metrics.satisfaction.median ?? "N/A",
+    metrics.satisfaction.min ?? "N/A",
+    metrics.satisfaction.max ?? "N/A",
+    dist.star1,
+    dist.star2,
+    dist.star3,
+    dist.star4,
+    dist.star5,
+    new Date().toISOString(),
+  ];
+
+  const lastRow = summarySheet.getLastRow();
+  summarySheet.getRange(lastRow + 1, 1, 1, DEVELOPER_SATISFACTION_HEADERS.length).setValues([summaryRow]);
+
+  // 数値フォーマット
+  const newLastRow = summarySheet.getLastRow();
+  if (newLastRow > 1) {
+    // 小数列（Avg, Median, Min, Max）
+    summarySheet.getRange(2, 3, newLastRow - 1, 4).setNumberFormat("#,##0.0");
+    // 整数列（★1〜★5）
+    summarySheet.getRange(2, 7, newLastRow - 1, 5).setNumberFormat("#,##0");
+  }
+
+  // 列幅の自動調整
+  for (let i = 1; i <= DEVELOPER_SATISFACTION_HEADERS.length; i++) {
+    summarySheet.autoResizeColumn(i);
+  }
+
+  // 詳細シート
+  const detailSheetName = `${DEVELOPER_SATISFACTION_SHEET_NAME} - Details`;
+  let detailSheet = spreadsheet.getSheetByName(detailSheetName);
+  if (!detailSheet) {
+    detailSheet = spreadsheet.insertSheet(detailSheetName);
+    detailSheet.getRange(1, 1, 1, DEVELOPER_SATISFACTION_DETAIL_HEADERS.length).setValues([DEVELOPER_SATISFACTION_DETAIL_HEADERS]);
+    detailSheet.getRange(1, 1, 1, DEVELOPER_SATISFACTION_DETAIL_HEADERS.length).setFontWeight("bold");
+    detailSheet.setFrozenRows(1);
+  }
+
+  if (metrics.taskDetails.length > 0) {
+    const detailRows = metrics.taskDetails.map((task) => [
+      task.taskId,
+      task.title,
+      task.assignee ?? "Unassigned",
+      task.completedAt,
+      `★${task.satisfactionScore}`,
+    ]);
+
+    const detailLastRow = detailSheet.getLastRow();
+    detailSheet.getRange(detailLastRow + 1, 1, detailRows.length, DEVELOPER_SATISFACTION_DETAIL_HEADERS.length).setValues(detailRows);
+
+    // 列幅の自動調整
+    for (let i = 1; i <= DEVELOPER_SATISFACTION_DETAIL_HEADERS.length; i++) {
+      detailSheet.autoResizeColumn(i);
+    }
+  }
+
+  logger.log(`📝 Wrote developer satisfaction metrics to sheet "${DEVELOPER_SATISFACTION_SHEET_NAME}"`);
 }

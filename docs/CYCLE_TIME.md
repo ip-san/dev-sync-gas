@@ -257,10 +257,6 @@ DORAの「Lead Time for Changes」と本実装の「サイクルタイム」は�
               └──── Cycle Time (本実装) ─────┴── Lead Time (DORA) ┘
 ```
 
-> Lead Time for Changes includes Cycle Time and depends on it, whereas Cycle Time does not have Lead Time for Changes.
->
-> — [Typo - DORA Metrics](https://typoapp.io/blog/cycle-time-vs-lead-time)
-
 ### 全指標の比較
 
 | 指標 | データソース | 測定対象 | フレームワーク |

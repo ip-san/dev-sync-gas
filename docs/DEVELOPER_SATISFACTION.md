@@ -217,9 +217,9 @@ showDeveloperSatisfactionDetails(30);
 ```javascript
 setup(
   'ghp_xxxx',           // GitHub PAT
+  'spreadsheet-id',     // Google Spreadsheet ID
   'secret_xxxx',        // Notion Token（必須）
-  'xxxxxxxx-xxxx-xxxx', // Notion Database ID（必須）
-  'spreadsheet-id'      // Google Spreadsheet ID
+  'xxxxxxxx-xxxx-xxxx'  // Notion Database ID（必須）
 );
 ```
 

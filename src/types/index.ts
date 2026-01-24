@@ -59,8 +59,43 @@ export interface NotionTask {
   title: string;
   status: string;
   createdAt: string;
+  /** 着手日（Date Started） - サイクルタイム計算の開始点 */
+  startedAt: string | null;
+  /** 完了日（Date Done） - サイクルタイム計算の終了点 */
   completedAt: string | null;
   assignee: string | null;
+}
+
+/**
+ * サイクルタイム指標
+ * 着手（Notion）〜完了（Notion）の時間を測定
+ */
+export interface CycleTimeMetrics {
+  /** 計測期間 */
+  period: string;
+  /** 完了タスク数 */
+  completedTaskCount: number;
+  /** 平均サイクルタイム（時間） */
+  avgCycleTimeHours: number | null;
+  /** 中央値サイクルタイム（時間） */
+  medianCycleTimeHours: number | null;
+  /** 最小サイクルタイム（時間） */
+  minCycleTimeHours: number | null;
+  /** 最大サイクルタイム（時間） */
+  maxCycleTimeHours: number | null;
+  /** 各タスクのサイクルタイム詳細 */
+  taskDetails: TaskCycleTime[];
+}
+
+/**
+ * 個別タスクのサイクルタイム
+ */
+export interface TaskCycleTime {
+  taskId: string;
+  title: string;
+  startedAt: string;
+  completedAt: string;
+  cycleTimeHours: number;
 }
 
 // DevOps指標の型定義（DORA metrics）

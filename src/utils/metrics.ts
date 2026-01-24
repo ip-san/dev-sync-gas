@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, NotionTask, CycleTimeMetrics, TaskCycleTime } from "../types";
 import { getFrequencyCategory } from "../config/doraThresholds";
 
 /** ミリ秒から時間への変換定数 */
@@ -386,4 +386,77 @@ export function calculateMetricsForRepository(
   }
 
   return metrics;
+}
+
+/**
+ * サイクルタイム（Cycle Time）を計算
+ *
+ * 定義: 着手（Notion）から完了（Notion）までの時間
+ * 仕様理解から実装完了まで、AIの恩恵が最も端的に表れる指標
+ *
+ * 計算方法:
+ * 1. 着手日（Date Started）と完了日（Date Done）の両方があるタスクを対象
+ * 2. 各タスクの完了日 - 着手日 を計算
+ * 3. 平均値、中央値、最小値、最大値を算出
+ *
+ * @param tasks - Notionタスクの配列（着手日・完了日を持つもの）
+ * @param period - 計測期間の表示文字列（例: "2024-01"）
+ */
+export function calculateCycleTime(
+  tasks: NotionTask[],
+  period: string
+): CycleTimeMetrics {
+  // 着手日と完了日の両方があるタスクのみ対象
+  const validTasks = tasks.filter(
+    (task) => task.startedAt !== null && task.completedAt !== null
+  );
+
+  if (validTasks.length === 0) {
+    return {
+      period,
+      completedTaskCount: 0,
+      avgCycleTimeHours: null,
+      medianCycleTimeHours: null,
+      minCycleTimeHours: null,
+      maxCycleTimeHours: null,
+      taskDetails: [],
+    };
+  }
+
+  const taskDetails: TaskCycleTime[] = validTasks.map((task) => {
+    const started = new Date(task.startedAt!).getTime();
+    const completed = new Date(task.completedAt!).getTime();
+    const cycleTimeHours = (completed - started) / MS_TO_HOURS;
+
+    return {
+      taskId: task.id,
+      title: task.title,
+      startedAt: task.startedAt!,
+      completedAt: task.completedAt!,
+      cycleTimeHours: Math.round(cycleTimeHours * 10) / 10,
+    };
+  });
+
+  const cycleTimes = taskDetails.map((t) => t.cycleTimeHours);
+  const sortedCycleTimes = [...cycleTimes].sort((a, b) => a - b);
+
+  const sum = cycleTimes.reduce((acc, val) => acc + val, 0);
+  const avg = sum / cycleTimes.length;
+
+  // 中央値計算
+  const mid = Math.floor(sortedCycleTimes.length / 2);
+  const median =
+    sortedCycleTimes.length % 2 !== 0
+      ? sortedCycleTimes[mid]
+      : (sortedCycleTimes[mid - 1] + sortedCycleTimes[mid]) / 2;
+
+  return {
+    period,
+    completedTaskCount: validTasks.length,
+    avgCycleTimeHours: Math.round(avg * 10) / 10,
+    medianCycleTimeHours: Math.round(median * 10) / 10,
+    minCycleTimeHours: sortedCycleTimes[0],
+    maxCycleTimeHours: sortedCycleTimes[sortedCycleTimes.length - 1],
+    taskDetails,
+  };
 }

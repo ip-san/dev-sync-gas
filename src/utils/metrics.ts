@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, NotionTask, CycleTimeMetrics, TaskCycleTime } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, NotionTask, CycleTimeMetrics, TaskCycleTime, CodingTimeMetrics, TaskCodingTime } from "../types";
 import { getFrequencyCategory } from "../config/doraThresholds";
 
 /** ミリ秒から時間への変換定数 */
@@ -457,6 +457,88 @@ export function calculateCycleTime(
     medianCycleTimeHours: Math.round(median * 10) / 10,
     minCycleTimeHours: sortedCycleTimes[0],
     maxCycleTimeHours: sortedCycleTimes[sortedCycleTimes.length - 1],
+    taskDetails,
+  };
+}
+
+/**
+ * コーディング時間（Coding Time）を計算
+ *
+ * 定義: 着手（Notion進行中）からPR作成（GitHub）までの時間
+ * 純粋なコーディング作業にかかった時間を測定
+ *
+ * 計算方法:
+ * 1. 着手日（Date Started）とPR URLの両方があるタスクを対象
+ * 2. GitHubからPR作成時刻を取得
+ * 3. 各タスクのPR作成時刻 - 着手時刻 を計算
+ * 4. 平均値、中央値、最小値、最大値を算出
+ *
+ * @param tasks - Notionタスクの配列（着手日・PR URLを持つもの）
+ * @param prMap - タスクIDとPR情報のマップ
+ * @param period - 計測期間の表示文字列
+ */
+export function calculateCodingTime(
+  tasks: NotionTask[],
+  prMap: Map<string, GitHubPullRequest>,
+  period: string
+): CodingTimeMetrics {
+  const taskDetails: TaskCodingTime[] = [];
+
+  for (const task of tasks) {
+    if (!task.startedAt || !task.prUrl) continue;
+
+    const pr = prMap.get(task.id);
+    if (!pr) continue;
+
+    const started = new Date(task.startedAt).getTime();
+    const prCreated = new Date(pr.createdAt).getTime();
+    const codingTimeHours = (prCreated - started) / MS_TO_HOURS;
+
+    // 負の値はスキップ（PR作成後にNotionで着手日を設定した場合など）
+    if (codingTimeHours < 0) continue;
+
+    taskDetails.push({
+      taskId: task.id,
+      title: task.title,
+      startedAt: task.startedAt,
+      prCreatedAt: pr.createdAt,
+      prUrl: task.prUrl,
+      codingTimeHours: Math.round(codingTimeHours * 10) / 10,
+    });
+  }
+
+  if (taskDetails.length === 0) {
+    return {
+      period,
+      taskCount: 0,
+      avgCodingTimeHours: null,
+      medianCodingTimeHours: null,
+      minCodingTimeHours: null,
+      maxCodingTimeHours: null,
+      taskDetails: [],
+    };
+  }
+
+  const codingTimes = taskDetails.map((t) => t.codingTimeHours);
+  const sortedCodingTimes = [...codingTimes].sort((a, b) => a - b);
+
+  const sum = codingTimes.reduce((acc, val) => acc + val, 0);
+  const avg = sum / codingTimes.length;
+
+  // 中央値計算
+  const mid = Math.floor(sortedCodingTimes.length / 2);
+  const median =
+    sortedCodingTimes.length % 2 !== 0
+      ? sortedCodingTimes[mid]
+      : (sortedCodingTimes[mid - 1] + sortedCodingTimes[mid]) / 2;
+
+  return {
+    period,
+    taskCount: taskDetails.length,
+    avgCodingTimeHours: Math.round(avg * 10) / 10,
+    medianCodingTimeHours: Math.round(median * 10) / 10,
+    minCodingTimeHours: sortedCodingTimes[0],
+    maxCodingTimeHours: sortedCodingTimes[sortedCodingTimes.length - 1],
     taskDetails,
   };
 }

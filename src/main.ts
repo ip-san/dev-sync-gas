@@ -1,9 +1,9 @@
 import { getConfig, setConfig, addRepository, removeRepository } from "./config/settings";
 import "./init";
-import { getAllRepositoriesData, DateRange } from "./services/github";
-import { getTasksForCycleTime } from "./services/notion";
-import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet } from "./services/spreadsheet";
-import { calculateMetricsForRepository, calculateCycleTime } from "./utils/metrics";
+import { getAllRepositoriesData, DateRange, getPullRequestsForTasks } from "./services/github";
+import { getTasksForCycleTime, getTasksForCodingTime } from "./services/notion";
+import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet } from "./services/spreadsheet";
+import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime } from "./utils/metrics";
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
 import { createGasAdapters } from "./adapters/gas";
 import type { DevOpsMetrics, CycleTimeMetrics } from "./types";
@@ -277,6 +277,114 @@ function showCycleTimeDetails(days: number = 30): void {
 }
 
 /**
+ * コーディング時間を計算してスプレッドシートに書き出す
+ *
+ * 定義: 着手（Notion進行中）からPR作成（GitHub）までの時間
+ * 純粋なコーディング作業にかかった時間を測定
+ *
+ * @param startedDateProperty - Notionの着手日プロパティ名（デフォルト: "Date Started"）
+ */
+function syncCodingTime(startedDateProperty: string = "Date Started"): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.notion.token || !config.notion.databaseId) {
+    Logger.log("⚠️ Notion integration is not configured. Set notionToken and notionDatabaseId in setup()");
+    return;
+  }
+
+  if (!config.github.token) {
+    Logger.log("⚠️ GitHub token is not configured. Set githubToken in setup()");
+    return;
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const period = `〜${today}`;
+
+  Logger.log(`⌨️ Calculating Coding Time`);
+
+  // Notionから着手日とPR URLがあるタスクを取得
+  const tasksResult = getTasksForCodingTime(
+    config.notion.databaseId,
+    config.notion.token,
+    startedDateProperty
+  );
+
+  if (!tasksResult.success || !tasksResult.data) {
+    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+    return;
+  }
+
+  Logger.log(`📥 Fetched ${tasksResult.data.length} tasks with PR URLs`);
+
+  if (tasksResult.data.length === 0) {
+    Logger.log("⚠️ No tasks with PR URLs found");
+    return;
+  }
+
+  // GitHubからPR情報を取得
+  Logger.log(`📡 Fetching PR information from GitHub...`);
+  const prMap = getPullRequestsForTasks(tasksResult.data, config.github.token);
+  Logger.log(`   Found ${prMap.size} PRs`);
+
+  // コーディング時間を計算
+  const codingTimeMetrics = calculateCodingTime(tasksResult.data, prMap, period);
+
+  Logger.log(`📊 Coding Time Results:`);
+  Logger.log(`   Tasks with valid coding time: ${codingTimeMetrics.taskCount}`);
+  if (codingTimeMetrics.avgCodingTimeHours !== null) {
+    Logger.log(`   Average: ${codingTimeMetrics.avgCodingTimeHours} hours (${(codingTimeMetrics.avgCodingTimeHours / 24).toFixed(1)} days)`);
+    Logger.log(`   Median: ${codingTimeMetrics.medianCodingTimeHours} hours`);
+    Logger.log(`   Min: ${codingTimeMetrics.minCodingTimeHours} hours`);
+    Logger.log(`   Max: ${codingTimeMetrics.maxCodingTimeHours} hours`);
+  }
+
+  writeCodingTimeToSheet(config.spreadsheet.id, codingTimeMetrics);
+
+  Logger.log("✅ Coding Time metrics synced");
+}
+
+/**
+ * コーディング時間のタスク詳細を表示（デバッグ用）
+ */
+function showCodingTimeDetails(): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.notion.token || !config.notion.databaseId) {
+    Logger.log("⚠️ Notion integration is not configured");
+    return;
+  }
+
+  if (!config.github.token) {
+    Logger.log("⚠️ GitHub token is not configured");
+    return;
+  }
+
+  const tasksResult = getTasksForCodingTime(
+    config.notion.databaseId,
+    config.notion.token
+  );
+
+  if (!tasksResult.success || !tasksResult.data) {
+    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+    return;
+  }
+
+  const prMap = getPullRequestsForTasks(tasksResult.data, config.github.token);
+  const codingTimeMetrics = calculateCodingTime(tasksResult.data, prMap, "");
+
+  Logger.log(`\n📋 Coding Time Details (${codingTimeMetrics.taskCount} tasks):\n`);
+  codingTimeMetrics.taskDetails.forEach((task, i) => {
+    const daysValue = (task.codingTimeHours / 24).toFixed(1);
+    Logger.log(`${i + 1}. ${task.title}`);
+    Logger.log(`   Started: ${task.startedAt} → PR Created: ${task.prCreatedAt}`);
+    Logger.log(`   Coding Time: ${task.codingTimeHours} hours (${daysValue} days)`);
+    Logger.log(`   PR: ${task.prUrl}\n`);
+  });
+}
+
+/**
  * 権限テスト用関数 - 初回実行で承認ダイアログを表示
  */
 function testPermissions(): void {
@@ -310,3 +418,5 @@ global.cleanup = cleanup;
 global.generateSummary = generateSummary;
 global.syncCycleTime = syncCycleTime;
 global.showCycleTimeDetails = showCycleTimeDetails;
+global.syncCodingTime = syncCodingTime;
+global.showCodingTimeDetails = showCodingTimeDetails;

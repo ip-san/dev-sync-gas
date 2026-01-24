@@ -59,6 +59,7 @@ export function queryDatabase(
       createdAt: page.created_time,
       startedAt: extractStartedAt(props),
       completedAt: extractCompletedAt(props),
+      prUrl: extractPrUrl(props),
       assignee: extractAssignee(props),
     };
   });
@@ -91,6 +92,11 @@ function extractCompletedAt(props: any): string | null {
 function extractAssignee(props: any): string | null {
   const peopleProp = props["Assignee"] ?? props["担当者"];
   return peopleProp?.people?.[0]?.name ?? null;
+}
+
+function extractPrUrl(props: any): string | null {
+  const urlProp = props["PR URL"] ?? props["PR"] ?? props["Pull Request"] ?? props["GitHub PR"];
+  return urlProp?.url ?? null;
 }
 
 export function getTasksCompletedInPeriod(
@@ -147,4 +153,36 @@ export function getTasksForCycleTime(
   );
 
   return { success: true, data: tasksWithCycleTime };
+}
+
+/**
+ * コーディング時間計測用：着手日とPR URLの両方があるタスクを取得
+ *
+ * @param databaseId - NotionデータベースID
+ * @param token - Notion Integration Token
+ * @param startedDateProperty - 着手日プロパティ名（デフォルト: "Date Started"）
+ */
+export function getTasksForCodingTime(
+  databaseId: string,
+  token: string,
+  startedDateProperty: string = "Date Started"
+): ApiResponse<NotionTask[]> {
+  // 着手日が設定されているタスクを取得
+  const filter = {
+    property: startedDateProperty,
+    date: { is_not_empty: true }
+  };
+
+  const response = queryDatabase(databaseId, token, filter);
+
+  if (!response.success || !response.data) {
+    return response;
+  }
+
+  // 着手日とPR URLの両方があるタスクのみをフィルタ
+  const tasksWithPrUrl = response.data.filter(
+    task => task.startedAt !== null && task.prUrl !== null
+  );
+
+  return { success: true, data: tasksWithPrUrl };
 }

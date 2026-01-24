@@ -72,6 +72,8 @@ export interface NotionTask {
   /** GitHub PR URL - コーディング時間計算に使用 */
   prUrl: string | null;
   assignee: string | null;
+  /** 満足度スコア（1〜5の★評価） - 開発者満足度計測に使用 */
+  satisfactionScore: number | null;
 }
 
 /**
@@ -203,7 +205,7 @@ export interface PRReworkData {
 /**
  * レビュー効率（Review Efficiency）指標
  * PRの各フェーズでの滞留時間を測定
- * 長い滞留時間 = AIコードが難解な可能性
+ * 長い滞留時間 = コードが難解な可能性
  */
 export interface ReviewEfficiencyMetrics {
   /** 計測期間 */
@@ -350,6 +352,60 @@ export interface PRSizeData {
   linesOfCode: number;
   /** 変更ファイル数 */
   filesChanged: number;
+}
+
+/**
+ * 開発者満足度（Developer Satisfaction）指標
+ * Notionタスク完了時に入力される満足度スコア（★1〜5）を集計
+ * SPACEフレームワークの「Satisfaction」ディメンションに対応
+ */
+export interface DeveloperSatisfactionMetrics {
+  /** 計測期間 */
+  period: string;
+  /** 評価済みタスク数 */
+  taskCount: number;
+  /** 満足度スコアの統計 */
+  satisfaction: {
+    /** 平均値（1〜5） */
+    avg: number | null;
+    /** 中央値 */
+    median: number | null;
+    /** 最小値 */
+    min: number | null;
+    /** 最大値 */
+    max: number | null;
+    /** 各評価の分布 */
+    distribution: {
+      /** ★1の件数 */
+      star1: number;
+      /** ★2の件数 */
+      star2: number;
+      /** ★3の件数 */
+      star3: number;
+      /** ★4の件数 */
+      star4: number;
+      /** ★5の件数 */
+      star5: number;
+    };
+  };
+  /** 各タスクの詳細 */
+  taskDetails: TaskSatisfactionData[];
+}
+
+/**
+ * 個別タスクの満足度データ
+ */
+export interface TaskSatisfactionData {
+  /** タスクID */
+  taskId: string;
+  /** タスクタイトル */
+  title: string;
+  /** 担当者 */
+  assignee: string | null;
+  /** 完了日 */
+  completedAt: string;
+  /** 満足度スコア（1〜5） */
+  satisfactionScore: number;
 }
 
 // DevOps指標の型定義（DORA metrics）

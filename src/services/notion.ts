@@ -61,6 +61,7 @@ export function queryDatabase(
       completedAt: extractCompletedAt(props),
       prUrl: extractPrUrl(props),
       assignee: extractAssignee(props),
+      satisfactionScore: extractSatisfactionScore(props),
     };
   });
 
@@ -97,6 +98,29 @@ function extractAssignee(props: any): string | null {
 function extractPrUrl(props: any): string | null {
   const urlProp = props["PR URL"] ?? props["PR"] ?? props["Pull Request"] ?? props["GitHub PR"];
   return urlProp?.url ?? null;
+}
+
+function extractSatisfactionScore(props: any): number | null {
+  // Notionプロパティ名: 「満足度」「Satisfaction」「Score」等に対応
+  const prop = props["満足度"] ?? props["Satisfaction"] ?? props["満足度スコア"] ?? props["Score"];
+  if (!prop) return null;
+
+  // Select型（★1〜★5の選択肢）
+  if (prop.select?.name) {
+    const match = prop.select.name.match(/(\d)/);
+    if (match) {
+      const value = parseInt(match[1], 10);
+      if (value >= 1 && value <= 5) return value;
+    }
+  }
+
+  // Number型（1〜5の数値）
+  if (prop.number !== undefined && prop.number !== null) {
+    const value = prop.number;
+    if (value >= 1 && value <= 5) return value;
+  }
+
+  return null;
 }
 
 export function getTasksCompletedInPeriod(
@@ -185,4 +209,48 @@ export function getTasksForCodingTime(
   );
 
   return { success: true, data: tasksWithPrUrl };
+}
+
+/**
+ * 開発者満足度計測用：満足度スコアが入力されている完了タスクを取得
+ *
+ * @param databaseId - NotionデータベースID
+ * @param token - Notion Integration Token
+ * @param startDate - 期間開始日（ISO形式）
+ * @param endDate - 期間終了日（ISO形式）
+ * @param completedDateProperty - 完了日プロパティ名（デフォルト: "Date Done"）
+ */
+export function getTasksForSatisfaction(
+  databaseId: string,
+  token: string,
+  startDate: string,
+  endDate: string,
+  completedDateProperty: string = "Date Done"
+): ApiResponse<NotionTask[]> {
+  // 完了日が期間内のタスクを取得
+  const filter = {
+    and: [
+      {
+        property: completedDateProperty,
+        date: { on_or_after: startDate }
+      },
+      {
+        property: completedDateProperty,
+        date: { on_or_before: endDate }
+      },
+    ],
+  };
+
+  const response = queryDatabase(databaseId, token, filter);
+
+  if (!response.success || !response.data) {
+    return response;
+  }
+
+  // 完了日と満足度スコアの両方があるタスクのみをフィルタ
+  const tasksWithSatisfaction = response.data.filter(
+    task => task.completedAt !== null && task.satisfactionScore !== null
+  );
+
+  return { success: true, data: tasksWithSatisfaction };
 }

@@ -2,6 +2,31 @@
 
 GitHub複数リポジトリとNotionを連携してDevOps指標（DORA metrics）をGoogleスプレッドシートに書き出すGASプロダクト。
 
+## なぜこのツールを作ったか
+
+AI駆動開発が当たり前になりつつある今、「本当に生産性は上がっているのか？」という疑問を持っていませんか。
+
+Claude CodeやCopilotなどのAIツールを導入して「コードを書く速度は上がった気がする」。でも、それは本当にチーム全体の生産性向上に繋がっているのでしょうか。
+
+- 速くなったが、バグが増えていないか？
+- AIが生成したコードは、レビューしやすいか？
+- 手戻りが増えていないか？
+- 開発者は楽になったと感じているか？
+
+これらの問いに答えるには、**感覚ではなくデータで判断する**必要があります。
+
+このツールは、以前から業界標準として確立されているDORA指標と、AI時代に特に注視すべき追加指標を組み合わせて計測します。データに基づいて改善サイクルを回し、AIと共に開発プロセスを継続的に進化させていくためのツールです。
+
+### 計測指標の全体像
+
+| カテゴリ | 指標 | 何を見るか |
+|---------|------|-----------|
+| **スピードと効率** | ★デプロイ頻度、★リードタイム、サイクルタイム、コーディング時間 | AIで実装サイクルが本当に早まっているか |
+| **安定性と品質** | ★変更障害率、★MTTR、手戻り率、レビュー効率 | 速さの代償として品質が犠牲になっていないか |
+| **開発体験** | PRサイズ、開発者満足度 | コードの肥大化や開発者の疲弊が起きていないか |
+
+> ★ = DORA指標（業界標準の4つの主要指標）
+
 ## 機能
 
 - 複数GitHubリポジトリからPR・デプロイメント情報を取得
@@ -16,6 +41,10 @@ GitHub複数リポジトリとNotionを連携してDevOps指標（DORA metrics�
   - Notionのタスク着手〜GitHub PR作成までの時間を自動集計
 - レビュー効率計測（[詳細ドキュメント](docs/REVIEW_EFFICIENCY.md)）
   - PRのレビュー待ち時間・レビュー時間・マージ待ち時間を自動集計
+- PRサイズ計測（[詳細ドキュメント](docs/PR_SIZE.md)）
+  - PRの変更行数・変更ファイル数を自動集計
+- 開発者満足度計測（[詳細ドキュメント](docs/DEVELOPER_SATISFACTION.md)）
+  - Notionタスク完了時の満足度スコア（★1〜5）を自動集計
 - Notionデータベースとの連携
 - Googleスプレッドシートへの自動書き出し
 - 日次トリガーによる定期実行
@@ -95,6 +124,8 @@ createDailyTrigger(); // 毎日9時に自動実行
 | `syncCodingTime(prop?)` | コーディング時間を計測（Notion + GitHub連携必須） |
 | `syncReworkRate(days?)` | 手戻り率を計測（GitHub連携必須） |
 | `syncReviewEfficiency(days?)` | レビュー効率を計測（GitHub連携必須） |
+| `syncPRSize(days?)` | PRサイズを計測（GitHub連携必須） |
+| `syncDeveloperSatisfaction(days?)` | 開発者満足度を計測（Notion連携必須） |
 | `createDailyTrigger()` | 日次トリガーを設定 |
 | `setup(github, spreadsheet, notion?, notionDb?)` | 設定をScript Propertiesに保存 |
 | `addRepo(owner, name)` | リポジトリを追加 |
@@ -178,11 +209,18 @@ bun run lint
 
 ## ドキュメント
 
-- [DORA Metrics 実装ガイド](docs/DORA_METRICS.md) - 4つの主要指標の定義、計算方法、制約事項の解説
+### スピードと効率
+- [DORA Metrics 実装ガイド](docs/DORA_METRICS.md) - デプロイ頻度・リードタイム・変更障害率・MTTRの計測方法
 - [サイクルタイム実装ガイド](docs/CYCLE_TIME.md) - Notionタスクの着手〜完了時間の計測方法
 - [コーディング時間実装ガイド](docs/CODING_TIME.md) - Notion着手〜GitHub PR作成時間の計測方法
+
+### 安定性と品質
 - [手戻り率実装ガイド](docs/REWORK_RATE.md) - PR作成後の追加コミット数・Force Push回数の計測方法
 - [レビュー効率実装ガイド](docs/REVIEW_EFFICIENCY.md) - PRのレビュー待ち時間・レビュー時間の計測方法
+
+### 開発体験
+- [PRサイズ実装ガイド](docs/PR_SIZE.md) - PRの変更行数・変更ファイル数の計測方法
+- [開発者満足度実装ガイド](docs/DEVELOPER_SATISFACTION.md) - タスク完了時の満足度スコアの計測方法
 
 ## License
 

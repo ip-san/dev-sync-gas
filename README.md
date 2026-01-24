@@ -222,6 +222,9 @@ bun run lint
 - [PRサイズ実装ガイド](docs/PR_SIZE.md) - PRの変更行数・変更ファイル数の計測方法
 - [開発者満足度実装ガイド](docs/DEVELOPER_SATISFACTION.md) - タスク完了時の満足度スコアの計測方法
 
+### 導入・運用
+- [組織導入ガイド＆トラブルシューティング](docs/SETUP_AND_TROUBLESHOOTING.md) - 組織での導入手順、権限設定、トラブル対応
+
 ## License
 
 MIT

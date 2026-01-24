@@ -92,3 +92,9 @@ docs/
 1. **[GitHubから取得するデータ](./dora/github-data.md)** を読んで、どのGitHubデータが使用されるかを理解する
 2. **[各指標の詳細](./dora/metrics-detail.md)** で計算方法を確認する
 3. **[設定・実装上の考慮事項](./dora/configuration.md)** でプロジェクトに合わせた設定を行う
+
+---
+
+## 関連ドキュメント
+
+- **[組織導入ガイド＆トラブルシューティング](./SETUP_AND_TROUBLESHOOTING.md)** - GitHub/Notionの権限設定、接続エラーの対処法

@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, NotionTask } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, NotionTask, PRReworkData } from "../types";
 import { getContainer } from "../container";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -573,4 +573,168 @@ export function getPullRequestsForTasks(
   }
 
   return prMap;
+}
+
+/**
+ * PRのコミット一覧を取得
+ *
+ * @param owner - リポジトリオーナー
+ * @param repo - リポジトリ名
+ * @param prNumber - PR番号
+ * @param token - GitHub Personal Access Token
+ * @returns コミットの配列（作成日時付き）
+ */
+export function getPRCommits(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string
+): ApiResponse<{ sha: string; date: string }[]> {
+  const allCommits: { sha: string; date: string }[] = [];
+  let page = 1;
+
+  while (page <= DEFAULT_MAX_PAGES) {
+    const endpoint = `/repos/${owner}/${repo}/pulls/${prNumber}/commits?per_page=${PER_PAGE}&page=${page}`;
+    const response = fetchGitHub<any[]>(endpoint, token);
+
+    if (!response.success || !response.data) {
+      if (page === 1) {
+        return response as ApiResponse<{ sha: string; date: string }[]>;
+      }
+      break;
+    }
+
+    if (response.data.length === 0) {
+      break;
+    }
+
+    for (const commit of response.data) {
+      allCommits.push({
+        sha: commit.sha,
+        // commit.author.dateを使用（コミット作成時刻）
+        date: commit.commit?.author?.date ?? commit.commit?.committer?.date ?? "",
+      });
+    }
+
+    page++;
+  }
+
+  return { success: true, data: allCommits };
+}
+
+/**
+ * PRのタイムラインイベントを取得してforce push回数をカウント
+ *
+ * @param owner - リポジトリオーナー
+ * @param repo - リポジトリ名
+ * @param prNumber - PR番号
+ * @param token - GitHub Personal Access Token
+ * @returns force push回数
+ */
+export function getPRForcePushCount(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string
+): ApiResponse<number> {
+  let forcePushCount = 0;
+  let page = 1;
+
+  while (page <= DEFAULT_MAX_PAGES) {
+    // Timeline APIはIssue番号を使用（PRはIssueとしても扱われる）
+    const endpoint = `/repos/${owner}/${repo}/issues/${prNumber}/timeline?per_page=${PER_PAGE}&page=${page}`;
+    const response = fetchGitHub<any[]>(endpoint, token);
+
+    if (!response.success || !response.data) {
+      if (page === 1) {
+        return response as ApiResponse<number>;
+      }
+      break;
+    }
+
+    if (response.data.length === 0) {
+      break;
+    }
+
+    for (const event of response.data) {
+      // force pushイベントをカウント
+      if (event.event === "head_ref_force_pushed") {
+        forcePushCount++;
+      }
+    }
+
+    page++;
+  }
+
+  return { success: true, data: forcePushCount };
+}
+
+/**
+ * 複数PRの手戻りデータを一括取得
+ *
+ * @param pullRequests - PR情報の配列
+ * @param token - GitHub Personal Access Token
+ * @returns 各PRの手戻りデータ配列
+ */
+export function getReworkDataForPRs(
+  pullRequests: GitHubPullRequest[],
+  token: string
+): PRReworkData[] {
+  const { logger } = getContainer();
+  const reworkData: PRReworkData[] = [];
+
+  for (const pr of pullRequests) {
+    const [owner, repo] = pr.repository.split("/");
+    if (!owner || !repo) {
+      logger.log(`  ⚠️ Invalid repository format: ${pr.repository}`);
+      continue;
+    }
+
+    // PR作成日時
+    const prCreatedAt = new Date(pr.createdAt);
+
+    // コミット一覧を取得
+    const commitsResult = getPRCommits(owner, repo, pr.number, token);
+    let totalCommits = 0;
+    let additionalCommits = 0;
+
+    if (commitsResult.success && commitsResult.data) {
+      totalCommits = commitsResult.data.length;
+
+      // PR作成後のコミットをカウント
+      for (const commit of commitsResult.data) {
+        if (commit.date) {
+          const commitDate = new Date(commit.date);
+          if (commitDate > prCreatedAt) {
+            additionalCommits++;
+          }
+        }
+      }
+    } else {
+      logger.log(`  ⚠️ Failed to fetch commits for PR #${pr.number}: ${commitsResult.error}`);
+    }
+
+    // Force Push回数を取得
+    const forcePushResult = getPRForcePushCount(owner, repo, pr.number, token);
+    let forcePushCount = 0;
+
+    if (forcePushResult.success && forcePushResult.data !== undefined) {
+      forcePushCount = forcePushResult.data;
+    } else {
+      logger.log(`  ⚠️ Failed to fetch force push count for PR #${pr.number}: ${forcePushResult.error}`);
+    }
+
+    reworkData.push({
+      prNumber: pr.number,
+      title: pr.title,
+      repository: pr.repository,
+      createdAt: pr.createdAt,
+      mergedAt: pr.mergedAt,
+      additionalCommits,
+      forcePushCount,
+      totalCommits,
+    });
+  }
+
+  return reworkData;
 }

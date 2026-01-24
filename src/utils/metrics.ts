@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, NotionTask, CycleTimeMetrics, TaskCycleTime, CodingTimeMetrics, TaskCodingTime } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, NotionTask, CycleTimeMetrics, TaskCycleTime, CodingTimeMetrics, TaskCodingTime, ReworkRateMetrics, PRReworkData } from "../types";
 import { getFrequencyCategory } from "../config/doraThresholds";
 
 /** ミリ秒から時間への変換定数 */
@@ -540,5 +540,82 @@ export function calculateCodingTime(
     minCodingTimeHours: sortedCodingTimes[0],
     maxCodingTimeHours: sortedCodingTimes[sortedCodingTimes.length - 1],
     taskDetails,
+  };
+}
+
+/**
+ * 手戻り率（Rework Rate）を計算
+ *
+ * 定義: PR作成後の追加コミット数とForce Push回数を測定
+ * コードレビューでの指摘対応やコード品質の指標として使用
+ *
+ * 計算方法:
+ * 1. 各PRの追加コミット数（PR作成後のコミット）を集計
+ * 2. 各PRのForce Push回数を集計
+ * 3. 平均値、中央値、合計値を算出
+ *
+ * @param reworkData - 各PRの手戻りデータ配列
+ * @param period - 計測期間の表示文字列
+ */
+export function calculateReworkRate(
+  reworkData: PRReworkData[],
+  period: string
+): ReworkRateMetrics {
+  if (reworkData.length === 0) {
+    return {
+      period,
+      prCount: 0,
+      additionalCommits: {
+        total: 0,
+        avgPerPr: null,
+        median: null,
+        max: null,
+      },
+      forcePushes: {
+        total: 0,
+        avgPerPr: null,
+        prsWithForcePush: 0,
+        forcePushRate: null,
+      },
+      prDetails: [],
+    };
+  }
+
+  // 追加コミット統計
+  const additionalCommitCounts = reworkData.map((pr) => pr.additionalCommits);
+  const sortedCommitCounts = [...additionalCommitCounts].sort((a, b) => a - b);
+  const totalAdditionalCommits = additionalCommitCounts.reduce((sum, count) => sum + count, 0);
+  const avgAdditionalCommits = totalAdditionalCommits / reworkData.length;
+
+  // 追加コミットの中央値
+  const commitMid = Math.floor(sortedCommitCounts.length / 2);
+  const commitMedian =
+    sortedCommitCounts.length % 2 !== 0
+      ? sortedCommitCounts[commitMid]
+      : (sortedCommitCounts[commitMid - 1] + sortedCommitCounts[commitMid]) / 2;
+
+  // Force Push統計
+  const forcePushCounts = reworkData.map((pr) => pr.forcePushCount);
+  const totalForcePushes = forcePushCounts.reduce((sum, count) => sum + count, 0);
+  const prsWithForcePush = reworkData.filter((pr) => pr.forcePushCount > 0).length;
+  const avgForcePushes = totalForcePushes / reworkData.length;
+  const forcePushRate = (prsWithForcePush / reworkData.length) * 100;
+
+  return {
+    period,
+    prCount: reworkData.length,
+    additionalCommits: {
+      total: totalAdditionalCommits,
+      avgPerPr: Math.round(avgAdditionalCommits * 10) / 10,
+      median: Math.round(commitMedian * 10) / 10,
+      max: sortedCommitCounts[sortedCommitCounts.length - 1],
+    },
+    forcePushes: {
+      total: totalForcePushes,
+      avgPerPr: Math.round(avgForcePushes * 10) / 10,
+      prsWithForcePush,
+      forcePushRate: Math.round(forcePushRate * 10) / 10,
+    },
+    prDetails: reworkData,
   };
 }

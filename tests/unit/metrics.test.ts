@@ -14,8 +14,9 @@ import {
   calculateIncidentMetrics,
   calculateCycleTime,
   calculateCodingTime,
+  calculateReworkRate,
 } from "../../src/utils/metrics";
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, NotionTask } from "../../src/types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, NotionTask, PRReworkData } from "../../src/types";
 
 describe("calculateLeadTime", () => {
   it("マージされたPRがない場合は0を返す", () => {
@@ -1525,5 +1526,234 @@ describe("calculateCodingTime", () => {
     const result = calculateCodingTime([], new Map(), "〜2024-01-31");
 
     expect(result.period).toBe("〜2024-01-31");
+  });
+});
+
+describe("calculateReworkRate", () => {
+  it("PRがない場合はnullを返す", () => {
+    const result = calculateReworkRate([], "2024-01");
+
+    expect(result.prCount).toBe(0);
+    expect(result.additionalCommits.total).toBe(0);
+    expect(result.additionalCommits.avgPerPr).toBeNull();
+    expect(result.additionalCommits.median).toBeNull();
+    expect(result.additionalCommits.max).toBeNull();
+    expect(result.forcePushes.total).toBe(0);
+    expect(result.forcePushes.avgPerPr).toBeNull();
+    expect(result.forcePushes.prsWithForcePush).toBe(0);
+    expect(result.forcePushes.forcePushRate).toBeNull();
+    expect(result.prDetails).toHaveLength(0);
+  });
+
+  it("手戻り率を正しく計算する（1PR）", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 1,
+        title: "PR 1",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        additionalCommits: 3,
+        forcePushCount: 1,
+        totalCommits: 5,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    expect(result.prCount).toBe(1);
+    expect(result.additionalCommits.total).toBe(3);
+    expect(result.additionalCommits.avgPerPr).toBe(3);
+    expect(result.additionalCommits.median).toBe(3);
+    expect(result.additionalCommits.max).toBe(3);
+    expect(result.forcePushes.total).toBe(1);
+    expect(result.forcePushes.avgPerPr).toBe(1);
+    expect(result.forcePushes.prsWithForcePush).toBe(1);
+    expect(result.forcePushes.forcePushRate).toBe(100);
+  });
+
+  it("複数PRの平均・中央値を正しく計算する", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 1,
+        title: "PR 1",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        additionalCommits: 2,
+        forcePushCount: 0,
+        totalCommits: 3,
+      },
+      {
+        prNumber: 2,
+        title: "PR 2",
+        repository: "owner/repo",
+        createdAt: "2024-01-02T10:00:00Z",
+        mergedAt: "2024-01-02T14:00:00Z",
+        additionalCommits: 4,
+        forcePushCount: 1,
+        totalCommits: 5,
+      },
+      {
+        prNumber: 3,
+        title: "PR 3",
+        repository: "owner/repo",
+        createdAt: "2024-01-03T10:00:00Z",
+        mergedAt: "2024-01-03T14:00:00Z",
+        additionalCommits: 6,
+        forcePushCount: 2,
+        totalCommits: 8,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    expect(result.prCount).toBe(3);
+    // 追加コミット: 2 + 4 + 6 = 12, avg = 4, median = 4
+    expect(result.additionalCommits.total).toBe(12);
+    expect(result.additionalCommits.avgPerPr).toBe(4);
+    expect(result.additionalCommits.median).toBe(4);
+    expect(result.additionalCommits.max).toBe(6);
+    // Force Push: 0 + 1 + 2 = 3, avg = 1, 2/3 PRs with force push
+    expect(result.forcePushes.total).toBe(3);
+    expect(result.forcePushes.avgPerPr).toBe(1);
+    expect(result.forcePushes.prsWithForcePush).toBe(2);
+    expect(result.forcePushes.forcePushRate).toBe(66.7);
+  });
+
+  it("偶数個のPRで中央値を正しく計算する", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 1,
+        title: "PR 1",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        additionalCommits: 2,
+        forcePushCount: 0,
+        totalCommits: 3,
+      },
+      {
+        prNumber: 2,
+        title: "PR 2",
+        repository: "owner/repo",
+        createdAt: "2024-01-02T10:00:00Z",
+        mergedAt: "2024-01-02T14:00:00Z",
+        additionalCommits: 6,
+        forcePushCount: 0,
+        totalCommits: 7,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    // 中央値: (2 + 6) / 2 = 4
+    expect(result.additionalCommits.median).toBe(4);
+  });
+
+  it("Force Pushが0のPRをカウントしない", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 1,
+        title: "PR 1",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        additionalCommits: 2,
+        forcePushCount: 0,
+        totalCommits: 3,
+      },
+      {
+        prNumber: 2,
+        title: "PR 2",
+        repository: "owner/repo",
+        createdAt: "2024-01-02T10:00:00Z",
+        mergedAt: "2024-01-02T14:00:00Z",
+        additionalCommits: 3,
+        forcePushCount: 0,
+        totalCommits: 4,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    expect(result.forcePushes.prsWithForcePush).toBe(0);
+    expect(result.forcePushes.forcePushRate).toBe(0);
+  });
+
+  it("追加コミット0のPRを正しく処理する", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 1,
+        title: "PR 1",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        additionalCommits: 0,
+        forcePushCount: 0,
+        totalCommits: 1,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    expect(result.additionalCommits.total).toBe(0);
+    expect(result.additionalCommits.avgPerPr).toBe(0);
+    expect(result.additionalCommits.median).toBe(0);
+    expect(result.additionalCommits.max).toBe(0);
+  });
+
+  it("期間文字列を正しく設定する", () => {
+    const result = calculateReworkRate([], "2024-01-01〜2024-01-31");
+
+    expect(result.period).toBe("2024-01-01〜2024-01-31");
+  });
+
+  it("未マージのPRを正しく処理する", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 1,
+        title: "PR 1",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: null, // 未マージ
+        additionalCommits: 5,
+        forcePushCount: 2,
+        totalCommits: 8,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    expect(result.prCount).toBe(1);
+    expect(result.prDetails[0].mergedAt).toBeNull();
+  });
+
+  it("PR詳細に正しい情報を含む", () => {
+    const reworkData: PRReworkData[] = [
+      {
+        prNumber: 42,
+        title: "Feature X implementation",
+        repository: "owner/repo",
+        createdAt: "2024-01-01T10:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        additionalCommits: 3,
+        forcePushCount: 1,
+        totalCommits: 5,
+      },
+    ];
+
+    const result = calculateReworkRate(reworkData, "2024-01");
+
+    expect(result.prDetails[0]).toEqual({
+      prNumber: 42,
+      title: "Feature X implementation",
+      repository: "owner/repo",
+      createdAt: "2024-01-01T10:00:00Z",
+      mergedAt: "2024-01-01T14:00:00Z",
+      additionalCommits: 3,
+      forcePushCount: 1,
+      totalCommits: 5,
+    });
   });
 });

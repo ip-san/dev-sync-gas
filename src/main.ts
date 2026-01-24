@@ -1,12 +1,12 @@
 import { getConfig, setConfig, addRepository, removeRepository } from "./config/settings";
 import "./init";
-import { getAllRepositoriesData, DateRange, getPullRequestsForTasks } from "./services/github";
+import { getAllRepositoriesData, DateRange, getPullRequestsForTasks, getPullRequests, getReworkDataForPRs } from "./services/github";
 import { getTasksForCycleTime, getTasksForCodingTime } from "./services/notion";
-import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet } from "./services/spreadsheet";
-import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime } from "./utils/metrics";
+import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet } from "./services/spreadsheet";
+import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime, calculateReworkRate } from "./utils/metrics";
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
 import { createGasAdapters } from "./adapters/gas";
-import type { DevOpsMetrics, CycleTimeMetrics } from "./types";
+import type { DevOpsMetrics, CycleTimeMetrics, GitHubPullRequest } from "./types";
 
 // GAS環境でコンテナを初期化
 function ensureContainerInitialized(): void {
@@ -385,6 +385,126 @@ function showCodingTimeDetails(): void {
 }
 
 /**
+ * 手戻り率を計算してスプレッドシートに書き出す
+ *
+ * 定義: PR作成後の追加コミット数とForce Push回数
+ * コードレビューでの指摘対応やコード品質の指標
+ *
+ * @param days - 計測期間（日数）デフォルト30日
+ */
+function syncReworkRate(days: number = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.github.token) {
+    Logger.log("⚠️ GitHub token is not configured. Set githubToken in setup()");
+    return;
+  }
+
+  if (config.github.repositories.length === 0) {
+    Logger.log("⚠️ No repositories configured. Add repositories with addRepo()");
+    return;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const startDateStr = startDate.toISOString().split("T")[0];
+  const endDateStr = endDate.toISOString().split("T")[0];
+  const period = `${startDateStr}〜${endDateStr}`;
+
+  Logger.log(`🔄 Calculating Rework Rate for ${days} days`);
+  Logger.log(`   Period: ${period}`);
+
+  // 全リポジトリからPRを取得
+  const allPRs: GitHubPullRequest[] = [];
+  for (const repo of config.github.repositories) {
+    Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
+    const prsResult = getPullRequests(repo, config.github.token, "all", {
+      since: startDate,
+      until: endDate,
+    });
+
+    if (prsResult.success && prsResult.data) {
+      // マージ済みPRのみを対象とする
+      const mergedPRs = prsResult.data.filter((pr) => pr.mergedAt !== null);
+      allPRs.push(...mergedPRs);
+      Logger.log(`   Found ${mergedPRs.length} merged PRs`);
+    } else {
+      Logger.log(`   ⚠️ Failed to fetch PRs: ${prsResult.error}`);
+    }
+  }
+
+  if (allPRs.length === 0) {
+    Logger.log("⚠️ No merged PRs found in the period");
+    return;
+  }
+
+  Logger.log(`📊 Fetching rework data for ${allPRs.length} PRs...`);
+  const reworkData = getReworkDataForPRs(allPRs, config.github.token);
+
+  const reworkMetrics = calculateReworkRate(reworkData, period);
+
+  Logger.log(`📊 Rework Rate Results:`);
+  Logger.log(`   PRs analyzed: ${reworkMetrics.prCount}`);
+  Logger.log(`   Additional Commits: total=${reworkMetrics.additionalCommits.total}, avg=${reworkMetrics.additionalCommits.avgPerPr}`);
+  Logger.log(`   Force Pushes: total=${reworkMetrics.forcePushes.total}, rate=${reworkMetrics.forcePushes.forcePushRate}%`);
+
+  writeReworkRateToSheet(config.spreadsheet.id, reworkMetrics);
+
+  Logger.log("✅ Rework Rate metrics synced");
+}
+
+/**
+ * 手戻り率のPR詳細を表示（デバッグ用）
+ */
+function showReworkRateDetails(days: number = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.github.token) {
+    Logger.log("⚠️ GitHub token is not configured");
+    return;
+  }
+
+  if (config.github.repositories.length === 0) {
+    Logger.log("⚠️ No repositories configured");
+    return;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const allPRs: GitHubPullRequest[] = [];
+  for (const repo of config.github.repositories) {
+    const prsResult = getPullRequests(repo, config.github.token, "all", {
+      since: startDate,
+      until: endDate,
+    });
+
+    if (prsResult.success && prsResult.data) {
+      const mergedPRs = prsResult.data.filter((pr) => pr.mergedAt !== null);
+      allPRs.push(...mergedPRs);
+    }
+  }
+
+  const reworkData = getReworkDataForPRs(allPRs, config.github.token);
+  const startDateStr = startDate.toISOString().split("T")[0];
+  const endDateStr = endDate.toISOString().split("T")[0];
+  const reworkMetrics = calculateReworkRate(reworkData, `${startDateStr}〜${endDateStr}`);
+
+  Logger.log(`\n📋 Rework Rate Details (${reworkMetrics.prCount} PRs):\n`);
+  reworkMetrics.prDetails.forEach((pr, i) => {
+    Logger.log(`${i + 1}. PR #${pr.prNumber}: ${pr.title}`);
+    Logger.log(`   Repository: ${pr.repository}`);
+    Logger.log(`   Commits: ${pr.totalCommits} total, ${pr.additionalCommits} additional`);
+    Logger.log(`   Force Pushes: ${pr.forcePushCount}\n`);
+  });
+}
+
+/**
  * 権限テスト用関数 - 初回実行で承認ダイアログを表示
  */
 function testPermissions(): void {
@@ -420,3 +540,5 @@ global.syncCycleTime = syncCycleTime;
 global.showCycleTimeDetails = showCycleTimeDetails;
 global.syncCodingTime = syncCodingTime;
 global.showCodingTimeDetails = showCodingTimeDetails;
+global.syncReworkRate = syncReworkRate;
+global.showReworkRateDetails = showReworkRateDetails;

@@ -137,6 +137,63 @@ export interface TaskCodingTime {
   codingTimeHours: number;
 }
 
+/**
+ * 手戻り率（Rework Rate）指標
+ * PR作成後の追加コミット数とForce Push回数を測定
+ */
+export interface ReworkRateMetrics {
+  /** 計測期間 */
+  period: string;
+  /** 計測対象PR数 */
+  prCount: number;
+  /** 追加コミット統計 */
+  additionalCommits: {
+    /** 合計追加コミット数 */
+    total: number;
+    /** PRあたりの平均追加コミット数 */
+    avgPerPr: number | null;
+    /** 中央値 */
+    median: number | null;
+    /** 最大値 */
+    max: number | null;
+  };
+  /** Force Push統計 */
+  forcePushes: {
+    /** 合計Force Push回数 */
+    total: number;
+    /** PRあたりの平均Force Push回数 */
+    avgPerPr: number | null;
+    /** Force Pushが発生したPR数 */
+    prsWithForcePush: number;
+    /** Force Push発生率（%） */
+    forcePushRate: number | null;
+  };
+  /** 各PRの詳細 */
+  prDetails: PRReworkData[];
+}
+
+/**
+ * 個別PRの手戻りデータ
+ */
+export interface PRReworkData {
+  /** PR番号 */
+  prNumber: number;
+  /** PRタイトル */
+  title: string;
+  /** リポジトリ名 */
+  repository: string;
+  /** PR作成時刻 */
+  createdAt: string;
+  /** マージ時刻（未マージの場合null） */
+  mergedAt: string | null;
+  /** PR作成後の追加コミット数 */
+  additionalCommits: number;
+  /** Force Push回数 */
+  forcePushCount: number;
+  /** 総コミット数 */
+  totalCommits: number;
+}
+
 // DevOps指標の型定義（DORA metrics）
 export interface DevOpsMetrics {
   date: string;

@@ -1,4 +1,4 @@
-import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics } from "../types";
+import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics, ReworkRateMetrics } from "../types";
 import type { Sheet } from "../interfaces";
 import { getContainer } from "../container";
 
@@ -353,4 +353,118 @@ export function writeCodingTimeToSheet(
   }
 
   logger.log(`📝 Wrote coding time metrics to sheet "${CODING_TIME_SHEET_NAME}"`);
+}
+
+const REWORK_RATE_SHEET_NAME = "Rework Rate";
+
+const REWORK_RATE_HEADERS = [
+  "Period",
+  "PR Count",
+  "Additional Commits (Total)",
+  "Additional Commits (Avg)",
+  "Additional Commits (Median)",
+  "Additional Commits (Max)",
+  "Force Pushes (Total)",
+  "Force Pushes (Avg)",
+  "PRs with Force Push",
+  "Force Push Rate (%)",
+  "Recorded At",
+];
+
+const REWORK_RATE_DETAIL_HEADERS = [
+  "PR #",
+  "Title",
+  "Repository",
+  "Created At",
+  "Merged At",
+  "Total Commits",
+  "Additional Commits",
+  "Force Push Count",
+];
+
+/**
+ * 手戻り率指標をスプレッドシートに書き出す
+ *
+ * 2つのシートを作成/更新:
+ * - "Rework Rate": サマリー情報
+ * - "Rework Rate - Details": 各PRの詳細
+ */
+export function writeReworkRateToSheet(
+  spreadsheetId: string,
+  metrics: ReworkRateMetrics
+): void {
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(spreadsheetId);
+
+  // サマリーシート
+  let summarySheet = spreadsheet.getSheetByName(REWORK_RATE_SHEET_NAME);
+  if (!summarySheet) {
+    summarySheet = spreadsheet.insertSheet(REWORK_RATE_SHEET_NAME);
+    summarySheet.getRange(1, 1, 1, REWORK_RATE_HEADERS.length).setValues([REWORK_RATE_HEADERS]);
+    summarySheet.getRange(1, 1, 1, REWORK_RATE_HEADERS.length).setFontWeight("bold");
+    summarySheet.setFrozenRows(1);
+  }
+
+  const summaryRow = [
+    metrics.period,
+    metrics.prCount,
+    metrics.additionalCommits.total,
+    metrics.additionalCommits.avgPerPr ?? "N/A",
+    metrics.additionalCommits.median ?? "N/A",
+    metrics.additionalCommits.max ?? "N/A",
+    metrics.forcePushes.total,
+    metrics.forcePushes.avgPerPr ?? "N/A",
+    metrics.forcePushes.prsWithForcePush,
+    metrics.forcePushes.forcePushRate ?? "N/A",
+    new Date().toISOString(),
+  ];
+
+  const lastRow = summarySheet.getLastRow();
+  summarySheet.getRange(lastRow + 1, 1, 1, REWORK_RATE_HEADERS.length).setValues([summaryRow]);
+
+  // 数値フォーマット（新しく追加した行を含む）
+  const newLastRow = summarySheet.getLastRow();
+  if (newLastRow > 1) {
+    summarySheet.getRange(2, 4, newLastRow - 1, 3).setNumberFormat("#,##0.0");
+    summarySheet.getRange(2, 8, newLastRow - 1, 1).setNumberFormat("#,##0.0");
+    summarySheet.getRange(2, 10, newLastRow - 1, 1).setNumberFormat("#,##0.0");
+  }
+
+  // 列幅の自動調整
+  for (let i = 1; i <= REWORK_RATE_HEADERS.length; i++) {
+    summarySheet.autoResizeColumn(i);
+  }
+
+  // 詳細シート
+  const detailSheetName = `${REWORK_RATE_SHEET_NAME} - Details`;
+  let detailSheet = spreadsheet.getSheetByName(detailSheetName);
+  if (!detailSheet) {
+    detailSheet = spreadsheet.insertSheet(detailSheetName);
+    detailSheet.getRange(1, 1, 1, REWORK_RATE_DETAIL_HEADERS.length).setValues([REWORK_RATE_DETAIL_HEADERS]);
+    detailSheet.getRange(1, 1, 1, REWORK_RATE_DETAIL_HEADERS.length).setFontWeight("bold");
+    detailSheet.setFrozenRows(1);
+  }
+
+  if (metrics.prDetails.length > 0) {
+    const detailRows = metrics.prDetails.map((pr) => [
+      pr.prNumber,
+      pr.title,
+      pr.repository,
+      pr.createdAt,
+      pr.mergedAt ?? "Not merged",
+      pr.totalCommits,
+      pr.additionalCommits,
+      pr.forcePushCount,
+    ]);
+
+    const detailLastRow = detailSheet.getLastRow();
+    detailSheet.getRange(detailLastRow + 1, 1, detailRows.length, REWORK_RATE_DETAIL_HEADERS.length).setValues(detailRows);
+
+    // 列幅の自動調整
+    for (let i = 1; i <= REWORK_RATE_DETAIL_HEADERS.length; i++) {
+      detailSheet.autoResizeColumn(i);
+    }
+  }
+
+  logger.log(`📝 Wrote rework rate metrics to sheet "${REWORK_RATE_SHEET_NAME}"`);
 }

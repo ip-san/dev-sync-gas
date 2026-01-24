@@ -12,8 +12,9 @@ import {
   calculateMTTR,
   calculateMetricsForRepository,
   calculateIncidentMetrics,
+  calculateCycleTime,
 } from "../../src/utils/metrics";
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident } from "../../src/types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, NotionTask } from "../../src/types";
 
 describe("calculateLeadTime", () => {
   it("マージされたPRがない場合は0を返す", () => {
@@ -1021,5 +1022,200 @@ describe("calculateIncidentMetrics", () => {
     expect(result.incidentCount).toBe(2);
     expect(result.openIncidents).toBe(2);
     expect(result.mttrHours).toBeNull();
+  });
+});
+
+describe("calculateCycleTime", () => {
+  it("タスクがない場合はnullを返す", () => {
+    const result = calculateCycleTime([], "2024-01");
+
+    expect(result.completedTaskCount).toBe(0);
+    expect(result.avgCycleTimeHours).toBeNull();
+    expect(result.medianCycleTimeHours).toBeNull();
+    expect(result.minCycleTimeHours).toBeNull();
+    expect(result.maxCycleTimeHours).toBeNull();
+    expect(result.taskDetails).toHaveLength(0);
+  });
+
+  it("着手日がnullのタスクは除外する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: null, // 着手日なし
+        completedAt: "2024-01-02T10:00:00Z",
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    expect(result.completedTaskCount).toBe(0);
+    expect(result.taskDetails).toHaveLength(0);
+  });
+
+  it("完了日がnullのタスクは除外する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "In Progress",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: null, // 完了日なし
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    expect(result.completedTaskCount).toBe(0);
+  });
+
+  it("サイクルタイムを正しく計算する（1タスク）", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-01T14:00:00Z", // 4時間後
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    expect(result.completedTaskCount).toBe(1);
+    expect(result.avgCycleTimeHours).toBe(4);
+    expect(result.medianCycleTimeHours).toBe(4);
+    expect(result.minCycleTimeHours).toBe(4);
+    expect(result.maxCycleTimeHours).toBe(4);
+    expect(result.taskDetails).toHaveLength(1);
+    expect(result.taskDetails[0].cycleTimeHours).toBe(4);
+  });
+
+  it("複数タスクの平均・中央値を正しく計算する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T00:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-01T12:00:00Z", // 2時間
+        assignee: "user",
+      },
+      {
+        id: "task-2",
+        title: "Task 2",
+        status: "Done",
+        createdAt: "2024-01-02T00:00:00Z",
+        startedAt: "2024-01-02T10:00:00Z",
+        completedAt: "2024-01-02T14:00:00Z", // 4時間
+        assignee: "user",
+      },
+      {
+        id: "task-3",
+        title: "Task 3",
+        status: "Done",
+        createdAt: "2024-01-03T00:00:00Z",
+        startedAt: "2024-01-03T10:00:00Z",
+        completedAt: "2024-01-03T16:00:00Z", // 6時間
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    expect(result.completedTaskCount).toBe(3);
+    // 平均: (2 + 4 + 6) / 3 = 4
+    expect(result.avgCycleTimeHours).toBe(4);
+    // 中央値: 4 (ソート後の真ん中)
+    expect(result.medianCycleTimeHours).toBe(4);
+    expect(result.minCycleTimeHours).toBe(2);
+    expect(result.maxCycleTimeHours).toBe(6);
+  });
+
+  it("偶数個のタスクで中央値を正しく計算する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T00:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-01T12:00:00Z", // 2時間
+        assignee: "user",
+      },
+      {
+        id: "task-2",
+        title: "Task 2",
+        status: "Done",
+        createdAt: "2024-01-02T00:00:00Z",
+        startedAt: "2024-01-02T10:00:00Z",
+        completedAt: "2024-01-02T16:00:00Z", // 6時間
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    // 中央値: (2 + 6) / 2 = 4
+    expect(result.medianCycleTimeHours).toBe(4);
+  });
+
+  it("日をまたぐサイクルタイムを正しく計算する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T00:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-02T10:00:00Z", // 24時間後（1日）
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    expect(result.avgCycleTimeHours).toBe(24);
+  });
+
+  it("期間文字列を正しく設定する", () => {
+    const tasks: NotionTask[] = [];
+    const period = "2024-01-01〜2024-01-31";
+
+    const result = calculateCycleTime(tasks, period);
+
+    expect(result.period).toBe(period);
+  });
+
+  it("タスク詳細に正しい情報を含む", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-123",
+        title: "Implement feature X",
+        status: "Done",
+        createdAt: "2024-01-01T00:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-01T14:00:00Z",
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCycleTime(tasks, "2024-01");
+
+    expect(result.taskDetails[0]).toEqual({
+      taskId: "task-123",
+      title: "Implement feature X",
+      startedAt: "2024-01-01T10:00:00Z",
+      completedAt: "2024-01-01T14:00:00Z",
+      cycleTimeHours: 4,
+    });
   });
 });

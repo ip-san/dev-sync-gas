@@ -57,6 +57,7 @@ export function queryDatabase(
       title: extractTitle(props),
       status: extractStatus(props),
       createdAt: page.created_time,
+      startedAt: extractStartedAt(props),
       completedAt: extractCompletedAt(props),
       assignee: extractAssignee(props),
     };
@@ -77,8 +78,13 @@ function extractStatus(props: any): string {
   return statusProp?.status?.name ?? statusProp?.select?.name ?? "Unknown";
 }
 
+function extractStartedAt(props: any): string | null {
+  const dateProp = props["Date Started"] ?? props["Started"] ?? props["着手日"] ?? props["開始日"];
+  return dateProp?.date?.start ?? null;
+}
+
 function extractCompletedAt(props: any): string | null {
-  const dateProp = props["Completed"] ?? props["完了日"];
+  const dateProp = props["Date Done"] ?? props["Completed"] ?? props["完了日"] ?? props["Done"];
   return dateProp?.date?.start ?? null;
 }
 
@@ -102,4 +108,43 @@ export function getTasksCompletedInPeriod(
   };
 
   return queryDatabase(databaseId, token, filter);
+}
+
+/**
+ * サイクルタイム計測用：期間内に完了したタスクを取得
+ * 着手日と完了日の両方が設定されているタスクのみを返す
+ */
+export function getTasksForCycleTime(
+  databaseId: string,
+  token: string,
+  startDate: string,
+  endDate: string,
+  completedDateProperty: string = "Date Done"
+): ApiResponse<NotionTask[]> {
+  // 完了日が期間内のタスクを取得
+  const filter = {
+    and: [
+      {
+        property: completedDateProperty,
+        date: { on_or_after: startDate }
+      },
+      {
+        property: completedDateProperty,
+        date: { on_or_before: endDate }
+      },
+    ],
+  };
+
+  const response = queryDatabase(databaseId, token, filter);
+
+  if (!response.success || !response.data) {
+    return response;
+  }
+
+  // 着手日と完了日の両方があるタスクのみをフィルタ
+  const tasksWithCycleTime = response.data.filter(
+    task => task.startedAt !== null && task.completedAt !== null
+  );
+
+  return { success: true, data: tasksWithCycleTime };
 }

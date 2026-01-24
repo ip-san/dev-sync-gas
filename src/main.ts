@@ -1,12 +1,12 @@
 import { getConfig, setConfig, addRepository, removeRepository } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange } from "./services/github";
-import { queryDatabase } from "./services/notion";
-import { writeMetricsToSheet, clearOldData, createSummarySheet } from "./services/spreadsheet";
-import { calculateMetricsForRepository } from "./utils/metrics";
+import { getTasksForCycleTime } from "./services/notion";
+import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet } from "./services/spreadsheet";
+import { calculateMetricsForRepository, calculateCycleTime } from "./utils/metrics";
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
 import { createGasAdapters } from "./adapters/gas";
-import type { DevOpsMetrics } from "./types";
+import type { DevOpsMetrics, CycleTimeMetrics } from "./types";
 
 // GAS環境でコンテナを初期化
 function ensureContainerInitialized(): void {
@@ -175,6 +175,108 @@ function generateSummary(): void {
 }
 
 /**
+ * サイクルタイムを計算してスプレッドシートに書き出す
+ *
+ * 定義: 着手（Notion）から完了（Notion）までの時間
+ * AIの恩恵が最も端的に表れる指標
+ *
+ * @param days - 計測期間（日数）デフォルト30日
+ * @param completedDateProperty - Notionの完了日プロパティ名（デフォルト: "Date Done"）
+ */
+function syncCycleTime(days: number = 30, completedDateProperty: string = "Date Done"): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.notion.token || !config.notion.databaseId) {
+    Logger.log("⚠️ Notion integration is not configured. Set notionToken and notionDatabaseId in setup()");
+    return;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const startDateStr = startDate.toISOString().split("T")[0];
+  const endDateStr = endDate.toISOString().split("T")[0];
+  const period = `${startDateStr}〜${endDateStr}`;
+
+  Logger.log(`⏱️ Calculating Cycle Time for ${days} days`);
+  Logger.log(`   Period: ${period}`);
+
+  const tasksResult = getTasksForCycleTime(
+    config.notion.databaseId,
+    config.notion.token,
+    startDateStr,
+    endDateStr,
+    completedDateProperty
+  );
+
+  if (!tasksResult.success || !tasksResult.data) {
+    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+    return;
+  }
+
+  Logger.log(`📥 Fetched ${tasksResult.data.length} tasks with cycle time data`);
+
+  const cycleTimeMetrics = calculateCycleTime(tasksResult.data, period);
+
+  Logger.log(`📊 Cycle Time Results:`);
+  Logger.log(`   Completed tasks: ${cycleTimeMetrics.completedTaskCount}`);
+  if (cycleTimeMetrics.avgCycleTimeHours !== null) {
+    Logger.log(`   Average: ${cycleTimeMetrics.avgCycleTimeHours} hours (${(cycleTimeMetrics.avgCycleTimeHours / 24).toFixed(1)} days)`);
+    Logger.log(`   Median: ${cycleTimeMetrics.medianCycleTimeHours} hours`);
+    Logger.log(`   Min: ${cycleTimeMetrics.minCycleTimeHours} hours`);
+    Logger.log(`   Max: ${cycleTimeMetrics.maxCycleTimeHours} hours`);
+  }
+
+  writeCycleTimeToSheet(config.spreadsheet.id, cycleTimeMetrics);
+
+  Logger.log("✅ Cycle Time metrics synced");
+}
+
+/**
+ * サイクルタイムのタスク詳細を表示（デバッグ用）
+ */
+function showCycleTimeDetails(days: number = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+
+  if (!config.notion.token || !config.notion.databaseId) {
+    Logger.log("⚠️ Notion integration is not configured");
+    return;
+  }
+
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const startDateStr = startDate.toISOString().split("T")[0];
+  const endDateStr = endDate.toISOString().split("T")[0];
+
+  const tasksResult = getTasksForCycleTime(
+    config.notion.databaseId,
+    config.notion.token,
+    startDateStr,
+    endDateStr
+  );
+
+  if (!tasksResult.success || !tasksResult.data) {
+    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+    return;
+  }
+
+  const cycleTimeMetrics = calculateCycleTime(tasksResult.data, `${startDateStr}〜${endDateStr}`);
+
+  Logger.log(`\n📋 Task Details (${cycleTimeMetrics.completedTaskCount} tasks):\n`);
+  cycleTimeMetrics.taskDetails.forEach((task, i) => {
+    const daysValue = (task.cycleTimeHours / 24).toFixed(1);
+    Logger.log(`${i + 1}. ${task.title}`);
+    Logger.log(`   Started: ${task.startedAt} → Completed: ${task.completedAt}`);
+    Logger.log(`   Cycle Time: ${task.cycleTimeHours} hours (${daysValue} days)\n`);
+  });
+}
+
+/**
  * 権限テスト用関数 - 初回実行で承認ダイアログを表示
  */
 function testPermissions(): void {
@@ -206,3 +308,5 @@ global.removeRepo = removeRepo;
 global.listRepos = listRepos;
 global.cleanup = cleanup;
 global.generateSummary = generateSummary;
+global.syncCycleTime = syncCycleTime;
+global.showCycleTimeDetails = showCycleTimeDetails;

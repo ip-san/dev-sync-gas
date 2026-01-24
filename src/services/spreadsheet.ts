@@ -192,9 +192,10 @@ export function writeCycleTimeToSheet(
   const lastRow = summarySheet.getLastRow();
   summarySheet.getRange(lastRow + 1, 1, 1, CYCLE_TIME_HEADERS.length).setValues([summaryRow]);
 
-  // 数値フォーマット
-  if (lastRow >= 1) {
-    summarySheet.getRange(2, 3, lastRow, 5).setNumberFormat("#,##0.0");
+  // 数値フォーマット（新しく追加した行を含む）
+  const newLastRow = summarySheet.getLastRow();
+  if (newLastRow > 1) {
+    summarySheet.getRange(2, 3, newLastRow - 1, 5).setNumberFormat("#,##0.0");
   }
 
   // 列幅の自動調整
@@ -225,8 +226,11 @@ export function writeCycleTimeToSheet(
     const detailLastRow = detailSheet.getLastRow();
     detailSheet.getRange(detailLastRow + 1, 1, detailRows.length, CYCLE_TIME_DETAIL_HEADERS.length).setValues(detailRows);
 
-    // 数値フォーマット
-    detailSheet.getRange(2, 5, detailLastRow + detailRows.length - 1, 2).setNumberFormat("#,##0.0");
+    // 数値フォーマット（新しく追加した行を含む）
+    const newDetailLastRow = detailSheet.getLastRow();
+    if (newDetailLastRow > 1) {
+      detailSheet.getRange(2, 5, newDetailLastRow - 1, 2).setNumberFormat("#,##0.0");
+    }
 
     // 列幅の自動調整
     for (let i = 1; i <= CYCLE_TIME_DETAIL_HEADERS.length; i++) {

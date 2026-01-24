@@ -512,41 +512,34 @@ https://www.notion.so/【ワークスペース名】/【このIDをコピー】?
 
 ### 接続テスト
 
-各サービスへの接続を個別にテストできます：
+#### 基本的な権限テスト
+
+GASエディタで以下を実行します：
 
 ```javascript
-// GitHub接続テスト
-function testGitHub() {
-  const config = getConfig();
-  const repos = config.github.repositories;
-  for (const repo of repos) {
-    const result = getPullRequests(repo, config.github.token, "all", undefined, 1);
-    Logger.log(`${repo.fullName}: ${result.success ? 'OK' : result.error}`);
-  }
-}
-
-// Notion接続テスト
-function testNotion() {
-  const config = getConfig();
-  if (!config.notion.token || !config.notion.databaseId) {
-    Logger.log('Notion not configured');
-    return;
-  }
-  const result = queryDatabase(config.notion.databaseId, config.notion.token);
-  Logger.log(`Notion: ${result.success ? 'OK - ' + result.data?.length + ' tasks' : result.error}`);
-}
-
-// スプレッドシート接続テスト
-function testSpreadsheet() {
-  const config = getConfig();
-  try {
-    const ss = SpreadsheetApp.openById(config.spreadsheet.id);
-    Logger.log(`Spreadsheet: OK - ${ss.getName()}`);
-  } catch (e) {
-    Logger.log(`Spreadsheet: Error - ${e.message}`);
-  }
-}
+testPermissions();
 ```
+
+この関数は以下をテストします：
+- GitHub APIへの接続
+- スプレッドシートへのアクセス
+
+#### 個別サービスのテスト
+
+各指標の取得関数を少ない日数で実行して、接続を確認できます：
+
+```javascript
+// GitHub接続テスト（DORA指標）
+syncHistoricalMetrics(7);  // 過去7日分で軽くテスト
+
+// Notion接続テスト（サイクルタイム）
+syncCycleTime(7);  // 過去7日分で軽くテスト
+
+// リポジトリ一覧確認
+listRepos();
+```
+
+エラーが発生した場合は、ログメッセージを確認してください。
 
 ---
 
@@ -579,8 +572,9 @@ setup('新しいトークン', 'spreadsheet-id', 'notion-token', 'database-id');
 **A:** はい、各関数に日数を指定できます。
 
 ```javascript
-syncDevOpsMetrics(90);  // 過去90日
-syncCycleTime(60);       // 過去60日
+syncHistoricalMetrics(90);  // 過去90日のDORA指標
+syncCycleTime(60);           // 過去60日のサイクルタイム
+syncReworkRate(90);          // 過去90日の手戻り率
 ```
 
 ---

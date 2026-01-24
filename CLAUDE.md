@@ -14,6 +14,12 @@ GitHub複数リポジトリとNotionを連携してDevOps指標（DORA metrics�
 ```
 src/
 ├── main.ts              # GASエントリーポイント（グローバル関数をエクスポート）
+├── container.ts         # DIコンテナ（サービスの依存性注入）
+├── interfaces/
+│   └── index.ts         # 抽象インターフェース（HttpClient, SpreadsheetClient等）
+├── adapters/
+│   └── gas/
+│       └── index.ts     # GAS固有API実装
 ├── config/
 │   ├── settings.ts      # スクリプトプロパティ管理
 │   └── doraThresholds.ts # DORAパフォーマンスレベル閾値（年次更新）
@@ -25,6 +31,11 @@ src/
 │   └── index.ts         # 型定義
 └── utils/
     └── metrics.ts       # DORA指標計算ロジック
+tests/
+├── unit/                # ユニットテスト
+├── integration/         # 統合テスト
+├── mocks/               # モック実装
+└── helpers/             # テストヘルパー
 ```
 
 ## 開発コマンド
@@ -53,15 +64,14 @@ bun run lint     # リント
 - [ ] 複数期間（週次/月次）のサマリー
 - [ ] Slack通知連携
 - [ ] ダッシュボード用のチャート生成
-- [ ] テストの追加
 
 ## APIトークン設定（GASエディタで実行）
 ```javascript
 setup(
   'ghp_xxxx',           // GitHub PAT
-  'secret_xxxx',        // Notion Token
-  'xxxxxxxx-xxxx-xxxx', // Notion Database ID
-  'spreadsheet-id'      // Google Spreadsheet ID
+  'spreadsheet-id',     // Google Spreadsheet ID
+  'secret_xxxx',        // Notion Token（オプション）
+  'xxxxxxxx-xxxx-xxxx'  // Notion Database ID（オプション）
 );
 addRepo('owner', 'repo-name');
 ```

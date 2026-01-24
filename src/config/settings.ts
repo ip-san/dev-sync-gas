@@ -64,3 +64,86 @@ export function removeRepository(fullName: string): void {
   config.github.repositories = config.github.repositories.filter((r) => r.fullName !== fullName);
   setConfig({ github: config.github });
 }
+
+/**
+ * インシデント計測設定
+ */
+export interface IncidentConfig {
+  /**
+   * インシデントとして認識するGitHub Issueのラベル
+   * デフォルト: ["incident"]
+   * 例: ["incident", "production-bug", "p0"]
+   */
+  labels: string[];
+  /**
+   * インシデント計測を有効にするかどうか
+   * デフォルト: false
+   */
+  enabled: boolean;
+}
+
+/** デフォルトのインシデントラベル */
+const DEFAULT_INCIDENT_LABELS = ["incident"];
+
+/**
+ * インシデント計測設定を取得
+ */
+export function getIncidentConfig(): IncidentConfig {
+  const { storageClient } = getContainer();
+
+  const labelsJson = storageClient.getProperty("INCIDENT_LABELS");
+  const enabledStr = storageClient.getProperty("INCIDENT_TRACKING_ENABLED");
+
+  const labels = labelsJson ? JSON.parse(labelsJson) : DEFAULT_INCIDENT_LABELS;
+  const enabled = enabledStr === "true";
+
+  return { labels, enabled };
+}
+
+/**
+ * インシデント計測設定を保存
+ */
+export function setIncidentConfig(config: Partial<IncidentConfig>): void {
+  const { storageClient } = getContainer();
+
+  if (config.labels !== undefined) {
+    storageClient.setProperty("INCIDENT_LABELS", JSON.stringify(config.labels));
+  }
+  if (config.enabled !== undefined) {
+    storageClient.setProperty("INCIDENT_TRACKING_ENABLED", String(config.enabled));
+  }
+}
+
+/**
+ * インシデントラベルを追加
+ */
+export function addIncidentLabel(label: string): void {
+  const config = getIncidentConfig();
+  if (!config.labels.includes(label)) {
+    config.labels.push(label);
+    setIncidentConfig({ labels: config.labels });
+  }
+}
+
+/**
+ * インシデントラベルを削除
+ */
+export function removeIncidentLabel(label: string): void {
+  const config = getIncidentConfig();
+  config.labels = config.labels.filter((l) => l !== label);
+  setIncidentConfig({ labels: config.labels });
+}
+
+/**
+ * インシデント計測を有効化
+ */
+export function enableIncidentTracking(): void {
+  setIncidentConfig({ enabled: true });
+}
+
+/**
+ * インシデント計測を無効化
+ */
+export function disableIncidentTracking(): void {
+  setIncidentConfig({ enabled: false });
+}

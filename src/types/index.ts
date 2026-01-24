@@ -37,6 +37,22 @@ export interface GitHubWorkflowRun {
   repository: string;
 }
 
+/**
+ * GitHub Issueベースのインシデント記録
+ * MTTR（真の復旧時間）計測に使用
+ */
+export interface GitHubIncident {
+  id: number;
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  createdAt: string;
+  closedAt: string | null;
+  /** インシデントに付与されたラベル一覧 */
+  labels: string[];
+  repository: string;
+}
+
 // Notion関連の型定義
 export interface NotionTask {
   id: string;
@@ -66,7 +82,18 @@ export interface DevOpsMetrics {
   totalDeployments: number;
   failedDeployments: number;
   changeFailureRate: number;
+  /** デプロイ失敗からの復旧時間（CI/CDベース、近似値） */
   meanTimeToRecoveryHours: number | null;
+  /**
+   * インシデントベースの真のMTTR（GitHub Issuesから計測）
+   * - incidentCount: 期間内のインシデント数
+   * - mttrHours: 平均復旧時間（時間）
+   */
+  incidentMetrics?: {
+    incidentCount: number;
+    openIncidents: number;
+    mttrHours: number | null;
+  };
 }
 
 export interface AggregatedMetrics {

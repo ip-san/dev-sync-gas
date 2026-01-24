@@ -21,47 +21,73 @@ DORA（DevOps Research and Assessment）は、ソフトウェアデリバリー�
 
 ## GitHubから取得するデータ
 
-本プロジェクトでは、GitHub APIから3種類のデータを取得してDORA Metricsを計算しています。
+本プロジェクトでは、GitHub APIから4種類のデータを取得してDORA Metricsを計算しています。
 
 ### 1. Pull Request（プルリクエスト）
 
+**API**: `GET /repos/{owner}/{repo}/pulls`
+
 **何を見ているか**: コードの変更履歴
 
-PRはコードの変更をレビューしてもらうための仕組みです。以下の情報を使用します:
+PRはコードの変更をレビューしてもらうための仕組みです。以下の情報を取得しています:
 
-| フィールド | 説明 | 使用目的 |
-|------------|------|----------|
-| `created_at` | PRが作成された日時 | Lead Timeのフォールバック計算 |
-| `merged_at` | PRがマージされた日時 | Lead Timeの起点 |
-| `state` | PRの状態（open/closed） | マージ済みPRのフィルタリング |
+| GitHub UI表示名 | APIフィールド | 説明 | 使用目的 |
+|----------------|--------------|------|----------|
+| （内部ID） | `id` | システム内部のID | 一意識別子 |
+| **#番号**（例: #123） | `number` | PRの通し番号 | 表示用 |
+| **タイトル** | `title` | PRのタイトル | 表示用 |
+| **Open / Closed / Merged** | `state` | PRの状態 | マージ済みPRのフィルタリング |
+| **opened this pull request on 日付** | `created_at` | PRを作成した日時 | Lead Timeのフォールバック計算 |
+| **merged commit ... on 日付** | `merged_at` | PRがマージされた日時 | ⭐ **Lead Timeの起点** |
+| **closed this on 日付** | `closed_at` | PRがクローズされた日時 | 情報用 |
+| **作成者のアイコン・名前** | `user.login` | PRを作成したユーザー | 表示用 |
 
-**GitHubでの確認方法**: リポジトリ → 「Pull requests」タブ → 各PRの詳細
+**GitHubでの確認方法**: リポジトリ → 「Pull requests」タブ → 各PRをクリック
 
 ```
-例: あるPRの場合
-- created_at: 2024-01-15 10:00:00  ← PRを作成した時刻
-- merged_at:  2024-01-15 14:00:00  ← マージされた時刻（4時間後）
+┌─────────────────────────────────────────────────────────────┐
+│ Pull requests                                               │
+├─────────────────────────────────────────────────────────────┤
+│  #123  Fix login bug                        ← number, title │
+│  👤 yamada opened this on Jan 15            ← user, created │
+│                                                             │
+│  [Merged] ✓ merged commit abc123 on Jan 15  ← state, merged │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 2. Workflow Run（ワークフロー実行）
+
+**API**: `GET /repos/{owner}/{repo}/actions/runs`
 
 **何を見ているか**: GitHub Actionsの実行履歴
 
 GitHub Actionsで定義したCI/CDパイプラインの実行結果です:
 
-| フィールド | 説明 | 使用目的 |
-|------------|------|----------|
-| `name` | ワークフロー名 | デプロイ関連かどうかの判定（「deploy」を含むか） |
-| `conclusion` | 実行結果 | 成功/失敗の判定 |
-| `created_at` | 実行開始日時 | 時系列での分析 |
+| GitHub UI表示名 | APIフィールド | 説明 | 使用目的 |
+|----------------|--------------|------|----------|
+| （内部ID） | `id` | システム内部のID | 一意識別子 |
+| **ワークフロー名**（左側に表示） | `name` | .github/workflows/で定義した名前 | ⭐ **デプロイ判定**（「deploy」を含むか） |
+| **In progress / Queued** | `status` | 実行中の状態 | 進行中かどうかの判定 |
+| **✓ / ✗ アイコン + Success/Failure** | `conclusion` | 完了後の結果 | ⭐ **成功/失敗の判定** |
+| **日時**（右側に表示） | `created_at` | ワークフロー開始日時 | ⭐ **時系列分析、MTTR計算** |
+| （表示なし） | `updated_at` | 最終更新日時 | 情報用 |
 
 **GitHubでの確認方法**: リポジトリ → 「Actions」タブ
 
 ```
-例: ワークフロー実行の場合
-- name: "Deploy to Production"  ← 「deploy」を含むのでデプロイとして認識
-- conclusion: "success"         ← 成功したデプロイ
-- created_at: 2024-01-15 14:30:00
+┌─────────────────────────────────────────────────────────────┐
+│ Actions                                                     │
+├─────────────────────────────────────────────────────────────┤
+│ All workflows                                               │
+│                                                             │
+│  ✓ Deploy to Production           Jan 15, 2024  ← name     │
+│    Fix login bug #123             3m 24s                    │
+│    main                           ← conclusion = success    │
+│                                                             │
+│  ✗ Deploy to Production           Jan 14, 2024             │
+│    Add new feature #122           1m 12s                    │
+│    main                           ← conclusion = failure    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **よくあるワークフロー名の例**:
@@ -73,24 +99,45 @@ GitHub Actionsで定義したCI/CDパイプラインの実行結果です:
 
 ### 3. Deployment（デプロイメント）
 
+**API**: `GET /repos/{owner}/{repo}/deployments` + `GET /repos/{owner}/{repo}/deployments/{id}/statuses`
+
 **何を見ているか**: GitHub Deploymentsの記録
 
 GitHub Deploymentsは、特定の環境（production, staging等）へのデプロイを追跡する機能です:
 
-| フィールド | 説明 | 使用目的 |
-|------------|------|----------|
-| `environment` | デプロイ先環境名 | 本番環境のフィルタリング |
-| `status` | デプロイのステータス | 成功/失敗の判定 |
-| `created_at` | デプロイ作成日時 | Lead Time, MTTR計算 |
-| `sha` | デプロイしたコミットのSHA | （現在は未使用、将来的にPRとの紐付けに使用予定） |
+| GitHub UI表示名 | APIフィールド | 説明 | 使用目的 |
+|----------------|--------------|------|----------|
+| （内部ID） | `id` | システム内部のID | ステータス取得に使用 |
+| **コミットハッシュ**（7桁の英数字） | `sha` | デプロイしたコミットのSHA | （将来的にPRとの紐付けに使用予定） |
+| **環境名**（production等） | `environment` | デプロイ先の環境名 | ⭐ **本番環境のフィルタリング** |
+| **Deployed 日時** | `created_at` | デプロイが作成された日時 | ⭐ **Lead Time, MTTR計算** |
+| （表示なし） | `updated_at` | 最終更新日時 | 情報用 |
+| **Active / Inactive / Failure** | `status` | デプロイのステータス | ⭐ **成功/失敗の判定** |
 
-**GitHubでの確認方法**: リポジトリ → 「Deployments」（右サイドバーの「Environments」セクション）
+> **注意**: `status`は別途 Deployment Statuses API から取得します。これにより追加のAPIコールが発生します。
+
+**GitHubでの確認方法**: リポジトリ右サイドバー → 「Environments」セクション → 環境名をクリック
 
 ```
-例: デプロイメントの場合
-- environment: "production"  ← 本番環境へのデプロイ
-- status: "success"          ← 成功
-- created_at: 2024-01-15 14:35:00
+┌─────────────────────────────────────────────────────────────┐
+│ リポジトリのトップページ（右サイドバー）                       │
+├─────────────────────────────────────────────────────────────┤
+│ Environments                                                │
+│   🟢 production        ← environment = "production"         │
+│   🟡 staging                                                │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ production をクリックすると表示される画面                     │
+├─────────────────────────────────────────────────────────────┤
+│ Deployment history                                          │
+│                                                             │
+│  ✓ Active   abc1234   Deployed on Jan 15   ← status, sha   │
+│             Fix login bug #123                              │
+│                                                             │
+│  ✗ Inactive def5678   Deployed on Jan 14                   │
+│             Add feature #122                                │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **statusの値と各指標への影響**:
@@ -109,35 +156,100 @@ GitHub Deploymentsは、特定の環境（production, staging等）へのデプ�
 > **注意**: `in_progress`や`queued`などの進行中ステータスもCFRの分母に含まれます。
 > これらが多いとCFRが実際より低く見える可能性があります。
 
-### データ取得の流れ
+### 4. Issues（インシデント）
+
+**API**: `GET /repos/{owner}/{repo}/issues?labels={labels}&state=all`
+
+**何を見ているか**: 本番環境で発生した障害の記録
+
+GitHub Issuesを使用して本番インシデントを追跡することで、真のDORA定義に近いMTTRを計測できます:
+
+| GitHub UI表示名 | APIフィールド | 説明 | 使用目的 |
+|----------------|--------------|------|----------|
+| （内部ID） | `id` | システム内部のID | 一意識別子 |
+| **#番号**（例: #456） | `number` | Issueの通し番号 | 表示用 |
+| **タイトル** | `title` | Issueのタイトル | 表示用 |
+| **Open / Closed** | `state` | Issueの状態 | ⭐ **未解決インシデントのカウント** |
+| **opened this issue on 日付** | `created_at` | Issueが作成された日時 | ⭐ **障害検知時刻（MTTR開始点）** |
+| **closed this on 日付** | `closed_at` | Issueがクローズされた日時 | ⭐ **復旧確認時刻（MTTR終了点）** |
+| **ラベル**（色付きタグ） | `labels` | Issueに付けられたラベル | ⭐ **インシデント判定（フィルタ条件）** |
+
+> **注意**: PRはIssues APIからも返される場合がありますが、`pull_request`フィールドの有無でフィルタしています。
+
+**GitHubでの確認方法**: リポジトリ → 「Issues」タブ → ラベルでフィルタリング
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      GitHub API                              │
-├─────────────────┬─────────────────┬─────────────────────────┤
-│   Pull Requests │  Workflow Runs  │     Deployments         │
-│                 │                 │                         │
-│  ・created_at   │  ・name         │  ・environment          │
-│  ・merged_at    │  ・conclusion   │  ・status               │
-│  ・state        │  ・created_at   │  ・created_at           │
-└────────┬────────┴────────┬────────┴────────┬────────────────┘
-         │                 │                 │
-         ▼                 ▼                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    DORA Metrics 計算                         │
+│ Issues                                                      │
 ├─────────────────────────────────────────────────────────────┤
-│  Deployment Frequency : Deployments (status=success)        │
-│                        └→ フォールバック: Workflow Runs     │
+│ Labels: incident ▼  （ラベルでフィルタリング）              │
 │                                                             │
-│  Lead Time for Changes: PRs (merged_at) + Deployments       │
-│                        └→ フォールバック: PRs (created_at)  │
+│  🔴 #456  本番環境でログイン機能が停止     ← number, title  │
+│     [incident] [P0]                        ← labels         │
+│     👤 suzuki opened on Jan 15             ← created_at     │
 │                                                             │
-│  Change Failure Rate  : Deployments (status≠null)           │
-│                        └→ フォールバック: Workflow Runs     │
-│                                                             │
-│  MTTR                 : Deployments (status≠null)           │
-│                        └→ フォールバック: Workflow Runs     │
+│  ✓ Closed                                                  │
+│  🟢 #455  決済処理でタイムアウト発生                        │
+│     [incident]                                              │
+│     👤 tanaka opened on Jan 14, closed on Jan 14           │
+│                          └→ created_at      └→ closed_at   │
+│                             (MTTR開始点)       (MTTR終了点)  │
 └─────────────────────────────────────────────────────────────┘
+```
+
+**インシデントとして認識されるIssue**:
+- デフォルトでは`incident`ラベルが付いたIssue
+- ラベルは設定でカスタマイズ可能（例: `production-bug`, `P0`, `outage`）
+
+**設定方法**:
+```javascript
+// GASエディタで実行
+setIncidentConfig({ labels: ["incident", "production-bug", "P0"] });
+```
+
+### データ取得の流れ
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                      GitHub から取得する情報                               │
+├─────────────────┬─────────────────┬───────────────────┬───────────────────┤
+│ Pull Requests   │ Workflow Runs   │ Deployments       │ Issues            │
+│ (プルリクエスト) │ (ワークフロー)   │ (デプロイ)        │ (インシデント)     │
+├─────────────────┼─────────────────┼───────────────────┼───────────────────┤
+│ #番号           │ ワークフロー名 ★│ コミットハッシュ   │ #番号             │
+│ タイトル        │ 実行状態        │ 環境名 ★         │ タイトル          │
+│ Open/Closed     │ 結果(✓/✗) ★   │ デプロイ日時 ★   │ Open/Closed ★   │
+│ 作成日時 ★     │ 開始日時 ★     │ ステータス ★     │ 作成日時 ★      │
+│ マージ日時 ★   │                 │                   │ クローズ日時 ★  │
+│ 作成者          │                 │                   │ ラベル ★        │
+└────────┬────────┴────────┬────────┴────────┬──────────┴────────┬──────────┘
+         │                 │                 │                   │
+         ▼                 ▼                 ▼                   ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          DORA Metrics 計算                                 │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  📊 Deployment Frequency（デプロイ頻度）                                   │
+│     = Deployments の成功数をカウント                                       │
+│     └→ なければ: Workflow名に"deploy"を含む成功数                         │
+│                                                                           │
+│  ⏱️ Lead Time for Changes（変更リードタイム）                              │
+│     = PRマージ日時 → デプロイ日時 の差分                                   │
+│     └→ デプロイ情報がなければ: PR作成日時 → マージ日時                     │
+│                                                                           │
+│  ❌ Change Failure Rate（変更失敗率）                                      │
+│     = 失敗デプロイ数 / 全デプロイ数                                        │
+│     └→ なければ: Workflow失敗数 / 全Workflow数                            │
+│                                                                           │
+│  🔧 MTTR - CI/CD方式（平均復旧時間）                                       │
+│     = デプロイ失敗 → 次の成功デプロイ までの時間                           │
+│                                                                           │
+│  🔧 MTTR - インシデント方式（平均復旧時間）⭐推奨                           │
+│     = Issue作成日時 → クローズ日時 の差分                                  │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+
+★ = メトリクス計算に直接使用される情報
 ```
 
 ### フォールバックが発生する条件
@@ -149,10 +261,14 @@ GitHub Deploymentsは、特定の環境（production, staging等）へのデプ�
 | Deployment Frequency | `status=success`のデプロイが0件の場合 |
 | Lead Time | `status=success`のデプロイが0件の場合（PR作成→マージ時間を使用） |
 | Change Failure Rate | `status≠null`のデプロイが0件の場合 |
-| MTTR | `status≠null`のデプロイが0件の場合 |
+| MTTR (CI/CD方式) | `status≠null`のデプロイが0件の場合 |
+| MTTR (インシデント方式) | クローズ済みインシデントが0件の場合は`null` |
 
 > **ポイント**: Deploymentsが存在しても、すべてのステータスが`null`の場合はフォールバックします。
 > これは`skipStatusFetch=true`を使用した場合や、ステータス取得に失敗した場合に発生します。
+
+> **インシデント方式のMTTR**: インシデントトラッキングが有効な場合、`incidentMetrics.mttrHours`として別途出力されます。
+> CI/CD方式の`meanTimeToRecoveryHours`とは独立して計算されるため、両方の値を比較できます。
 
 ### あなたのリポジトリでDeploymentsが使われているか確認する方法
 
@@ -339,6 +455,12 @@ DORAの定義では、最初のコミットから本番デプロイまでの時�
 
 #### 本プロジェクトでの実装
 
+本プロジェクトでは、MTTRを2つの方式で計測できます:
+
+##### 方式1: CI/CD方式（デフォルト）
+
+デプロイの失敗から次の成功デプロイまでの時間を測定します。
+
 ```
 計算式: Σ(復旧デプロイ時刻 - 障害デプロイ時刻) / 障害回数
 ```
@@ -346,7 +468,7 @@ DORAの定義では、最初のコミットから本番デプロイまでの時�
 **計算ロジック:**
 
 1. デプロイを時系列順にソート
-2. 失敗デプロイを検出
+2. 失敗デプロイ（`status = failure` または `error`）を検出
 3. その後の最初の成功デプロイまでの時間を計算
 4. 全復旧時間の平均を算出
 
@@ -355,21 +477,67 @@ DORAの定義では、最初のコミットから本番デプロイまでの時�
 1. **GitHub Deployments API** - `failure`/`error`から`success`までの時間
 2. **フォールバック: GitHub Actions** - デプロイワークフローの失敗から成功までの時間
 
+**出力フィールド**: `meanTimeToRecoveryHours`
+
+##### 方式2: インシデント方式（推奨）
+
+GitHub Issuesをインシデントトラッキングとして使用し、真のDORA定義に近いMTTRを測定します。
+
+```
+計算式: Σ(Issue close時刻 - Issue作成時刻) / クローズ済みインシデント数
+```
+
+**計算ロジック:**
+
+1. 指定ラベル（デフォルト: `incident`）が付いたIssueを取得
+2. クローズ済みのIssueを抽出
+3. 各Issueの作成時刻からクローズ時刻までの時間を計算
+4. 全復旧時間の平均を算出
+
+**出力フィールド**: `incidentMetrics.mttrHours`
+
+**追加の出力情報**:
+```typescript
+incidentMetrics: {
+  incidentCount: 5,      // 期間内のインシデント総数
+  openIncidents: 1,      // 未解決のインシデント数
+  mttrHours: 2.3         // 平均復旧時間（時間）
+}
+```
+
+#### 2つの方式の比較
+
+| 項目 | CI/CD方式 | インシデント方式 |
+|------|-----------|-----------------|
+| 測定対象 | デプロイ失敗 | 本番インシデント |
+| 検出方法 | 自動（デプロイステータス） | 手動（Issue作成） |
+| DORA定義との一致度 | 近似値 | より正確 |
+| 設定の手間 | なし | ラベル設定が必要 |
+| 運用フロー | 既存のまま | インシデント時にIssue作成が必要 |
+
+**推奨**: 両方の値を出力し、チームの運用に合わせて使い分けることを推奨します。
+
 #### 重要な注意事項
 
-> **⚠️ 真のDORA定義との差異**
+> **⚠️ CI/CD方式の制約**
 >
-> DORAの公式定義では、**本番環境のサービス障害から復旧するまでの時間**を測定します。これは:
-> - アラートが発報されてから
-> - サービスが正常に復旧するまで
+> CI/CD方式は**デプロイ失敗から次の成功デプロイまでの時間**を測定します。これは:
+> - デプロイは成功したが、後から本番で問題が発生したケースを検出できない
+> - 本番環境の実際のダウンタイムではなく、デプロイ間の時間を測定
 >
-> の時間を意味します。本実装では、**デプロイ失敗から次の成功デプロイまでの時間**を測定しており、これは近似値です。真のMTTRを測定するには、インシデント管理システムやモニタリングツールとの連携が必要です。
+> 真のMTTRを測定するには、インシデント方式の使用を推奨します。
 
 #### 制約事項
 
+**CI/CD方式:**
 - 未復旧の障害（期間内に成功デプロイがない）はカウントされない
 - 障害がない場合は`null`を返す
 - 本番環境の実際のダウンタイムではなく、デプロイ間の時間を測定
+
+**インシデント方式:**
+- 運用チームがインシデント発生時にIssueを作成する必要がある
+- Issue作成のタイミングが障害検知時刻として使用される
+- Issueをクローズし忘れると未解決としてカウントされる
 
 ---
 
@@ -445,27 +613,124 @@ getDeployments(repo, token, { skipStatusFetch: true })
 
 ```typescript
 getAllRepositoriesData(repos, token, {
-  deploymentEnvironment: "production"  // または "prod", "live" など
+  deploymentEnvironment: "production",  // または "prod", "live" など
+  deploymentEnvironmentMatchMode: "exact"  // "exact" または "partial"
 })
 ```
+
+**マッチングモード:**
+- `exact`（デフォルト）: 完全一致。GitHub APIのフィルタを使用するため高速
+- `partial`: 部分一致。`production_v2`や`production-east`などにもマッチ
+
+```typescript
+// 例: "production"で始まるすべての環境を対象にする
+getAllRepositoriesData(repos, token, {
+  deploymentEnvironment: "production",
+  deploymentEnvironmentMatchMode: "partial"  // production_v2, production-east等にもマッチ
+})
+```
+
+### インシデントトラッキング設定
+
+GitHub Issuesをインシデントトラッキングとして使用する場合の設定方法です。
+
+#### ラベル設定
+
+インシデントとして認識するIssueのラベルを設定します:
+
+```javascript
+// GASエディタで実行
+
+// 現在の設定を確認
+const config = getIncidentConfig();
+console.log(config);  // { labels: ["incident"], enabled: true }
+
+// ラベルを追加
+addIncidentLabel("production-bug");
+addIncidentLabel("P0");
+
+// ラベルを削除
+removeIncidentLabel("incident");
+
+// ラベルを一括設定
+setIncidentConfig({
+  labels: ["incident", "production-bug", "P0", "outage"]
+});
+```
+
+#### インシデントトラッキングの有効/無効
+
+```javascript
+// 無効化（Issueを取得しない）
+disableIncidentTracking();
+
+// 有効化
+enableIncidentTracking();
+```
+
+#### 推奨ラベル
+
+チームの運用に合わせて、以下のようなラベルを使用することを推奨します:
+
+| ラベル | 用途 |
+|--------|------|
+| `incident` | 一般的なインシデント |
+| `production-bug` | 本番環境のバグ |
+| `P0`, `P1` | 優先度別のインシデント |
+| `outage` | サービス停止 |
+| `hotfix` | 緊急修正 |
 
 ---
 
 ## より正確なDORA Metrics計測に向けて
 
-本実装はGitHub APIのみを使用した近似実装です。より正確なDORA Metricsを計測するには、以下の連携を検討してください:
+本実装はGitHub APIを使用した実装です。インシデントトラッキング（GitHub Issues）を使用することで、真のDORA定義に近いMTTRを計測できます。
 
-### Change Failure Rate の改善
+### 現在の実装状況
 
-- **インシデント管理システム連携**: PagerDuty, Opsgenie, ServiceNow等
+| 指標 | 実装方式 | DORA定義との一致度 |
+|------|----------|-------------------|
+| Deployment Frequency | GitHub Deployments/Actions | ✅ 正確 |
+| Lead Time for Changes | PR + Deployments | ⚠️ 近似（時間ベースマッチング） |
+| Change Failure Rate | デプロイ失敗率 | ⚠️ 近似（CI/CD失敗を測定） |
+| MTTR (CI/CD方式) | デプロイ復旧時間 | ⚠️ 近似 |
+| MTTR (インシデント方式) | GitHub Issues | ✅ DORA定義に近い |
+
+### さらなる改善案
+
+#### Change Failure Rate の改善
+
+- **外部インシデント管理システム連携**: PagerDuty, Opsgenie, ServiceNow等
 - **アラート管理**: Prometheus Alertmanager, Datadog等
-- **イシュートラッキング**: 本番障害を表すラベル（`incident`, `production-bug`等）でフィルタリング
 
-### MTTR の改善
+#### MTTR の改善（インシデント方式以外）
 
 - **モニタリングツール連携**: Datadog, New Relic, Grafana等
 - **ステータスページ連携**: Statuspage, Atlassian等
 - **オンコール管理**: PagerDuty, Opsgenie等
+
+### GitHub Issuesを使ったインシデントトラッキングの運用
+
+インシデント方式のMTTRを効果的に活用するためのワークフロー例:
+
+```
+1. 障害検知
+   └→ アラート発報 or ユーザー報告
+
+2. インシデントIssue作成
+   └→ ラベル: "incident"
+   └→ タイトル: "[障害] ログイン機能が停止"
+   └→ 本文: 影響範囲、暫定対応など
+
+3. 復旧作業
+   └→ 原因調査、修正、デプロイ
+
+4. 復旧確認・Issueクローズ
+   └→ 復旧確認のコメントを追加
+   └→ Issueをクローズ
+
+→ MTTR = Issue作成からクローズまでの時間
+```
 
 ---
 
@@ -505,10 +770,15 @@ getAllRepositoriesData(repos, token, {
    - https://docs.github.com/en/rest/deployments/deployments
    - 本プロジェクトで使用しているAPI
 
+8. **GitHub Issues API**
+   - https://docs.github.com/en/rest/issues/issues
+   - インシデントトラッキングに使用しているAPI
+
 ---
 
 ## 更新履歴
 
 | 日付 | 内容 |
 |------|------|
+| 2025-01 | GitHub Issuesによるインシデントトラッキング機能を追加。環境名の部分一致対応を追加 |
 | 2024-01 | 初版作成。DORA公式定義に基づく実装の解説を追加 |

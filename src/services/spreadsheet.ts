@@ -1,4 +1,4 @@
-import type { DevOpsMetrics, CycleTimeMetrics } from "../types";
+import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics } from "../types";
 import type { Sheet } from "../interfaces";
 import { getContainer } from "../container";
 
@@ -239,4 +239,118 @@ export function writeCycleTimeToSheet(
   }
 
   logger.log(`📝 Wrote cycle time metrics to sheet "${CYCLE_TIME_SHEET_NAME}"`);
+}
+
+const CODING_TIME_SHEET_NAME = "Coding Time";
+
+const CODING_TIME_HEADERS = [
+  "Period",
+  "Task Count",
+  "Avg Coding Time (hours)",
+  "Avg Coding Time (days)",
+  "Median (hours)",
+  "Min (hours)",
+  "Max (hours)",
+  "Recorded At",
+];
+
+const CODING_TIME_DETAIL_HEADERS = [
+  "Task ID",
+  "Title",
+  "Started At",
+  "PR Created At",
+  "PR URL",
+  "Coding Time (hours)",
+  "Coding Time (days)",
+];
+
+/**
+ * コーディング時間指標をスプレッドシートに書き出す
+ *
+ * 2つのシートを作成/更新:
+ * - "Coding Time": サマリー情報
+ * - "Coding Time - Details": 各タスクの詳細
+ */
+export function writeCodingTimeToSheet(
+  spreadsheetId: string,
+  metrics: CodingTimeMetrics
+): void {
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(spreadsheetId);
+
+  // サマリーシート
+  let summarySheet = spreadsheet.getSheetByName(CODING_TIME_SHEET_NAME);
+  if (!summarySheet) {
+    summarySheet = spreadsheet.insertSheet(CODING_TIME_SHEET_NAME);
+    summarySheet.getRange(1, 1, 1, CODING_TIME_HEADERS.length).setValues([CODING_TIME_HEADERS]);
+    summarySheet.getRange(1, 1, 1, CODING_TIME_HEADERS.length).setFontWeight("bold");
+    summarySheet.setFrozenRows(1);
+  }
+
+  const avgDays = metrics.avgCodingTimeHours !== null
+    ? Math.round((metrics.avgCodingTimeHours / 24) * 10) / 10
+    : "N/A";
+
+  const summaryRow = [
+    metrics.period,
+    metrics.taskCount,
+    metrics.avgCodingTimeHours ?? "N/A",
+    avgDays,
+    metrics.medianCodingTimeHours ?? "N/A",
+    metrics.minCodingTimeHours ?? "N/A",
+    metrics.maxCodingTimeHours ?? "N/A",
+    new Date().toISOString(),
+  ];
+
+  const lastRow = summarySheet.getLastRow();
+  summarySheet.getRange(lastRow + 1, 1, 1, CODING_TIME_HEADERS.length).setValues([summaryRow]);
+
+  // 数値フォーマット（新しく追加した行を含む）
+  const newLastRow = summarySheet.getLastRow();
+  if (newLastRow > 1) {
+    summarySheet.getRange(2, 3, newLastRow - 1, 5).setNumberFormat("#,##0.0");
+  }
+
+  // 列幅の自動調整
+  for (let i = 1; i <= CODING_TIME_HEADERS.length; i++) {
+    summarySheet.autoResizeColumn(i);
+  }
+
+  // 詳細シート
+  const detailSheetName = `${CODING_TIME_SHEET_NAME} - Details`;
+  let detailSheet = spreadsheet.getSheetByName(detailSheetName);
+  if (!detailSheet) {
+    detailSheet = spreadsheet.insertSheet(detailSheetName);
+    detailSheet.getRange(1, 1, 1, CODING_TIME_DETAIL_HEADERS.length).setValues([CODING_TIME_DETAIL_HEADERS]);
+    detailSheet.getRange(1, 1, 1, CODING_TIME_DETAIL_HEADERS.length).setFontWeight("bold");
+    detailSheet.setFrozenRows(1);
+  }
+
+  if (metrics.taskDetails.length > 0) {
+    const detailRows = metrics.taskDetails.map((task) => [
+      task.taskId,
+      task.title,
+      task.startedAt,
+      task.prCreatedAt,
+      task.prUrl,
+      task.codingTimeHours,
+      Math.round((task.codingTimeHours / 24) * 10) / 10,
+    ]);
+
+    const detailLastRow = detailSheet.getLastRow();
+    detailSheet.getRange(detailLastRow + 1, 1, detailRows.length, CODING_TIME_DETAIL_HEADERS.length).setValues(detailRows);
+
+    // 数値フォーマット（新しく追加した行を含む）
+    const newDetailLastRow = detailSheet.getLastRow();
+    if (newDetailLastRow > 1) {
+      detailSheet.getRange(2, 6, newDetailLastRow - 1, 2).setNumberFormat("#,##0.0");
+    }
+
+    // 列幅の自動調整
+    for (let i = 1; i <= CODING_TIME_DETAIL_HEADERS.length; i++) {
+      detailSheet.autoResizeColumn(i);
+    }
+  }
+
+  logger.log(`📝 Wrote coding time metrics to sheet "${CODING_TIME_SHEET_NAME}"`);
 }

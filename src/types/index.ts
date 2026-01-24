@@ -63,6 +63,8 @@ export interface NotionTask {
   startedAt: string | null;
   /** 完了日（Date Done） - サイクルタイム計算の終了点 */
   completedAt: string | null;
+  /** GitHub PR URL - コーディング時間計算に使用 */
+  prUrl: string | null;
   assignee: string | null;
 }
 
@@ -96,6 +98,43 @@ export interface TaskCycleTime {
   startedAt: string;
   completedAt: string;
   cycleTimeHours: number;
+}
+
+/**
+ * コーディング時間指標
+ * 着手（Notion進行中）〜 PR作成（GitHub）の時間を測定
+ */
+export interface CodingTimeMetrics {
+  /** 計測期間 */
+  period: string;
+  /** PR作成済みタスク数 */
+  taskCount: number;
+  /** 平均コーディング時間（時間） */
+  avgCodingTimeHours: number | null;
+  /** 中央値コーディング時間（時間） */
+  medianCodingTimeHours: number | null;
+  /** 最小コーディング時間（時間） */
+  minCodingTimeHours: number | null;
+  /** 最大コーディング時間（時間） */
+  maxCodingTimeHours: number | null;
+  /** 各タスクのコーディング時間詳細 */
+  taskDetails: TaskCodingTime[];
+}
+
+/**
+ * 個別タスクのコーディング時間
+ */
+export interface TaskCodingTime {
+  taskId: string;
+  title: string;
+  /** Notion進行中時刻 */
+  startedAt: string;
+  /** GitHub PR作成時刻 */
+  prCreatedAt: string;
+  /** PR URL */
+  prUrl: string;
+  /** コーディング時間（時間） */
+  codingTimeHours: number;
 }
 
 // DevOps指標の型定義（DORA metrics）

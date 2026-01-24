@@ -13,6 +13,7 @@ import {
   calculateMetricsForRepository,
   calculateIncidentMetrics,
   calculateCycleTime,
+  calculateCodingTime,
 } from "../../src/utils/metrics";
 import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, NotionTask } from "../../src/types";
 
@@ -1046,6 +1047,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T10:00:00Z",
         startedAt: null, // 着手日なし
         completedAt: "2024-01-02T10:00:00Z",
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1065,6 +1067,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T10:00:00Z",
         startedAt: "2024-01-01T10:00:00Z",
         completedAt: null, // 完了日なし
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1083,6 +1086,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T10:00:00Z",
         startedAt: "2024-01-01T10:00:00Z",
         completedAt: "2024-01-01T14:00:00Z", // 4時間後
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1107,6 +1111,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T00:00:00Z",
         startedAt: "2024-01-01T10:00:00Z",
         completedAt: "2024-01-01T12:00:00Z", // 2時間
+        prUrl: null,
         assignee: "user",
       },
       {
@@ -1116,6 +1121,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-02T00:00:00Z",
         startedAt: "2024-01-02T10:00:00Z",
         completedAt: "2024-01-02T14:00:00Z", // 4時間
+        prUrl: null,
         assignee: "user",
       },
       {
@@ -1125,6 +1131,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-03T00:00:00Z",
         startedAt: "2024-01-03T10:00:00Z",
         completedAt: "2024-01-03T16:00:00Z", // 6時間
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1149,6 +1156,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T00:00:00Z",
         startedAt: "2024-01-01T10:00:00Z",
         completedAt: "2024-01-01T12:00:00Z", // 2時間
+        prUrl: null,
         assignee: "user",
       },
       {
@@ -1158,6 +1166,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-02T00:00:00Z",
         startedAt: "2024-01-02T10:00:00Z",
         completedAt: "2024-01-02T16:00:00Z", // 6時間
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1177,6 +1186,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T00:00:00Z",
         startedAt: "2024-01-01T10:00:00Z",
         completedAt: "2024-01-02T10:00:00Z", // 24時間後（1日）
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1204,6 +1214,7 @@ describe("calculateCycleTime", () => {
         createdAt: "2024-01-01T00:00:00Z",
         startedAt: "2024-01-01T10:00:00Z",
         completedAt: "2024-01-01T14:00:00Z",
+        prUrl: null,
         assignee: "user",
       },
     ];
@@ -1217,5 +1228,302 @@ describe("calculateCycleTime", () => {
       completedAt: "2024-01-01T14:00:00Z",
       cycleTimeHours: 4,
     });
+  });
+});
+
+describe("calculateCodingTime", () => {
+  it("タスクがない場合はnullを返す", () => {
+    const result = calculateCodingTime([], new Map(), "2024-01");
+
+    expect(result.taskCount).toBe(0);
+    expect(result.avgCodingTimeHours).toBeNull();
+    expect(result.medianCodingTimeHours).toBeNull();
+    expect(result.minCodingTimeHours).toBeNull();
+    expect(result.maxCodingTimeHours).toBeNull();
+    expect(result.taskDetails).toHaveLength(0);
+  });
+
+  it("PRマップが空の場合は0を返す", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-02T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/1",
+        assignee: "user",
+      },
+    ];
+
+    const result = calculateCodingTime(tasks, new Map(), "2024-01");
+
+    expect(result.taskCount).toBe(0);
+  });
+
+  it("着手日がnullのタスクは除外する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: null, // 着手日なし
+        completedAt: "2024-01-02T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/1",
+        assignee: "user",
+      },
+    ];
+
+    const prMap = new Map<string, GitHubPullRequest>([
+      ["task-1", {
+        id: 1,
+        number: 1,
+        title: "PR 1",
+        state: "closed",
+        createdAt: "2024-01-01T12:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        closedAt: "2024-01-01T14:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+    ]);
+
+    const result = calculateCodingTime(tasks, prMap, "2024-01");
+
+    expect(result.taskCount).toBe(0);
+  });
+
+  it("PR URLがnullのタスクは除外する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-02T10:00:00Z",
+        prUrl: null, // PR URLなし
+        assignee: "user",
+      },
+    ];
+
+    const prMap = new Map<string, GitHubPullRequest>([
+      ["task-1", {
+        id: 1,
+        number: 1,
+        title: "PR 1",
+        state: "closed",
+        createdAt: "2024-01-01T12:00:00Z",
+        mergedAt: "2024-01-01T14:00:00Z",
+        closedAt: "2024-01-01T14:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+    ]);
+
+    const result = calculateCodingTime(tasks, prMap, "2024-01");
+
+    expect(result.taskCount).toBe(0);
+  });
+
+  it("コーディング時間を正しく計算する（1タスク）", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z", // 10:00
+        completedAt: "2024-01-02T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/1",
+        assignee: "user",
+      },
+    ];
+
+    const prMap = new Map<string, GitHubPullRequest>([
+      ["task-1", {
+        id: 1,
+        number: 1,
+        title: "PR 1",
+        state: "closed",
+        createdAt: "2024-01-01T14:00:00Z", // 14:00 (4時間後)
+        mergedAt: "2024-01-01T16:00:00Z",
+        closedAt: "2024-01-01T16:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+    ]);
+
+    const result = calculateCodingTime(tasks, prMap, "2024-01");
+
+    expect(result.taskCount).toBe(1);
+    expect(result.avgCodingTimeHours).toBe(4);
+    expect(result.medianCodingTimeHours).toBe(4);
+    expect(result.minCodingTimeHours).toBe(4);
+    expect(result.maxCodingTimeHours).toBe(4);
+    expect(result.taskDetails).toHaveLength(1);
+    expect(result.taskDetails[0].codingTimeHours).toBe(4);
+  });
+
+  it("複数タスクの平均・中央値を正しく計算する", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T00:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-02T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/1",
+        assignee: "user",
+      },
+      {
+        id: "task-2",
+        title: "Task 2",
+        status: "Done",
+        createdAt: "2024-01-02T00:00:00Z",
+        startedAt: "2024-01-02T10:00:00Z",
+        completedAt: "2024-01-03T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/2",
+        assignee: "user",
+      },
+      {
+        id: "task-3",
+        title: "Task 3",
+        status: "Done",
+        createdAt: "2024-01-03T00:00:00Z",
+        startedAt: "2024-01-03T10:00:00Z",
+        completedAt: "2024-01-04T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/3",
+        assignee: "user",
+      },
+    ];
+
+    const prMap = new Map<string, GitHubPullRequest>([
+      ["task-1", {
+        id: 1,
+        number: 1,
+        title: "PR 1",
+        state: "closed",
+        createdAt: "2024-01-01T12:00:00Z", // 2時間後
+        mergedAt: "2024-01-01T14:00:00Z",
+        closedAt: "2024-01-01T14:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+      ["task-2", {
+        id: 2,
+        number: 2,
+        title: "PR 2",
+        state: "closed",
+        createdAt: "2024-01-02T14:00:00Z", // 4時間後
+        mergedAt: "2024-01-02T16:00:00Z",
+        closedAt: "2024-01-02T16:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+      ["task-3", {
+        id: 3,
+        number: 3,
+        title: "PR 3",
+        state: "closed",
+        createdAt: "2024-01-03T16:00:00Z", // 6時間後
+        mergedAt: "2024-01-03T18:00:00Z",
+        closedAt: "2024-01-03T18:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+    ]);
+
+    const result = calculateCodingTime(tasks, prMap, "2024-01");
+
+    expect(result.taskCount).toBe(3);
+    // 平均: (2 + 4 + 6) / 3 = 4
+    expect(result.avgCodingTimeHours).toBe(4);
+    // 中央値: 4
+    expect(result.medianCodingTimeHours).toBe(4);
+    expect(result.minCodingTimeHours).toBe(2);
+    expect(result.maxCodingTimeHours).toBe(6);
+  });
+
+  it("負のコーディング時間（PR作成後に着手）はスキップする", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-1",
+        title: "Task 1",
+        status: "Done",
+        createdAt: "2024-01-01T10:00:00Z",
+        startedAt: "2024-01-01T14:00:00Z", // PR作成後に着手日を設定
+        completedAt: "2024-01-02T10:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/1",
+        assignee: "user",
+      },
+    ];
+
+    const prMap = new Map<string, GitHubPullRequest>([
+      ["task-1", {
+        id: 1,
+        number: 1,
+        title: "PR 1",
+        state: "closed",
+        createdAt: "2024-01-01T10:00:00Z", // 着手前にPR作成
+        mergedAt: "2024-01-01T16:00:00Z",
+        closedAt: "2024-01-01T16:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+    ]);
+
+    const result = calculateCodingTime(tasks, prMap, "2024-01");
+
+    expect(result.taskCount).toBe(0);
+  });
+
+  it("タスク詳細に正しい情報を含む", () => {
+    const tasks: NotionTask[] = [
+      {
+        id: "task-123",
+        title: "Implement feature X",
+        status: "Done",
+        createdAt: "2024-01-01T00:00:00Z",
+        startedAt: "2024-01-01T10:00:00Z",
+        completedAt: "2024-01-01T18:00:00Z",
+        prUrl: "https://github.com/owner/repo/pull/42",
+        assignee: "user",
+      },
+    ];
+
+    const prMap = new Map<string, GitHubPullRequest>([
+      ["task-123", {
+        id: 42,
+        number: 42,
+        title: "Feature X implementation",
+        state: "closed",
+        createdAt: "2024-01-01T14:00:00Z",
+        mergedAt: "2024-01-01T16:00:00Z",
+        closedAt: "2024-01-01T16:00:00Z",
+        author: "user",
+        repository: "owner/repo",
+      }],
+    ]);
+
+    const result = calculateCodingTime(tasks, prMap, "2024-01");
+
+    expect(result.taskDetails[0]).toEqual({
+      taskId: "task-123",
+      title: "Implement feature X",
+      startedAt: "2024-01-01T10:00:00Z",
+      prCreatedAt: "2024-01-01T14:00:00Z",
+      prUrl: "https://github.com/owner/repo/pull/42",
+      codingTimeHours: 4,
+    });
+  });
+
+  it("期間文字列を正しく設定する", () => {
+    const result = calculateCodingTime([], new Map(), "〜2024-01-31");
+
+    expect(result.period).toBe("〜2024-01-31");
   });
 });

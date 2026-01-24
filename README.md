@@ -12,6 +12,8 @@ GitHub複数リポジトリとNotionを連携してDevOps指標（DORA metrics�
   - Mean Time to Recovery（平均復旧時間）
 - サイクルタイム計測（[詳細ドキュメント](docs/CYCLE_TIME.md)）
   - Notionのタスク着手〜完了までの時間を自動集計
+- コーディング時間計測（[詳細ドキュメント](docs/CODING_TIME.md)）
+  - Notionのタスク着手〜GitHub PR作成までの時間を自動集計
 - Notionデータベースとの連携
 - Googleスプレッドシートへの自動書き出し
 - 日次トリガーによる定期実行
@@ -88,6 +90,7 @@ createDailyTrigger(); // 毎日9時に自動実行
 | `initConfig()` | 初期設定を実行（init.tsで定義） |
 | `syncDevOpsMetrics()` | 手動でメトリクスを同期 |
 | `syncCycleTime(days?, prop?)` | サイクルタイムを計測（Notion連携必須） |
+| `syncCodingTime(prop?)` | コーディング時間を計測（Notion + GitHub連携必須） |
 | `createDailyTrigger()` | 日次トリガーを設定 |
 | `setup(github, spreadsheet, notion?, notionDb?)` | 設定をScript Propertiesに保存 |
 | `addRepo(owner, name)` | リポジトリを追加 |
@@ -173,6 +176,7 @@ bun run lint
 
 - [DORA Metrics 実装ガイド](docs/DORA_METRICS.md) - 4つの主要指標の定義、計算方法、制約事項の解説
 - [サイクルタイム実装ガイド](docs/CYCLE_TIME.md) - Notionタスクの着手〜完了時間の計測方法
+- [コーディング時間実装ガイド](docs/CODING_TIME.md) - Notion着手〜GitHub PR作成時間の計測方法
 
 ## License
 

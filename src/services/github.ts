@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, NotionTask } from "../types";
 import { getContainer } from "../container";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -486,4 +486,91 @@ export function getIncidents(
   }
 
   return { success: true, data: allIncidents };
+}
+
+/**
+ * GitHub PR URLをパースしてowner, repo, numberを取得
+ *
+ * @param url - PR URL（例: "https://github.com/owner/repo/pull/123"）
+ * @returns パース結果またはnull
+ */
+export function parsePrUrl(url: string): { owner: string; repo: string; number: number } | null {
+  // https://github.com/owner/repo/pull/123 形式を想定
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+  if (!match) {
+    return null;
+  }
+  return {
+    owner: match[1],
+    repo: match[2],
+    number: parseInt(match[3], 10),
+  };
+}
+
+/**
+ * PR URLから単一のPR情報を取得
+ *
+ * @param prUrl - PR URL（例: "https://github.com/owner/repo/pull/123"）
+ * @param token - GitHub Personal Access Token
+ * @returns PR情報
+ */
+export function getPullRequestByUrl(
+  prUrl: string,
+  token: string
+): ApiResponse<GitHubPullRequest> {
+  const parsed = parsePrUrl(prUrl);
+  if (!parsed) {
+    return { success: false, error: `Invalid PR URL format: ${prUrl}` };
+  }
+
+  const endpoint = `/repos/${parsed.owner}/${parsed.repo}/pulls/${parsed.number}`;
+  const response = fetchGitHub<any>(endpoint, token);
+
+  if (!response.success || !response.data) {
+    return response as ApiResponse<GitHubPullRequest>;
+  }
+
+  const pr = response.data;
+  return {
+    success: true,
+    data: {
+      id: pr.id,
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+      createdAt: pr.created_at,
+      mergedAt: pr.merged_at,
+      closedAt: pr.closed_at,
+      author: pr.user?.login ?? "unknown",
+      repository: `${parsed.owner}/${parsed.repo}`,
+    },
+  };
+}
+
+/**
+ * 複数タスクのPR情報を一括取得
+ *
+ * @param tasks - PR URLを持つNotionタスクの配列
+ * @param token - GitHub Personal Access Token
+ * @returns タスクIDとPR情報のマップ
+ */
+export function getPullRequestsForTasks(
+  tasks: NotionTask[],
+  token: string
+): Map<string, GitHubPullRequest> {
+  const { logger } = getContainer();
+  const prMap = new Map<string, GitHubPullRequest>();
+
+  for (const task of tasks) {
+    if (!task.prUrl) continue;
+
+    const result = getPullRequestByUrl(task.prUrl, token);
+    if (result.success && result.data) {
+      prMap.set(task.id, result.data);
+    } else {
+      logger.log(`  ⚠️ Failed to fetch PR for task "${task.title}": ${result.error}`);
+    }
+  }
+
+  return prMap;
 }

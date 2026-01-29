@@ -1,7 +1,7 @@
 # DevSyncGAS - Claude Code開発ガイド
 
 ## プロジェクト概要
-GitHub複数リポジトリとNotionを連携してDevOps指標（DORA metrics）をGoogleスプレッドシートに書き出すGASプロダクト。
+GitHub複数リポジトリからDevOps指標（DORA metrics）を収集し、Googleスプレッドシートに書き出すGASプロダクト。
 
 ## 技術スタック
 - **言語**: TypeScript
@@ -25,7 +25,6 @@ src/
 │   └── doraThresholds.ts # DORAパフォーマンスレベル閾値（年次更新）
 ├── services/
 │   ├── github.ts        # GitHub API連携
-│   ├── notion.ts        # Notion API連携
 │   └── spreadsheet.ts   # スプレッドシート書き出し
 ├── types/
 │   └── index.ts         # 型定義
@@ -53,9 +52,10 @@ bun run lint     # リント
 4. **型定義**: `@types/google-apps-script`を使用
 
 ## 現在の機能
-- [x] GitHub PR/Workflow取得
-- [x] Notion データベース連携
+- [x] GitHub PR/Workflow/Issue取得
 - [x] DORA metrics計算（Deployment Frequency, Lead Time, CFR, MTTR）
+- [x] サイクルタイム計測（Issue作成→Productionマージ）
+- [x] コーディング時間計測（Issue作成→PR作成）
 - [x] スプレッドシート書き出し
 - [x] 日次トリガー設定
 
@@ -69,9 +69,7 @@ bun run lint     # リント
 ```javascript
 setup(
   'ghp_xxxx',           // GitHub PAT
-  'spreadsheet-id',     // Google Spreadsheet ID
-  'secret_xxxx',        // Notion Token（オプション）
-  'xxxxxxxx-xxxx-xxxx'  // Notion Database ID（オプション）
+  'spreadsheet-id'      // Google Spreadsheet ID
 );
 addRepo('owner', 'repo-name');
 ```

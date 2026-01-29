@@ -35,8 +35,6 @@ describe("settings", () => {
         GITHUB_TOKEN: "test-github-token",
         SPREADSHEET_ID: "test-spreadsheet-id",
         SHEET_NAME: "Test Sheet",
-        NOTION_TOKEN: "test-notion-token",
-        NOTION_DATABASE_ID: "test-database-id",
         GITHUB_REPOSITORIES: JSON.stringify([
           { owner: "owner1", name: "repo1", fullName: "owner1/repo1" },
         ]),
@@ -47,8 +45,6 @@ describe("settings", () => {
       expect(config.github.token).toBe("test-github-token");
       expect(config.github.repositories).toHaveLength(1);
       expect(config.github.repositories[0].fullName).toBe("owner1/repo1");
-      expect(config.notion.token).toBe("test-notion-token");
-      expect(config.notion.databaseId).toBe("test-database-id");
       expect(config.spreadsheet.id).toBe("test-spreadsheet-id");
       expect(config.spreadsheet.sheetName).toBe("Test Sheet");
     });
@@ -94,23 +90,6 @@ describe("settings", () => {
       expect(container.storageClient.getProperty("GITHUB_REPOSITORIES")).toBe(
         JSON.stringify([{ owner: "owner", name: "repo", fullName: "owner/repo" }])
       );
-    });
-
-    it("Notion設定を保存する", () => {
-      container.storageClient.setProperties({
-        GITHUB_TOKEN: "test-token",
-        SPREADSHEET_ID: "test-id",
-      });
-
-      setConfig({
-        notion: {
-          token: "notion-token",
-          databaseId: "database-id",
-        },
-      });
-
-      expect(container.storageClient.getProperty("NOTION_TOKEN")).toBe("notion-token");
-      expect(container.storageClient.getProperty("NOTION_DATABASE_ID")).toBe("database-id");
     });
 
     it("スプレッドシート設定を保存する", () => {

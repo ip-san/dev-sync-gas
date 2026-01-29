@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, NotionTask, CycleTimeMetrics, IssueCycleTimeDetail, CodingTimeMetrics, IssueCodingTimeDetail, ReworkRateMetrics, PRReworkData, ReviewEfficiencyMetrics, PRReviewData, PRSizeMetrics, PRSizeData, DeveloperSatisfactionMetrics, TaskSatisfactionData, IssueCycleTime, IssueCodingTime } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, DevOpsMetrics, CycleTimeMetrics, IssueCycleTimeDetail, CodingTimeMetrics, IssueCodingTimeDetail, ReworkRateMetrics, PRReworkData, ReviewEfficiencyMetrics, PRReviewData, PRSizeMetrics, PRSizeData, IssueCycleTime, IssueCodingTime } from "../types";
 import { getFrequencyCategory } from "../config/doraThresholds";
 
 /** ミリ秒から時間への変換定数 */
@@ -770,74 +770,5 @@ export function calculatePRSize(
       max: filesStats.max,
     },
     prDetails: sizeData,
-  };
-}
-
-/**
- * 開発者満足度（Developer Satisfaction）を計算
- *
- * 定義: Notionタスク完了時に入力された満足度スコア（★1〜5）を集計
- * SPACEフレームワークの「Satisfaction」ディメンションに対応
- *
- * @param tasks - 満足度スコアが入力されているNotionタスクの配列
- * @param period - 計測期間の表示文字列
- */
-export function calculateDeveloperSatisfaction(
-  tasks: NotionTask[],
-  period: string
-): DeveloperSatisfactionMetrics {
-  // 満足度スコアが入力されているタスクのみ対象
-  const validTasks = tasks.filter(
-    (task) => task.satisfactionScore !== null && task.completedAt !== null
-  );
-
-  if (validTasks.length === 0) {
-    return {
-      period,
-      taskCount: 0,
-      satisfaction: {
-        avg: null,
-        median: null,
-        min: null,
-        max: null,
-        distribution: { star1: 0, star2: 0, star3: 0, star4: 0, star5: 0 },
-      },
-      taskDetails: [],
-    };
-  }
-
-  // タスク詳細データを生成
-  const taskDetails: TaskSatisfactionData[] = validTasks.map((task) => ({
-    taskId: task.id,
-    title: task.title,
-    assignee: task.assignee,
-    completedAt: task.completedAt!,
-    satisfactionScore: task.satisfactionScore!,
-  }));
-
-  // 満足度スコアの統計を計算
-  const scores = validTasks.map((task) => task.satisfactionScore!);
-  const stats = calculateStats(scores);
-
-  // 分布を計算
-  const distribution = {
-    star1: scores.filter((s) => s === 1).length,
-    star2: scores.filter((s) => s === 2).length,
-    star3: scores.filter((s) => s === 3).length,
-    star4: scores.filter((s) => s === 4).length,
-    star5: scores.filter((s) => s === 5).length,
-  };
-
-  return {
-    period,
-    taskCount: validTasks.length,
-    satisfaction: {
-      avg: stats.avg,
-      median: stats.median,
-      min: stats.min,
-      max: stats.max,
-      distribution,
-    },
-    taskDetails,
   };
 }

@@ -297,41 +297,6 @@ export const PR_SIZE_DETAIL_SCHEMA: SheetSchema = {
 };
 
 // =============================================================================
-// 開発者満足度 スキーマ
-// =============================================================================
-
-export const DEVELOPER_SATISFACTION_SCHEMA: SheetSchema = {
-  version: "1.0.0",
-  sheetName: "開発者満足度",
-  columns: [
-    { id: "period", header: "期間", type: "string" },
-    { id: "taskCount", header: "タスク数", type: "number", numberFormat: "#,##0" },
-    { id: "satisfactionAvg", header: "満足度 (平均)", type: "number", numberFormat: "#,##0.0" },
-    { id: "satisfactionMedian", header: "満足度 (中央値)", type: "number", numberFormat: "#,##0.0" },
-    { id: "satisfactionMin", header: "満足度 (最小)", type: "number", numberFormat: "#,##0" },
-    { id: "satisfactionMax", header: "満足度 (最大)", type: "number", numberFormat: "#,##0" },
-    { id: "star1Count", header: "★1 件数", type: "number", numberFormat: "#,##0" },
-    { id: "star2Count", header: "★2 件数", type: "number", numberFormat: "#,##0" },
-    { id: "star3Count", header: "★3 件数", type: "number", numberFormat: "#,##0" },
-    { id: "star4Count", header: "★4 件数", type: "number", numberFormat: "#,##0" },
-    { id: "star5Count", header: "★5 件数", type: "number", numberFormat: "#,##0" },
-    { id: "recordedAt", header: "記録日時", type: "date" },
-  ],
-};
-
-export const DEVELOPER_SATISFACTION_DETAIL_SCHEMA: SheetSchema = {
-  version: "1.0.0",
-  sheetName: "開発者満足度 - Details",
-  columns: [
-    { id: "taskId", header: "タスクID", type: "string" },
-    { id: "title", header: "タイトル", type: "string" },
-    { id: "assignee", header: "担当者", type: "string" },
-    { id: "completedAt", header: "完了日時", type: "date" },
-    { id: "satisfactionScore", header: "満足度", type: "string" },
-  ],
-};
-
-// =============================================================================
 // 全スキーマ一覧
 // =============================================================================
 
@@ -348,8 +313,6 @@ export const ALL_SCHEMAS: SheetSchema[] = [
   REVIEW_EFFICIENCY_DETAIL_SCHEMA,
   PR_SIZE_SCHEMA,
   PR_SIZE_DETAIL_SCHEMA,
-  DEVELOPER_SATISFACTION_SCHEMA,
-  DEVELOPER_SATISFACTION_DETAIL_SCHEMA,
 ];
 
 /**

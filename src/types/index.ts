@@ -109,23 +109,6 @@ export interface IssueCycleTime {
   prChain: PRChainItem[];
 }
 
-// Notion関連の型定義
-export interface NotionTask {
-  id: string;
-  title: string;
-  status: string;
-  createdAt: string;
-  /** 着手日（Date Started） - サイクルタイム計算の開始点 */
-  startedAt: string | null;
-  /** 完了日（Date Done） - サイクルタイム計算の終了点 */
-  completedAt: string | null;
-  /** GitHub PR URL - コーディング時間計算に使用 */
-  prUrl: string | null;
-  assignee: string | null;
-  /** 満足度スコア（1〜5の★評価） - 開発者満足度計測に使用 */
-  satisfactionScore: number | null;
-}
-
 /**
  * サイクルタイム指標
  * Issue作成〜productionマージの時間を測定
@@ -429,60 +412,6 @@ export interface PRSizeData {
   filesChanged: number;
 }
 
-/**
- * 開発者満足度（Developer Satisfaction）指標
- * Notionタスク完了時に入力される満足度スコア（★1〜5）を集計
- * SPACEフレームワークの「Satisfaction」ディメンションに対応
- */
-export interface DeveloperSatisfactionMetrics {
-  /** 計測期間 */
-  period: string;
-  /** 評価済みタスク数 */
-  taskCount: number;
-  /** 満足度スコアの統計 */
-  satisfaction: {
-    /** 平均値（1〜5） */
-    avg: number | null;
-    /** 中央値 */
-    median: number | null;
-    /** 最小値 */
-    min: number | null;
-    /** 最大値 */
-    max: number | null;
-    /** 各評価の分布 */
-    distribution: {
-      /** ★1の件数 */
-      star1: number;
-      /** ★2の件数 */
-      star2: number;
-      /** ★3の件数 */
-      star3: number;
-      /** ★4の件数 */
-      star4: number;
-      /** ★5の件数 */
-      star5: number;
-    };
-  };
-  /** 各タスクの詳細 */
-  taskDetails: TaskSatisfactionData[];
-}
-
-/**
- * 個別タスクの満足度データ
- */
-export interface TaskSatisfactionData {
-  /** タスクID */
-  taskId: string;
-  /** タスクタイトル */
-  title: string;
-  /** 担当者 */
-  assignee: string | null;
-  /** 完了日 */
-  completedAt: string;
-  /** 満足度スコア（1〜5） */
-  satisfactionScore: number;
-}
-
 // DevOps指標の型定義（DORA metrics）
 export interface DevOpsMetrics {
   date: string;
@@ -554,38 +483,9 @@ export interface GitHubAuthConfig {
   repositories: GitHubRepository[];
 }
 
-/**
- * Notionプロパティ名のカスタム設定
- * ユーザーのNotionデータベースに合わせてプロパティ名を変更可能
- */
-export interface NotionPropertyNames {
-  /** 着手日プロパティ名（デフォルト: "Date Started"） */
-  startedDate: string;
-  /** 完了日プロパティ名（デフォルト: "Date Done"） */
-  completedDate: string;
-  /** 満足度スコアプロパティ名（デフォルト: "Satisfaction"） */
-  satisfaction: string;
-  /** PR URLプロパティ名（デフォルト: "PR URL"） */
-  prUrl: string;
-}
-
-/** デフォルトのNotionプロパティ名 */
-export const DEFAULT_NOTION_PROPERTY_NAMES: NotionPropertyNames = {
-  startedDate: "Date Started",
-  completedDate: "Date Done",
-  satisfaction: "Satisfaction",
-  prUrl: "PR URL",
-};
-
 // 設定の型定義
 export interface Config {
   github: GitHubAuthConfig;
-  notion: {
-    token: string;
-    databaseId: string;
-    /** プロパティ名のカスタム設定（オプション） */
-    propertyNames?: Partial<NotionPropertyNames>;
-  };
   spreadsheet: {
     id: string;
     sheetName: string;

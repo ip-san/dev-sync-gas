@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, NotionTask, PRReworkData, PRReviewData, PRSizeData, GitHubIssue, PRChainItem, IssueCycleTime, IssueCodingTime } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, PRReworkData, PRReviewData, PRSizeData, GitHubIssue, PRChainItem, IssueCycleTime, IssueCodingTime } from "../types";
 import { getContainer } from "../container";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -545,34 +545,6 @@ export function getPullRequestByUrl(
       repository: `${parsed.owner}/${parsed.repo}`,
     },
   };
-}
-
-/**
- * 複数タスクのPR情報を一括取得
- *
- * @param tasks - PR URLを持つNotionタスクの配列
- * @param token - GitHub Personal Access Token
- * @returns タスクIDとPR情報のマップ
- */
-export function getPullRequestsForTasks(
-  tasks: NotionTask[],
-  token: string
-): Map<string, GitHubPullRequest> {
-  const { logger } = getContainer();
-  const prMap = new Map<string, GitHubPullRequest>();
-
-  for (const task of tasks) {
-    if (!task.prUrl) continue;
-
-    const result = getPullRequestByUrl(task.prUrl, token);
-    if (result.success && result.data) {
-      prMap.set(task.id, result.data);
-    } else {
-      logger.log(`  ⚠️ Failed to fetch PR for task "${task.title}": ${result.error}`);
-    }
-  }
-
-  return prMap;
 }
 
 /**

@@ -46,9 +46,7 @@ syncDevOpsMetrics();  // メトリクスを計算してスプレッドシート�
 // APIトークンとスプレッドシートIDを設定
 setup(
   'ghp_xxxx',           // GitHub PAT
-  'spreadsheet-id',     // Google Spreadsheet ID
-  'secret_xxxx',        // Notion Token（オプション）
-  'xxxxxxxx-xxxx'       // Notion Database ID（オプション）
+  'spreadsheet-id'      // Google Spreadsheet ID
 );
 
 // リポジトリを追加
@@ -59,4 +57,4 @@ addRepo('owner', 'repo-name');
 
 ## 関連ドキュメント
 
-- **[組織導入ガイド＆トラブルシューティング](./SETUP_AND_TROUBLESHOOTING.md)** - GitHub/Notionの権限設定、接続エラーの対処法
+- **[組織導入ガイド＆トラブルシューティング](./SETUP_AND_TROUBLESHOOTING.md)** - GitHubの権限設定、接続エラーの対処法

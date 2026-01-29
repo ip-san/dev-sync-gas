@@ -33,7 +33,6 @@ function initConfig(): void {
   // 設定を保存
   setConfig({
     github: { token: GITHUB_TOKEN, repositories: [] },
-    notion: { token: "", databaseId: "" },
     spreadsheet: { id: SPREADSHEET_ID, sheetName: "DevOps Metrics" },
   });
   Logger.log("✅ Configuration saved");

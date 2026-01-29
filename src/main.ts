@@ -1,9 +1,8 @@
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, setNotionPropertyNames, getNotionPropertyNames, resetNotionPropertyNames, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels, getCodingTimeIssueLabels, setCodingTimeIssueLabels, resetCodingTimeIssueLabels } from "./config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels, getCodingTimeIssueLabels, setCodingTimeIssueLabels, resetCodingTimeIssueLabels } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs, getCycleTimeData, getCodingTimeData } from "./services/github";
-import { getTasksForSatisfaction } from "./services/notion";
-import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet, writeDeveloperSatisfactionToSheet } from "./services/spreadsheet";
-import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime, calculateReworkRate, calculateReviewEfficiency, calculatePRSize, calculateDeveloperSatisfaction } from "./utils/metrics";
+import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet } from "./services/spreadsheet";
+import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime, calculateReworkRate, calculateReviewEfficiency, calculatePRSize } from "./utils/metrics";
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
 import { createGasAdapters } from "./adapters/gas";
 import type { DevOpsMetrics, CycleTimeMetrics, GitHubPullRequest } from "./types";
@@ -109,18 +108,14 @@ function createDailyTrigger(): void {
 
 /**
  * 初期セットアップ（PAT認証） - スクリプトプロパティを設定
- * notionToken, notionDatabaseId はオプショナル
  */
 function setup(
   githubToken: string,
-  spreadsheetId: string,
-  notionToken?: string,
-  notionDatabaseId?: string
+  spreadsheetId: string
 ): void {
   ensureContainerInitialized();
   setConfig({
     github: { token: githubToken, repositories: [] },
-    notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
     spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
   });
 
@@ -134,16 +129,12 @@ function setup(
  * @param privateKey - Private Key（PEM形式、改行は\nで）
  * @param installationId - Installation ID
  * @param spreadsheetId - Google Spreadsheet ID
- * @param notionToken - Notion Token（オプション）
- * @param notionDatabaseId - Notion Database ID（オプション）
  */
 function setupWithGitHubApp(
   appId: string,
   privateKey: string,
   installationId: string,
-  spreadsheetId: string,
-  notionToken?: string,
-  notionDatabaseId?: string
+  spreadsheetId: string
 ): void {
   ensureContainerInitialized();
   setConfig({
@@ -151,7 +142,6 @@ function setupWithGitHubApp(
       appConfig: { appId, privateKey, installationId },
       repositories: [],
     },
-    notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
     spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
   });
 
@@ -880,112 +870,6 @@ function showPRSizeDetails(days: number = 30): void {
 }
 
 /**
- * 開発者満足度を計算してスプレッドシートに書き出す
- *
- * 定義: Notionタスク完了時に入力される満足度スコア（★1〜5）を集計
- * SPACEフレームワークの「Satisfaction」ディメンションに対応
- *
- * @param days - 計測期間（日数）デフォルト30日
- */
-function syncDeveloperSatisfaction(days: number = 30): void {
-  ensureContainerInitialized();
-  const config = getConfig();
-
-  if (!config.notion.token || !config.notion.databaseId) {
-    Logger.log("⚠️ Notion integration is not configured. Set notionToken and notionDatabaseId in setup()");
-    return;
-  }
-
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
-
-  const startDateStr = startDate.toISOString().split("T")[0];
-  const endDateStr = endDate.toISOString().split("T")[0];
-  const period = `${startDateStr}〜${endDateStr}`;
-
-  Logger.log(`😊 Calculating Developer Satisfaction for ${days} days`);
-  Logger.log(`   Period: ${period}`);
-
-  const tasksResult = getTasksForSatisfaction(
-    config.notion.databaseId,
-    config.notion.token,
-    startDateStr,
-    endDateStr,
-    config.notion.propertyNames
-  );
-
-  if (!tasksResult.success || !tasksResult.data) {
-    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
-    return;
-  }
-
-  Logger.log(`📥 Fetched ${tasksResult.data.length} tasks with satisfaction data`);
-
-  const satisfactionMetrics = calculateDeveloperSatisfaction(tasksResult.data, period);
-
-  Logger.log(`📊 Developer Satisfaction Results:`);
-  Logger.log(`   Tasks with ratings: ${satisfactionMetrics.taskCount}`);
-  if (satisfactionMetrics.satisfaction.avg !== null) {
-    Logger.log(`   Satisfaction: avg=${satisfactionMetrics.satisfaction.avg}, median=${satisfactionMetrics.satisfaction.median}`);
-    const dist = satisfactionMetrics.satisfaction.distribution;
-    Logger.log(`   Distribution: ★1=${dist.star1}, ★2=${dist.star2}, ★3=${dist.star3}, ★4=${dist.star4}, ★5=${dist.star5}`);
-  } else {
-    Logger.log(`   No satisfaction data found`);
-  }
-
-  writeDeveloperSatisfactionToSheet(config.spreadsheet.id, satisfactionMetrics);
-
-  Logger.log("✅ Developer Satisfaction metrics synced");
-}
-
-/**
- * 開発者満足度の詳細を表示（デバッグ用）
- */
-function showDeveloperSatisfactionDetails(days: number = 30): void {
-  ensureContainerInitialized();
-  const config = getConfig();
-
-  if (!config.notion.token || !config.notion.databaseId) {
-    Logger.log("⚠️ Notion integration is not configured");
-    return;
-  }
-
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
-
-  const startDateStr = startDate.toISOString().split("T")[0];
-  const endDateStr = endDate.toISOString().split("T")[0];
-
-  const tasksResult = getTasksForSatisfaction(
-    config.notion.databaseId,
-    config.notion.token,
-    startDateStr,
-    endDateStr,
-    config.notion.propertyNames
-  );
-
-  if (!tasksResult.success || !tasksResult.data) {
-    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
-    return;
-  }
-
-  const satisfactionMetrics = calculateDeveloperSatisfaction(
-    tasksResult.data,
-    `${startDateStr}〜${endDateStr}`
-  );
-
-  Logger.log(`\n📋 Developer Satisfaction Details (${satisfactionMetrics.taskCount} tasks):\n`);
-  satisfactionMetrics.taskDetails.forEach((task, i) => {
-    Logger.log(`${i + 1}. ${task.title}`);
-    Logger.log(`   Assignee: ${task.assignee ?? "Unassigned"}`);
-    Logger.log(`   Satisfaction: ${"★".repeat(task.satisfactionScore)}${"☆".repeat(5 - task.satisfactionScore)}`);
-    Logger.log(`   Completed: ${task.completedAt}\n`);
-  });
-}
-
-/**
  * 権限テスト用関数 - 初回実行で承認ダイアログを表示
  */
 function testPermissions(): void {
@@ -1029,70 +913,6 @@ global.syncReviewEfficiency = syncReviewEfficiency;
 global.showReviewEfficiencyDetails = showReviewEfficiencyDetails;
 global.syncPRSize = syncPRSize;
 global.showPRSizeDetails = showPRSizeDetails;
-global.syncDeveloperSatisfaction = syncDeveloperSatisfaction;
-global.showDeveloperSatisfactionDetails = showDeveloperSatisfactionDetails;
-
-// =============================================================================
-// Notionプロパティ名設定関数
-// =============================================================================
-
-/**
- * Notionプロパティ名をカスタム設定
- *
- * @example
- * // 日本語プロパティ名を使う場合
- * configureNotionProperties({
- *   startedDate: "着手日",
- *   completedDate: "完了日",
- *   satisfaction: "満足度",
- *   prUrl: "PR URL"
- * });
- */
-function configureNotionProperties(propertyNames: {
-  startedDate?: string;
-  completedDate?: string;
-  satisfaction?: string;
-  prUrl?: string;
-}): void {
-  ensureContainerInitialized();
-  setNotionPropertyNames(propertyNames);
-  Logger.log("✅ Notion property names configured:");
-  const current = getNotionPropertyNames();
-  Logger.log(`   着手日: ${current.startedDate}`);
-  Logger.log(`   完了日: ${current.completedDate}`);
-  Logger.log(`   満足度: ${current.satisfaction}`);
-  Logger.log(`   PR URL: ${current.prUrl}`);
-}
-
-/**
- * 現在のNotionプロパティ名設定を表示
- */
-function showNotionPropertyNames(): void {
-  ensureContainerInitialized();
-  const names = getNotionPropertyNames();
-  Logger.log("📋 Current Notion Property Names:");
-  Logger.log(`   着手日 (startedDate): ${names.startedDate}`);
-  Logger.log(`   完了日 (completedDate): ${names.completedDate}`);
-  Logger.log(`   満足度 (satisfaction): ${names.satisfaction}`);
-  Logger.log(`   PR URL (prUrl): ${names.prUrl}`);
-}
-
-/**
- * Notionプロパティ名設定をリセット（デフォルトに戻す）
- */
-function resetNotionProperties(): void {
-  ensureContainerInitialized();
-  resetNotionPropertyNames();
-  Logger.log("✅ Notion property names reset to defaults:");
-  Logger.log("   着手日: Date Started");
-  Logger.log("   完了日: Date Done");
-  Logger.log("   満足度: Satisfaction");
-  Logger.log("   PR URL: PR URL");
-}
-
-global.configureNotionProperties = configureNotionProperties;
-global.showNotionPropertyNames = showNotionPropertyNames;
-global.resetNotionProperties = resetNotionProperties;
 
 // =============================================================================
 // サイクルタイム設定関数

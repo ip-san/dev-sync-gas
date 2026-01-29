@@ -41,7 +41,7 @@ Claude CodeやCopilotなどのAIツールを導入して「コードを書く速
 ## 機能
 
 - 複数GitHubリポジトリからPR・デプロイメント情報を取得
-- DORA 4 Key Metrics を自動計算（[詳細ドキュメント](docs/DORA_METRICS.md)）
+- DORA 4 Key Metrics を自動計算
   - Deployment Frequency（デプロイ頻度）
   - Lead Time for Changes（変更のリードタイム）
   - Change Failure Rate（変更失敗率）
@@ -319,7 +319,6 @@ bun run lint
 ## ドキュメント
 
 ### スピードと効率
-- [DORA Metrics 実装ガイド](docs/DORA_METRICS.md) - デプロイ頻度・リードタイム・変更障害率・MTTRの計測方法
 - [サイクルタイム実装ガイド](docs/CYCLE_TIME.md) - GitHub Issue作成〜Productionマージの計測方法
 - [コーディング時間実装ガイド](docs/CODING_TIME.md) - GitHub Issue作成〜PR作成時間の計測方法
 

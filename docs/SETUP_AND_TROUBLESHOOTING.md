@@ -806,7 +806,6 @@ createDailyTrigger();
 
 - [README](../README.md) - プロジェクト概要
 - [GitHub Apps 認証ガイド](GITHUB_APPS_AUTH.md) - GitHub Apps認証の設定方法
-- [DORA Metrics](DORA_METRICS.md) - DORA指標の詳細
 - [サイクルタイム](CYCLE_TIME.md) - サイクルタイム計測
 - [コーディング時間](CODING_TIME.md) - コーディング時間計測
 - [手戻り率](REWORK_RATE.md) - 手戻り率計測

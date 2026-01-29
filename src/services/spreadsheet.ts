@@ -2,16 +2,20 @@ import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics, ReworkRateMetr
 import type { Sheet } from "../interfaces";
 import { getContainer } from "../container";
 
+/**
+ * DevOps Metrics シートのヘッダー定義
+ * DORA Four Key Metrics に基づく指標
+ */
 const HEADERS = [
-  "Date",
-  "Repository",
-  "Deployment Count",
-  "Deployment Frequency",
-  "Lead Time (hours)",
-  "Total Deployments",
-  "Failed Deployments",
-  "Change Failure Rate (%)",
-  "MTTR (hours)",
+  "日付",                    // 計測日
+  "リポジトリ",              // 対象リポジトリ名
+  "デプロイ回数",            // 期間内のデプロイ回数
+  "デプロイ頻度",            // デプロイ頻度（回/日）
+  "リードタイム (時間)",     // コード変更から本番デプロイまでの時間
+  "総デプロイ数",            // 累計デプロイ数
+  "失敗デプロイ数",          // 失敗したデプロイの数
+  "変更障害率 (%)",          // 失敗デプロイ / 総デプロイ × 100
+  "平均復旧時間 (時間)",     // Mean Time To Recovery
 ];
 
 export function writeMetricsToSheet(
@@ -116,39 +120,50 @@ export function createSummarySheet(
   const sourceSheet = spreadsheet.getSheetByName(sourceSheetName);
   if (!sourceSheet) return;
 
+  /**
+   * サマリーシートのヘッダー定義
+   * リポジトリごとの集計値を表示
+   */
   const summaryHeaders = [
-    "Repository",
-    "Avg Deployment Freq",
-    "Avg Lead Time (hours)",
-    "Avg Change Failure Rate (%)",
-    "Avg MTTR (hours)",
-    "Last Updated",
+    "リポジトリ",              // 対象リポジトリ名
+    "平均デプロイ頻度",        // 平均デプロイ回数/日
+    "平均リードタイム (時間)", // 平均リードタイム
+    "平均変更障害率 (%)",      // 平均変更障害率
+    "平均復旧時間 (時間)",     // 平均MTTR
+    "最終更新日時",            // 最後に更新された日時
   ];
 
   summarySheet.getRange(1, 1, 1, summaryHeaders.length).setValues([summaryHeaders]);
   summarySheet.getRange(1, 1, 1, summaryHeaders.length).setFontWeight("bold");
 }
 
-const CYCLE_TIME_SHEET_NAME = "Cycle Time";
+const CYCLE_TIME_SHEET_NAME = "サイクルタイム";
 
+/**
+ * サイクルタイム シートのヘッダー定義
+ * タスク着手から完了までの時間を計測
+ */
 const CYCLE_TIME_HEADERS = [
-  "Period",
-  "Completed Tasks",
-  "Avg Cycle Time (hours)",
-  "Avg Cycle Time (days)",
-  "Median (hours)",
-  "Min (hours)",
-  "Max (hours)",
-  "Recorded At",
+  "期間",                    // 計測期間
+  "完了タスク数",            // 期間内に完了したタスクの数
+  "平均サイクルタイム (時間)", // 全タスクの平均値
+  "平均サイクルタイム (日)",   // 日単位での平均値
+  "中央値 (時間)",           // ソート後の中央値（外れ値の影響を受けにくい）
+  "最小 (時間)",             // 最も短かったタスク
+  "最大 (時間)",             // 最も長かったタスク
+  "記録日時",                // データ記録時刻
 ];
 
+/**
+ * サイクルタイム詳細シートのヘッダー定義
+ */
 const CYCLE_TIME_DETAIL_HEADERS = [
-  "Task ID",
-  "Title",
-  "Started At",
-  "Completed At",
-  "Cycle Time (hours)",
-  "Cycle Time (days)",
+  "タスクID",                // NotionのタスクID
+  "タイトル",                // タスク名
+  "着手日時",                // 作業開始日時
+  "完了日時",                // タスク完了日時
+  "サイクルタイム (時間)",   // 着手から完了までの時間
+  "サイクルタイム (日)",     // 日単位でのサイクルタイム
 ];
 
 /**
@@ -241,27 +256,34 @@ export function writeCycleTimeToSheet(
   logger.log(`📝 Wrote cycle time metrics to sheet "${CYCLE_TIME_SHEET_NAME}"`);
 }
 
-const CODING_TIME_SHEET_NAME = "Coding Time";
+const CODING_TIME_SHEET_NAME = "コーディング時間";
 
+/**
+ * コーディング時間 シートのヘッダー定義
+ * タスク着手からPR作成までの時間を計測
+ */
 const CODING_TIME_HEADERS = [
-  "Period",
-  "Task Count",
-  "Avg Coding Time (hours)",
-  "Avg Coding Time (days)",
-  "Median (hours)",
-  "Min (hours)",
-  "Max (hours)",
-  "Recorded At",
+  "期間",                      // 計測期間
+  "タスク数",                  // 計測対象タスク数
+  "平均コーディング時間 (時間)", // 全タスクの平均値
+  "平均コーディング時間 (日)",   // 日単位での平均値
+  "中央値 (時間)",             // ソート後の中央値
+  "最小 (時間)",               // 最も短かったタスク
+  "最大 (時間)",               // 最も長かったタスク
+  "記録日時",                  // データ記録時刻
 ];
 
+/**
+ * コーディング時間詳細シートのヘッダー定義
+ */
 const CODING_TIME_DETAIL_HEADERS = [
-  "Task ID",
-  "Title",
-  "Started At",
-  "PR Created At",
-  "PR URL",
-  "Coding Time (hours)",
-  "Coding Time (days)",
+  "タスクID",                  // NotionのタスクID
+  "タイトル",                  // タスク名
+  "着手日時",                  // 作業開始日時
+  "PR作成日時",                // GitHubでPRを作成した日時
+  "PR URL",                    // PRへのリンク
+  "コーディング時間 (時間)",   // 着手からPR作成までの時間
+  "コーディング時間 (日)",     // 日単位でのコーディング時間
 ];
 
 /**
@@ -355,31 +377,38 @@ export function writeCodingTimeToSheet(
   logger.log(`📝 Wrote coding time metrics to sheet "${CODING_TIME_SHEET_NAME}"`);
 }
 
-const REWORK_RATE_SHEET_NAME = "Rework Rate";
+const REWORK_RATE_SHEET_NAME = "手戻り率";
 
+/**
+ * 手戻り率 シートのヘッダー定義
+ * PR作成後の追加コミット数とForce Push回数を計測
+ */
 const REWORK_RATE_HEADERS = [
-  "Period",
-  "PR Count",
-  "Additional Commits (Total)",
-  "Additional Commits (Avg)",
-  "Additional Commits (Median)",
-  "Additional Commits (Max)",
-  "Force Pushes (Total)",
-  "Force Pushes (Avg)",
-  "PRs with Force Push",
-  "Force Push Rate (%)",
-  "Recorded At",
+  "期間",                      // 計測期間
+  "PR数",                      // 分析対象のPR数
+  "追加コミット数 (合計)",     // 全PRの追加コミット数合計
+  "追加コミット数 (平均)",     // PRあたりの平均値
+  "追加コミット数 (中央値)",   // ソート後の中央値
+  "追加コミット数 (最大)",     // 最も多かったPR
+  "Force Push回数 (合計)",     // 全PRのForce Push回数合計
+  "Force Push回数 (平均)",     // PRあたりの平均値
+  "Force Pushがあった PR数",   // Force Pushが発生したPRの数
+  "Force Push率 (%)",          // Force Pushが発生したPRの割合
+  "記録日時",                  // データ記録時刻
 ];
 
+/**
+ * 手戻り率詳細シートのヘッダー定義
+ */
 const REWORK_RATE_DETAIL_HEADERS = [
-  "PR #",
-  "Title",
-  "Repository",
-  "Created At",
-  "Merged At",
-  "Total Commits",
-  "Additional Commits",
-  "Force Push Count",
+  "PR番号",                    // GitHubのPR番号
+  "タイトル",                  // PRタイトル
+  "リポジトリ",                // 対象リポジトリ
+  "作成日時",                  // PR作成日時
+  "マージ日時",                // PRマージ日時
+  "総コミット数",              // PRの総コミット数
+  "追加コミット数",            // PR作成後の追加コミット数
+  "Force Push回数",            // Force Push回数
 ];
 
 /**
@@ -469,42 +498,50 @@ export function writeReworkRateToSheet(
   logger.log(`📝 Wrote rework rate metrics to sheet "${REWORK_RATE_SHEET_NAME}"`);
 }
 
-const REVIEW_EFFICIENCY_SHEET_NAME = "Review Efficiency";
+const REVIEW_EFFICIENCY_SHEET_NAME = "レビュー効率";
+
+/**
+ * レビュー効率 シートのヘッダー定義
+ * PRの各ステータスにおける滞留時間を計測
+ */
 const REVIEW_EFFICIENCY_HEADERS = [
-  "Period",
-  "PR Count",
-  "Time to First Review (Avg)",
-  "Time to First Review (Median)",
-  "Time to First Review (Min)",
-  "Time to First Review (Max)",
-  "Review Duration (Avg)",
-  "Review Duration (Median)",
-  "Review Duration (Min)",
-  "Review Duration (Max)",
-  "Time to Merge (Avg)",
-  "Time to Merge (Median)",
-  "Time to Merge (Min)",
-  "Time to Merge (Max)",
-  "Total Time (Avg)",
-  "Total Time (Median)",
-  "Total Time (Min)",
-  "Total Time (Max)",
-  "Recorded At",
+  "期間",                            // 計測期間
+  "PR数",                            // 分析対象のPR数
+  "レビュー待ち時間 (平均)",         // Ready for Review → First Review
+  "レビュー待ち時間 (中央値)",       // 外れ値の影響を受けにくい
+  "レビュー待ち時間 (最小)",         // 最も早くレビューされたPR
+  "レビュー待ち時間 (最大)",         // 最も待たされたPR
+  "レビュー時間 (平均)",             // First Review → Approved
+  "レビュー時間 (中央値)",           // コード理解・修正にかかる時間
+  "レビュー時間 (最小)",             // 最も早く承認されたPR
+  "レビュー時間 (最大)",             // 最も時間がかかったPR
+  "マージ待ち時間 (平均)",           // Approved → Merged
+  "マージ待ち時間 (中央値)",         // 承認後のプロセス時間
+  "マージ待ち時間 (最小)",           // 最も早くマージされたPR
+  "マージ待ち時間 (最大)",           // 最も待たされたPR
+  "全体時間 (平均)",                 // Ready for Review → Merged
+  "全体時間 (中央値)",               // PR完了までの総時間
+  "全体時間 (最小)",                 // 最も早く完了したPR
+  "全体時間 (最大)",                 // 最も時間がかかったPR
+  "記録日時",                        // データ記録時刻
 ];
 
+/**
+ * レビュー効率詳細シートのヘッダー定義
+ */
 const REVIEW_EFFICIENCY_DETAIL_HEADERS = [
-  "PR #",
-  "Title",
-  "Repository",
-  "Created At",
-  "Ready for Review At",
-  "First Review At",
-  "Approved At",
-  "Merged At",
-  "Time to First Review (h)",
-  "Review Duration (h)",
-  "Time to Merge (h)",
-  "Total Time (h)",
+  "PR番号",                          // GitHubのPR番号
+  "タイトル",                        // PRタイトル
+  "リポジトリ",                      // 対象リポジトリ
+  "作成日時",                        // PR作成日時
+  "レビュー準備完了日時",            // Ready for Review になった日時
+  "初回レビュー日時",                // 最初のレビューを受けた日時
+  "承認日時",                        // Approvedになった日時
+  "マージ日時",                      // マージされた日時
+  "レビュー待ち時間 (時間)",         // Ready → First Review
+  "レビュー時間 (時間)",             // First Review → Approved
+  "マージ待ち時間 (時間)",           // Approved → Merged
+  "全体時間 (時間)",                 // Ready → Merged
 ];
 
 /**
@@ -611,33 +648,41 @@ export function writeReviewEfficiencyToSheet(
   logger.log(`📝 Wrote review efficiency metrics to sheet "${REVIEW_EFFICIENCY_SHEET_NAME}"`);
 }
 
-const PR_SIZE_SHEET_NAME = "PR Size";
+const PR_SIZE_SHEET_NAME = "PRサイズ";
+
+/**
+ * PRサイズ シートのヘッダー定義
+ * PRの変更規模（行数・ファイル数）を計測
+ */
 const PR_SIZE_HEADERS = [
-  "Period",
-  "PR Count",
-  "Lines of Code (Total)",
-  "Lines of Code (Avg)",
-  "Lines of Code (Median)",
-  "Lines of Code (Min)",
-  "Lines of Code (Max)",
-  "Files Changed (Total)",
-  "Files Changed (Avg)",
-  "Files Changed (Median)",
-  "Files Changed (Min)",
-  "Files Changed (Max)",
-  "Recorded At",
+  "期間",                      // 計測期間
+  "PR数",                      // 分析対象のPR数
+  "変更行数 (合計)",           // 全PRの変更行数合計（additions + deletions）
+  "変更行数 (平均)",           // PRあたりの平均値
+  "変更行数 (中央値)",         // ソート後の中央値
+  "変更行数 (最小)",           // 最も小さかったPR
+  "変更行数 (最大)",           // 最も大きかったPR
+  "変更ファイル数 (合計)",     // 全PRの変更ファイル数合計
+  "変更ファイル数 (平均)",     // PRあたりの平均値
+  "変更ファイル数 (中央値)",   // ソート後の中央値
+  "変更ファイル数 (最小)",     // 最も少なかったPR
+  "変更ファイル数 (最大)",     // 最も多かったPR
+  "記録日時",                  // データ記録時刻
 ];
 
+/**
+ * PRサイズ詳細シートのヘッダー定義
+ */
 const PR_SIZE_DETAIL_HEADERS = [
-  "PR #",
-  "Title",
-  "Repository",
-  "Created At",
-  "Merged At",
-  "Additions",
-  "Deletions",
-  "Lines of Code",
-  "Files Changed",
+  "PR番号",                    // GitHubのPR番号
+  "タイトル",                  // PRタイトル
+  "リポジトリ",                // 対象リポジトリ
+  "作成日時",                  // PR作成日時
+  "マージ日時",                // マージされた日時
+  "追加行数",                  // 追加された行数
+  "削除行数",                  // 削除された行数
+  "変更行数",                  // additions + deletions
+  "変更ファイル数",            // 変更されたファイル数
 ];
 
 /**
@@ -739,28 +784,36 @@ export function writePRSizeToSheet(
   logger.log(`📝 Wrote PR size metrics to sheet "${PR_SIZE_SHEET_NAME}"`);
 }
 
-const DEVELOPER_SATISFACTION_SHEET_NAME = "Developer Satisfaction";
+const DEVELOPER_SATISFACTION_SHEET_NAME = "開発者満足度";
+
+/**
+ * 開発者満足度 シートのヘッダー定義
+ * タスク完了時の満足度スコア（★1〜5）を集計
+ */
 const DEVELOPER_SATISFACTION_HEADERS = [
-  "Period",
-  "Task Count",
-  "Satisfaction (Avg)",
-  "Satisfaction (Median)",
-  "Satisfaction (Min)",
-  "Satisfaction (Max)",
-  "★1 Count",
-  "★2 Count",
-  "★3 Count",
-  "★4 Count",
-  "★5 Count",
-  "Recorded At",
+  "期間",                      // 計測期間
+  "タスク数",                  // 満足度が入力されたタスク数
+  "満足度 (平均)",             // 全タスクの平均値
+  "満足度 (中央値)",           // ソート後の中央値
+  "満足度 (最小)",             // 最も低い評価
+  "満足度 (最大)",             // 最も高い評価
+  "★1 件数",                  // 非常に不満
+  "★2 件数",                  // やや不満
+  "★3 件数",                  // 普通
+  "★4 件数",                  // 満足
+  "★5 件数",                  // 非常に満足
+  "記録日時",                  // データ記録時刻
 ];
 
+/**
+ * 開発者満足度詳細シートのヘッダー定義
+ */
 const DEVELOPER_SATISFACTION_DETAIL_HEADERS = [
-  "Task ID",
-  "Title",
-  "Assignee",
-  "Completed At",
-  "Satisfaction",
+  "タスクID",                  // NotionのタスクID
+  "タイトル",                  // タスク名
+  "担当者",                    // タスクの担当者
+  "完了日時",                  // タスク完了日時
+  "満足度",                    // ★1〜★5の評価
 ];
 
 /**

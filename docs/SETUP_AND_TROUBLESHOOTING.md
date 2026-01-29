@@ -340,6 +340,49 @@ setup('ghp_xxxx', 'spreadsheet-id');
 
 ## トラブルシューティング
 
+### 設定診断ツール（checkConfig）
+
+**設定ミスで困ったら、まずこれを実行！**
+
+GASエディタで `checkConfig()` を実行すると、現在の設定状況を診断して問題点と解決方法を表示します。
+
+```javascript
+checkConfig();
+```
+
+**出力例（設定に問題がある場合）:**
+```
+=== DevSyncGAS 設定診断 ===
+
+✅ Spreadsheet ID: 設定済み: 1234567890...
+❌ GitHub認証: GitHub Apps設定が不完全です（Private Key が未設定）
+   → setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください
+⚠️ リポジトリ: リポジトリが登録されていません
+   → addRepo('owner', 'repo-name') でリポジトリを追加してください
+
+❌ エラーがあります。上記のヒントを参考に設定を修正してください。
+```
+
+**出力例（設定が正常な場合）:**
+```
+=== DevSyncGAS 設定診断 ===
+
+✅ Spreadsheet ID: 設定済み: 1234567890...
+✅ GitHub認証: GitHub Apps認証
+✅ リポジトリ: 3件登録済み: owner/repo1, owner/repo2, owner/repo3
+
+✅ すべての設定が正常です。
+```
+
+この診断ツールは以下をチェックします：
+- スプレッドシートIDが設定されているか
+- GitHub認証（PAT/GitHub Apps）が正しく設定されているか
+- GitHub Apps設定が不完全でないか（部分的に設定されていないか）
+- PATのトークン形式が正しいか
+- リポジトリが登録されているか
+
+---
+
 ### 「メニューが見つからない」は権限不足のサイン
 
 設定画面やメニューが見つからない場合、**機能がないのではなく、権限がない**可能性が高いです。
@@ -386,6 +429,113 @@ Google Apps Script APIの利用許可をお願いいたします。
 2. 機能とアプリケーション → Apps Script → 有効化
 
 用途: GitHubからの指標収集とスプレッドシートへの書き出し
+```
+
+---
+
+### 設定関連のよくあるエラー
+
+#### エラー: 「SPREADSHEET_ID is not set」
+
+**症状:**
+```
+Error: SPREADSHEET_ID is not set
+→ setup('GITHUB_TOKEN', 'SPREADSHEET_ID') または setupWithGitHubApp() で設定してください
+→ 設定状況を確認するには checkConfig() を実行してください
+```
+
+**原因:**
+- 初期設定が完了していない
+- `setup()` または `setupWithGitHubApp()` が実行されていない
+
+**解決方法:**
+```javascript
+// PAT認証の場合
+setup('ghp_xxxx', 'spreadsheet-id');
+
+// GitHub Apps認証の場合
+setupWithGitHubApp('app-id', '-----BEGIN RSA PRIVATE KEY-----...', 'installation-id', 'spreadsheet-id');
+```
+
+---
+
+#### エラー: 「GitHub認証が設定されていません」
+
+**症状:**
+```
+Error: GitHub認証が設定されていません
+→ PAT認証: setup('GITHUB_TOKEN', 'SPREADSHEET_ID')
+→ GitHub Apps認証: setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId)
+```
+
+**原因:**
+- GitHub PATもGitHub Apps認証も設定されていない
+
+**解決方法:**
+```javascript
+// 設定状況を確認
+checkConfig();
+
+// PAT認証で設定
+setup('ghp_xxxx', 'spreadsheet-id');
+
+// または GitHub Apps認証で設定
+setupWithGitHubApp('app-id', 'private-key', 'installation-id', 'spreadsheet-id');
+```
+
+---
+
+#### エラー: 「GitHub Apps設定が不完全です」
+
+**症状:**
+```
+Error: GitHub Apps設定が不完全です（Private Key が未設定）
+→ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください
+```
+
+**原因:**
+- GitHub Apps認証に必要な3つの値（App ID、Private Key、Installation ID）のうち一部のみが設定されている
+
+**解決方法:**
+1. `checkConfig()` で何が未設定か確認
+2. `setupWithGitHubApp()` で全ての値を設定し直す
+
+```javascript
+// 設定状況を確認
+checkConfig();
+
+// 全ての値を設定
+setupWithGitHubApp(
+  '123456',                               // App ID
+  '-----BEGIN RSA PRIVATE KEY-----\n...', // Private Key（改行は\nで）
+  '12345678',                             // Installation ID
+  'spreadsheet-id'                        // スプレッドシートID
+);
+```
+
+---
+
+#### 警告: 「リポジトリが登録されていません」
+
+**症状:**
+```
+⚠️ No repositories configured. Add repositories with addRepo()
+```
+
+**原因:**
+- 監視対象のリポジトリが追加されていない
+
+**解決方法:**
+```javascript
+// リポジトリを追加
+addRepo('owner', 'repo-name');
+
+// 複数追加する場合
+addRepo('owner', 'repo1');
+addRepo('owner', 'repo2');
+
+// 登録状況を確認
+listRepos();
 ```
 
 ---

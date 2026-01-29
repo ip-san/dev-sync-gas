@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { getConfig, setConfig, addRepository, removeRepository } from "../../src/config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubAuthMode, getGitHubToken, clearGitHubAppConfig } from "../../src/config/settings";
 import { setupTestContainer, teardownTestContainer, type TestContainer } from "../helpers/setup";
 
 describe("settings", () => {
@@ -18,10 +18,10 @@ describe("settings", () => {
   });
 
   describe("getConfig", () => {
-    it("GITHUB_TOKENがない場合はエラーを投げる", () => {
+    it("GitHub認証が設定されていない場合はエラーを投げる", () => {
       container.storageClient.setProperty("SPREADSHEET_ID", "test-spreadsheet-id");
 
-      expect(() => getConfig()).toThrow("GITHUB_TOKEN is not set");
+      expect(() => getConfig()).toThrow("GitHub authentication not configured");
     });
 
     it("SPREADSHEET_IDがない場合はエラーを投げる", () => {
@@ -226,6 +226,114 @@ describe("settings", () => {
         container.storageClient.getProperty("GITHUB_REPOSITORIES") ?? "[]"
       );
       expect(repos).toHaveLength(2);
+    });
+  });
+
+  describe("getGitHubAuthMode", () => {
+    it("GitHub Apps設定がある場合は'app'を返す", () => {
+      container.storageClient.setProperties({
+        GITHUB_APP_ID: "12345",
+        GITHUB_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----",
+        GITHUB_APP_INSTALLATION_ID: "67890",
+      });
+
+      expect(getGitHubAuthMode()).toBe("app");
+    });
+
+    it("PATのみ設定されている場合は'pat'を返す", () => {
+      container.storageClient.setProperties({
+        GITHUB_TOKEN: "ghp_test_token",
+      });
+
+      expect(getGitHubAuthMode()).toBe("pat");
+    });
+
+    it("何も設定されていない場合は'none'を返す", () => {
+      expect(getGitHubAuthMode()).toBe("none");
+    });
+
+    it("GitHub Apps設定が不完全な場合（APP_IDのみ）は'none'を返す", () => {
+      container.storageClient.setProperties({
+        GITHUB_APP_ID: "12345",
+      });
+
+      // PATも設定されていないので'none'
+      expect(getGitHubAuthMode()).toBe("none");
+    });
+
+    it("GitHub Apps設定が不完全でもPATがあれば'pat'を返す", () => {
+      container.storageClient.setProperties({
+        GITHUB_APP_ID: "12345",
+        GITHUB_TOKEN: "ghp_test_token",
+      });
+
+      // Apps設定が不完全なのでPATにフォールバック
+      expect(getGitHubAuthMode()).toBe("pat");
+    });
+  });
+
+  describe("setConfig with GitHub Apps", () => {
+    it("GitHub Apps設定を保存する", () => {
+      container.storageClient.setProperty("SPREADSHEET_ID", "test-id");
+
+      setConfig({
+        github: {
+          appConfig: {
+            appId: "12345",
+            privateKey: "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----",
+            installationId: "67890",
+          },
+          repositories: [],
+        },
+      });
+
+      expect(container.storageClient.getProperty("GITHUB_APP_ID")).toBe("12345");
+      expect(container.storageClient.getProperty("GITHUB_APP_PRIVATE_KEY")).toBe(
+        "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----"
+      );
+      expect(container.storageClient.getProperty("GITHUB_APP_INSTALLATION_ID")).toBe("67890");
+    });
+  });
+
+  describe("clearGitHubAppConfig", () => {
+    it("GitHub Apps設定をクリアする", () => {
+      container.storageClient.setProperties({
+        GITHUB_APP_ID: "12345",
+        GITHUB_APP_PRIVATE_KEY: "test-key",
+        GITHUB_APP_INSTALLATION_ID: "67890",
+        GITHUB_TOKEN: "ghp_test_token",
+        SPREADSHEET_ID: "test-id",
+      });
+
+      clearGitHubAppConfig();
+
+      expect(container.storageClient.getProperty("GITHUB_APP_ID")).toBeNull();
+      expect(container.storageClient.getProperty("GITHUB_APP_PRIVATE_KEY")).toBeNull();
+      expect(container.storageClient.getProperty("GITHUB_APP_INSTALLATION_ID")).toBeNull();
+      // PATは残っている
+      expect(container.storageClient.getProperty("GITHUB_TOKEN")).toBe("ghp_test_token");
+    });
+  });
+
+  describe("getConfig with GitHub Apps", () => {
+    it("GitHub Apps設定で正しくconfigを取得する", () => {
+      container.storageClient.setProperties({
+        GITHUB_APP_ID: "12345",
+        GITHUB_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----",
+        GITHUB_APP_INSTALLATION_ID: "67890",
+        SPREADSHEET_ID: "test-spreadsheet-id",
+        GITHUB_REPOSITORIES: JSON.stringify([
+          { owner: "owner1", name: "repo1", fullName: "owner1/repo1" },
+        ]),
+      });
+
+      const config = getConfig();
+
+      expect(config.github.appConfig).toBeDefined();
+      expect(config.github.appConfig?.appId).toBe("12345");
+      expect(config.github.appConfig?.installationId).toBe("67890");
+      expect(config.github.token).toBeUndefined();
+      expect(config.github.repositories).toHaveLength(1);
     });
   });
 });

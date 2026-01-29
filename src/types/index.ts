@@ -455,12 +455,33 @@ export interface MetricsSummary {
   avgMttrHours: number | null;
 }
 
+// GitHub Apps認証用の型定義
+export interface GitHubAppConfig {
+  /** GitHub App ID */
+  appId: string;
+  /** GitHub App Private Key（PEM形式） */
+  privateKey: string;
+  /** Installation ID */
+  installationId: string;
+}
+
+/**
+ * GitHub認証設定
+ * - PAT認証: tokenのみ設定
+ * - GitHub Apps認証: appConfigを設定（tokenは自動取得される）
+ */
+export interface GitHubAuthConfig {
+  /** Personal Access Token（PAT認証時に使用） */
+  token?: string;
+  /** GitHub Apps設定（Apps認証時に使用） */
+  appConfig?: GitHubAppConfig;
+  /** リポジトリ一覧 */
+  repositories: GitHubRepository[];
+}
+
 // 設定の型定義
 export interface Config {
-  github: {
-    token: string;
-    repositories: GitHubRepository[];
-  };
+  github: GitHubAuthConfig;
   notion: {
     token: string;
     databaseId: string;

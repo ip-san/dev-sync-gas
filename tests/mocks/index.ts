@@ -27,6 +27,7 @@ export interface MockHttpCall {
 
 export class MockHttpClient implements HttpClient {
   private responses: Map<string, HttpResponse> = new Map();
+  private responseCallbacks: Map<string, () => HttpResponse> = new Map();
   public calls: MockHttpCall[] = [];
 
   setResponse(url: string, response: HttpResponse): void {
@@ -41,8 +42,18 @@ export class MockHttpClient implements HttpClient {
     });
   }
 
+  setResponseCallback(url: string, callback: () => HttpResponse): void {
+    this.responseCallbacks.set(url, callback);
+  }
+
   fetch<T = unknown>(url: string, options?: HttpRequestOptions): HttpResponse<T> {
     this.calls.push({ url, options });
+
+    // コールバックが設定されている場合はそれを使用
+    const callback = this.responseCallbacks.get(url);
+    if (callback) {
+      return callback() as HttpResponse<T>;
+    }
 
     const response = this.responses.get(url);
     if (response) {
@@ -58,6 +69,7 @@ export class MockHttpClient implements HttpClient {
 
   reset(): void {
     this.responses.clear();
+    this.responseCallbacks.clear();
     this.calls = [];
   }
 }

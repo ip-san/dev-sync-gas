@@ -39,7 +39,9 @@ GitHub / Notion  ──(REST API)──▶  Google Apps Script  ──(GAS API)�
 |------|--------|----------|
 | Google Apps Script API有効化 | GAS利用者 | 必須 |
 | Googleスプレッドシート作成 | GAS利用者 | 必須 |
-| GitHub PAT発行 | リポジトリ管理者 | 必須 |
+| **GitHub認証（以下いずれか）** | - | **必須** |
+| └ PAT発行 | リポジトリ管理者 | 個人/小規模向け |
+| └ GitHub App作成 | 組織管理者 | 組織/チーム向け |
 | Notion Integration作成 | Notionワークスペースオーナー | 任意 |
 | Notionデータベース接続許可 | データベース管理者 | 任意 |
 
@@ -61,7 +63,7 @@ GitHub / Notion  ──(REST API)──▶  Google Apps Script  ──(GAS API)�
 - スクリプトのデプロイ
 - トリガーの設定
 
-#### 2. GitHubリポジトリ管理者
+#### 2. GitHubリポジトリ管理者（PAT認証の場合）
 
 **必要な権限:**
 - 対象リポジトリへのRead権限
@@ -70,6 +72,17 @@ GitHub / Notion  ──(REST API)──▶  Google Apps Script  ──(GAS API)�
 **作業内容:**
 - Fine-grained Personal Access Tokenの発行
 - 必要なパーミッションの付与
+
+#### 2b. GitHub組織管理者（GitHub Apps認証の場合）
+
+**必要な権限:**
+- 組織の管理者権限
+- GitHub Appsの作成・インストール権限
+
+**作業内容:**
+- GitHub Appの作成と権限設定
+- Private Keyの生成と安全な共有
+- 対象リポジトリへのAppインストール
 
 #### 3. Notionワークスペースオーナー
 
@@ -218,7 +231,36 @@ https://www.googleapis.com/auth/script.scriptapp  # トリガー管理
 
 ## GitHub設定
 
-### 1. Fine-grained Personal Access Tokenの発行
+### 認証方式の選択
+
+DevSyncGASは2つのGitHub認証方式をサポートしています。組織の状況に応じて選択してください。
+
+| 観点 | PAT（Personal Access Token） | GitHub Apps |
+|------|------------------------------|-------------|
+| **推奨ケース** | 個人利用、小規模チーム | 組織運用、複数人で共有 |
+| **セットアップ** | 簡単（5分程度） | やや複雑（15分程度） |
+| **認証主体** | 個人アカウント | アプリケーション |
+| **退職時の影響** | トークン無効化が必要 | なし |
+| **有効期限** | 設定次第（最大無期限） | 1時間で自動更新 |
+| **レート制限** | 5,000 req/hour | 15,000 req/hour |
+| **監査ログ** | 個人のアクセスとして記録 | App単位で詳細に記録 |
+
+**選択の目安:**
+
+```
+個人で使う / 試しに導入したい → PAT認証（シンプル）
+チームで使う / 本格運用 → GitHub Apps（推奨）
+セキュリティ要件が厳しい → GitHub Apps（必須）
+```
+
+> **組織での運用には GitHub Apps を推奨します。**
+> 個人のPATに依存すると、担当者の退職時にトークンが無効になり、運用が止まるリスクがあります。
+
+GitHub Appsの詳細な設定手順は [GitHub Apps 認証ガイド](GITHUB_APPS_AUTH.md) を参照してください。
+
+---
+
+### PAT認証: Fine-grained Personal Access Tokenの発行
 
 **対象者:** GitHubリポジトリ管理者
 
@@ -243,7 +285,7 @@ https://www.googleapis.com/auth/script.scriptapp  # トリガー管理
 - 有効期限は90日程度を推奨（期限切れ前に更新を忘れずに）
 ```
 
-### 2. 組織リポジトリへのアクセス
+### PAT認証: 組織リポジトリへのアクセス
 
 **対象者:** 組織管理者
 
@@ -253,7 +295,7 @@ https://www.googleapis.com/auth/script.scriptapp  # トリガー管理
 2. **Personal access tokens** → **Settings**
 3. 「Allow access via fine-grained personal access tokens」を有効化
 
-### 3. トークンの設定
+### PAT認証: トークンの設定
 
 GASエディタで以下を実行：
 
@@ -266,6 +308,55 @@ setup(
 // リポジトリを追加
 addRepo('owner', 'repo-name');
 ```
+
+---
+
+### GitHub Apps認証: セットアップ
+
+**対象者:** GitHub組織管理者
+
+GitHub Appsを使用する場合、以下の手順で設定します。詳細は [GitHub Apps 認証ガイド](GITHUB_APPS_AUTH.md) を参照してください。
+
+#### 必要な情報
+
+| 項目 | 取得場所 |
+|------|---------|
+| App ID | App設定ページの「App ID」 |
+| Private Key | ダウンロードした `.pem` ファイルの内容 |
+| Installation ID | インストールURLの数字部分 |
+
+#### GASエディタでの設定
+
+```javascript
+setupWithGitHubApp(
+  '123456',                               // App ID
+  '-----BEGIN RSA PRIVATE KEY-----\n...', // Private Key（改行は\nで）
+  '12345678',                             // Installation ID
+  'spreadsheet-id'                        // スプレッドシートID
+);
+
+// リポジトリを追加
+addRepo('your-org', 'repo-name');
+
+// 認証モードを確認
+showAuthMode();  // => "🔐 Current auth mode: GitHub App"
+```
+
+#### 認証方式の切り替え
+
+現在の認証方式を確認するには：
+
+```javascript
+showAuthMode();
+```
+
+PAT認証に戻す場合：
+
+```javascript
+setup('ghp_xxxx', 'spreadsheet-id');
+```
+
+> **注意**: `setup()` を実行するとPAT認証に切り替わります。GitHub Apps設定は残りますが、PATが優先されます。
 
 ---
 
@@ -570,6 +661,135 @@ addRepo('correct-owner', 'correct-repo');
 
 ---
 
+### GitHub Apps認証関連
+
+#### エラー: 「GitHub App Private Key is empty」
+
+**症状:**
+```
+GitHub App Private Key is empty
+```
+
+**原因:**
+- Private Keyが設定されていない
+- `setupWithGitHubApp()` の引数が空文字
+
+**解決方法:**
+1. Private Keyを再確認
+2. 正しい引数で `setupWithGitHubApp()` を再実行
+
+---
+
+#### エラー: 「Invalid Private Key format」
+
+**症状:**
+```
+Invalid Private Key format. Expected PEM format with BEGIN/END markers.
+```
+
+**原因:**
+- Private Keyの形式が正しくない
+- 改行が `\n` に置換されていない
+- PEMヘッダー/フッターが欠けている
+
+**解決方法:**
+1. `.pem` ファイルの内容を確認
+2. 改行を `\n` に置換
+   ```bash
+   cat your-private-key.pem | tr '\n' '\\n' | sed 's/\\n$//'
+   ```
+3. `-----BEGIN RSA PRIVATE KEY-----` と `-----END RSA PRIVATE KEY-----` が含まれているか確認
+
+---
+
+#### エラー: 「Failed to get installation token: 401」
+
+**症状:**
+```
+Failed to get installation token: 401 - Unauthorized
+Hint: Check if the App ID and Private Key are correct.
+```
+
+**原因:**
+- App IDが間違っている
+- Private Keyが間違っている（別のAppのKeyを使用している等）
+- Private Keyが期限切れ（revoke済み）
+
+**解決方法:**
+1. App設定ページでApp IDを確認
+2. Private Keyを再生成して設定し直す
+
+---
+
+#### エラー: 「Failed to get installation token: 404」
+
+**症状:**
+```
+Failed to get installation token: 404 - Not Found
+Hint: Check if the Installation ID is correct and the App is installed on the repository.
+```
+
+**原因:**
+- Installation IDが間違っている
+- Appがリポジトリにインストールされていない
+- Appがアンインストールされた
+
+**解決方法:**
+1. GitHub → Settings → Applications → Installed GitHub Apps で確認
+2. Installation IDを確認（URLの数字部分）
+3. 必要に応じてAppを再インストール
+
+---
+
+#### エラー: 「Failed to get installation token: 403」
+
+**症状:**
+```
+Failed to get installation token: 403 - Forbidden
+Hint: Check if the App has the required permissions (Pull requests, Actions, Metadata).
+```
+
+**原因:**
+- Appに必要な権限が設定されていない
+- 権限変更後にAppの再インストールが必要
+
+**解決方法:**
+1. App設定ページで権限を確認（Metadata, Pull requests, Actions, Deployments）
+2. 権限を変更した場合はAppを再インストール
+
+---
+
+#### 問題: 「認証モードがPATのままになっている」
+
+**症状:**
+- `showAuthMode()` が "Personal Access Token (PAT)" を表示する
+- GitHub Apps設定したはずなのに反映されない
+
+**原因:**
+- 以前設定したPATが残っている
+- GitHub Apps設定が不完全（3つの値がすべて必要）
+
+**解決方法:**
+```javascript
+// 認証モードを確認
+showAuthMode();
+
+// GitHub Apps設定を再実行
+setupWithGitHubApp(
+  'app-id',
+  '-----BEGIN RSA PRIVATE KEY-----\n...',
+  'installation-id',
+  'spreadsheet-id'
+);
+
+// 再度確認
+showAuthMode();  // => "🔐 Current auth mode: GitHub App"
+```
+
+> **注意**: GitHub Apps認証が優先されるため、PAT設定が残っていても問題ありません。
+
+---
+
 #### 問題: 「デプロイメントが取得できない」
 
 **症状:**
@@ -726,7 +946,10 @@ addRepo('other-owner', 'repo3');
 
 ### Q: トークンの有効期限が切れたらどうなりますか？
 
-**A:** API呼び出しが401エラーで失敗します。新しいトークンを発行して再設定してください。
+**A:** 認証方式によって異なります。
+
+**PAT認証の場合:**
+API呼び出しが401エラーで失敗します。新しいトークンを発行して再設定してください。
 
 ```javascript
 // GitHub PATのみ更新する場合
@@ -735,6 +958,28 @@ setup('ghp_新しいトークン', 'spreadsheet-id');
 // Notion連携も使用している場合
 setup('ghp_新しいトークン', 'spreadsheet-id', 'secret_xxxx', 'database-id');
 ```
+
+**GitHub Apps認証の場合:**
+Installation Access Tokenは1時間で失効しますが、**自動的に新しいトークンが取得される**ため、通常は対応不要です。
+
+Private Keyには有効期限がないため、明示的に無効化（revoke）しない限り使い続けられます。
+セキュリティのため、定期的なKeyローテーションを推奨します。
+
+---
+
+### Q: PATとGitHub Apps、どちらを選ぶべきですか？
+
+**A:** 以下を目安にしてください。
+
+| ケース | 推奨 |
+|--------|------|
+| 個人で試しに使ってみたい | PAT |
+| 小規模チーム（2〜3人） | PAT（シンプル） or GitHub Apps（退職対策） |
+| 組織での本格運用 | **GitHub Apps** |
+| セキュリティ監査がある | **GitHub Apps** |
+| 多数のリポジトリを監視 | **GitHub Apps**（レート制限3倍） |
+
+組織での運用では、**PAT発行者の退職時にトークンが無効になるリスク**を考慮して、GitHub Appsを推奨します。
 
 ---
 
@@ -769,6 +1014,7 @@ createDailyTrigger();
 ## 関連ドキュメント
 
 - [README](../README.md) - プロジェクト概要
+- [GitHub Apps 認証ガイド](GITHUB_APPS_AUTH.md) - GitHub Apps認証の設定方法
 - [DORA Metrics](DORA_METRICS.md) - DORA指標の詳細
 - [サイクルタイム](CYCLE_TIME.md) - サイクルタイム計測
 - [コーディング時間](CODING_TIME.md) - コーディング時間計測

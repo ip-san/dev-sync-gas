@@ -56,15 +56,15 @@ describe("spreadsheet", () => {
       const sheet = spreadsheet.getSheetByName("Test Sheet") as MockSheet;
       const data = sheet!.getData();
       expect(data[0]).toEqual([
-        "Date",
-        "Repository",
-        "Deployment Count",
-        "Deployment Frequency",
-        "Lead Time (hours)",
-        "Total Deployments",
-        "Failed Deployments",
-        "Change Failure Rate (%)",
-        "MTTR (hours)",
+        "日付",
+        "リポジトリ",
+        "デプロイ回数",
+        "デプロイ頻度",
+        "リードタイム (時間)",
+        "総デプロイ数",
+        "失敗デプロイ数",
+        "変更障害率 (%)",
+        "平均復旧時間 (時間)",
       ]);
     });
 
@@ -193,12 +193,12 @@ describe("spreadsheet", () => {
       const summarySheet = spreadsheet.getSheetByName("Source Sheet - Summary") as MockSheet;
       const data = summarySheet!.getData();
       expect(data[0]).toEqual([
-        "Repository",
-        "Avg Deployment Freq",
-        "Avg Lead Time (hours)",
-        "Avg Change Failure Rate (%)",
-        "Avg MTTR (hours)",
-        "Last Updated",
+        "リポジトリ",
+        "平均デプロイ頻度",
+        "平均リードタイム (時間)",
+        "平均変更障害率 (%)",
+        "平均復旧時間 (時間)",
+        "最終更新日時",
       ]);
     });
 
@@ -213,7 +213,7 @@ describe("spreadsheet", () => {
       createSummarySheet("test-id", "Source Sheet");
 
       const data = existingSummary.getData();
-      expect(data[0][0]).toBe("Repository"); // 新しいヘッダー
+      expect(data[0][0]).toBe("リポジトリ"); // 新しいヘッダー
     });
 
     it("ソースシートがない場合はヘッダーのみ設定", () => {

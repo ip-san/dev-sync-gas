@@ -479,12 +479,37 @@ export interface GitHubAuthConfig {
   repositories: GitHubRepository[];
 }
 
+/**
+ * Notionプロパティ名のカスタム設定
+ * ユーザーのNotionデータベースに合わせてプロパティ名を変更可能
+ */
+export interface NotionPropertyNames {
+  /** 着手日プロパティ名（デフォルト: "Date Started"） */
+  startedDate: string;
+  /** 完了日プロパティ名（デフォルト: "Date Done"） */
+  completedDate: string;
+  /** 満足度スコアプロパティ名（デフォルト: "Satisfaction"） */
+  satisfaction: string;
+  /** PR URLプロパティ名（デフォルト: "PR URL"） */
+  prUrl: string;
+}
+
+/** デフォルトのNotionプロパティ名 */
+export const DEFAULT_NOTION_PROPERTY_NAMES: NotionPropertyNames = {
+  startedDate: "Date Started",
+  completedDate: "Date Done",
+  satisfaction: "Satisfaction",
+  prUrl: "PR URL",
+};
+
 // 設定の型定義
 export interface Config {
   github: GitHubAuthConfig;
   notion: {
     token: string;
     databaseId: string;
+    /** プロパティ名のカスタム設定（オプション） */
+    propertyNames?: Partial<NotionPropertyNames>;
   };
   spreadsheet: {
     id: string;

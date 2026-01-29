@@ -1,4 +1,5 @@
-import type { NotionTask, ApiResponse } from "../types";
+import type { NotionTask, ApiResponse, NotionPropertyNames } from "../types";
+import { DEFAULT_NOTION_PROPERTY_NAMES } from "../types";
 import type { HttpRequestOptions } from "../interfaces";
 import { getContainer } from "../container";
 
@@ -37,10 +38,11 @@ function fetchNotion<T>(
 export function queryDatabase(
   databaseId: string,
   token: string,
-  filter?: object
+  filter?: object,
+  propertyNames?: Partial<NotionPropertyNames>
 ): ApiResponse<NotionTask[]> {
   const endpoint = `/databases/${databaseId}/query`;
-  
+
   const response = fetchNotion<{ results: any[] }>(endpoint, token, {
     method: "post",
     payload: JSON.stringify({ filter, page_size: 100 }),
@@ -50,6 +52,12 @@ export function queryDatabase(
     return response as ApiResponse<NotionTask[]>;
   }
 
+  // カスタムプロパティ名をデフォルトとマージ
+  const propNames: NotionPropertyNames = {
+    ...DEFAULT_NOTION_PROPERTY_NAMES,
+    ...propertyNames,
+  };
+
   const tasks: NotionTask[] = response.data.results.map((page) => {
     const props = page.properties;
     return {
@@ -57,11 +65,11 @@ export function queryDatabase(
       title: extractTitle(props),
       status: extractStatus(props),
       createdAt: page.created_time,
-      startedAt: extractStartedAt(props),
-      completedAt: extractCompletedAt(props),
-      prUrl: extractPrUrl(props),
+      startedAt: extractStartedAt(props, propNames.startedDate),
+      completedAt: extractCompletedAt(props, propNames.completedDate),
+      prUrl: extractPrUrl(props, propNames.prUrl),
       assignee: extractAssignee(props),
-      satisfactionScore: extractSatisfactionScore(props),
+      satisfactionScore: extractSatisfactionScore(props, propNames.satisfaction),
     };
   });
 
@@ -80,12 +88,22 @@ function extractStatus(props: any): string {
   return statusProp?.status?.name ?? statusProp?.select?.name ?? "Unknown";
 }
 
-function extractStartedAt(props: any): string | null {
+function extractStartedAt(props: any, customName?: string): string | null {
+  // カスタム名が指定されている場合は優先
+  if (customName && props[customName]?.date?.start) {
+    return props[customName].date.start;
+  }
+  // フォールバック: 一般的なプロパティ名を試す
   const dateProp = props["Date Started"] ?? props["Started"] ?? props["着手日"] ?? props["開始日"];
   return dateProp?.date?.start ?? null;
 }
 
-function extractCompletedAt(props: any): string | null {
+function extractCompletedAt(props: any, customName?: string): string | null {
+  // カスタム名が指定されている場合は優先
+  if (customName && props[customName]?.date?.start) {
+    return props[customName].date.start;
+  }
+  // フォールバック: 一般的なプロパティ名を試す
   const dateProp = props["Date Done"] ?? props["Completed"] ?? props["完了日"] ?? props["Done"];
   return dateProp?.date?.start ?? null;
 }
@@ -95,14 +113,25 @@ function extractAssignee(props: any): string | null {
   return peopleProp?.people?.[0]?.name ?? null;
 }
 
-function extractPrUrl(props: any): string | null {
+function extractPrUrl(props: any, customName?: string): string | null {
+  // カスタム名が指定されている場合は優先
+  if (customName && props[customName]?.url) {
+    return props[customName].url;
+  }
+  // フォールバック: 一般的なプロパティ名を試す
   const urlProp = props["PR URL"] ?? props["PR"] ?? props["Pull Request"] ?? props["GitHub PR"];
   return urlProp?.url ?? null;
 }
 
-function extractSatisfactionScore(props: any): number | null {
-  // Notionプロパティ名: 「満足度」「Satisfaction」「Score」等に対応
-  const prop = props["満足度"] ?? props["Satisfaction"] ?? props["満足度スコア"] ?? props["Score"];
+function extractSatisfactionScore(props: any, customName?: string): number | null {
+  // カスタム名が指定されている場合は優先、なければフォールバック
+  let prop = null;
+  if (customName && props[customName]) {
+    prop = props[customName];
+  } else {
+    // フォールバック: 一般的なプロパティ名を試す
+    prop = props["満足度"] ?? props["Satisfaction"] ?? props["満足度スコア"] ?? props["Score"];
+  }
   if (!prop) return null;
 
   // Select型（★1〜★5の選択肢）
@@ -127,7 +156,8 @@ export function getTasksCompletedInPeriod(
   databaseId: string,
   token: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  propertyNames?: Partial<NotionPropertyNames>
 ): ApiResponse<NotionTask[]> {
   const filter = {
     and: [
@@ -137,35 +167,39 @@ export function getTasksCompletedInPeriod(
     ],
   };
 
-  return queryDatabase(databaseId, token, filter);
+  return queryDatabase(databaseId, token, filter, propertyNames);
 }
 
 /**
  * サイクルタイム計測用：期間内に完了したタスクを取得
  * 着手日と完了日の両方が設定されているタスクのみを返す
+ *
+ * @param propertyNames - カスタムプロパティ名（オプション）
  */
 export function getTasksForCycleTime(
   databaseId: string,
   token: string,
   startDate: string,
   endDate: string,
-  completedDateProperty: string = "Date Done"
+  propertyNames?: Partial<NotionPropertyNames>
 ): ApiResponse<NotionTask[]> {
+  const completedDateProp = propertyNames?.completedDate ?? DEFAULT_NOTION_PROPERTY_NAMES.completedDate;
+
   // 完了日が期間内のタスクを取得
   const filter = {
     and: [
       {
-        property: completedDateProperty,
+        property: completedDateProp,
         date: { on_or_after: startDate }
       },
       {
-        property: completedDateProperty,
+        property: completedDateProp,
         date: { on_or_before: endDate }
       },
     ],
   };
 
-  const response = queryDatabase(databaseId, token, filter);
+  const response = queryDatabase(databaseId, token, filter, propertyNames);
 
   if (!response.success || !response.data) {
     return response;
@@ -184,20 +218,22 @@ export function getTasksForCycleTime(
  *
  * @param databaseId - NotionデータベースID
  * @param token - Notion Integration Token
- * @param startedDateProperty - 着手日プロパティ名（デフォルト: "Date Started"）
+ * @param propertyNames - カスタムプロパティ名（オプション）
  */
 export function getTasksForCodingTime(
   databaseId: string,
   token: string,
-  startedDateProperty: string = "Date Started"
+  propertyNames?: Partial<NotionPropertyNames>
 ): ApiResponse<NotionTask[]> {
+  const startedDateProp = propertyNames?.startedDate ?? DEFAULT_NOTION_PROPERTY_NAMES.startedDate;
+
   // 着手日が設定されているタスクを取得
   const filter = {
-    property: startedDateProperty,
+    property: startedDateProp,
     date: { is_not_empty: true }
   };
 
-  const response = queryDatabase(databaseId, token, filter);
+  const response = queryDatabase(databaseId, token, filter, propertyNames);
 
   if (!response.success || !response.data) {
     return response;
@@ -218,30 +254,32 @@ export function getTasksForCodingTime(
  * @param token - Notion Integration Token
  * @param startDate - 期間開始日（ISO形式）
  * @param endDate - 期間終了日（ISO形式）
- * @param completedDateProperty - 完了日プロパティ名（デフォルト: "Date Done"）
+ * @param propertyNames - カスタムプロパティ名（オプション）
  */
 export function getTasksForSatisfaction(
   databaseId: string,
   token: string,
   startDate: string,
   endDate: string,
-  completedDateProperty: string = "Date Done"
+  propertyNames?: Partial<NotionPropertyNames>
 ): ApiResponse<NotionTask[]> {
+  const completedDateProp = propertyNames?.completedDate ?? DEFAULT_NOTION_PROPERTY_NAMES.completedDate;
+
   // 完了日が期間内のタスクを取得
   const filter = {
     and: [
       {
-        property: completedDateProperty,
+        property: completedDateProp,
         date: { on_or_after: startDate }
       },
       {
-        property: completedDateProperty,
+        property: completedDateProp,
         date: { on_or_before: endDate }
       },
     ],
   };
 
-  const response = queryDatabase(databaseId, token, filter);
+  const response = queryDatabase(databaseId, token, filter, propertyNames);
 
   if (!response.success || !response.data) {
     return response;

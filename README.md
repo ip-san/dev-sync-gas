@@ -2,6 +2,17 @@
 
 GitHub複数リポジトリとNotionを連携してDevOps指標（DORA metrics）をGoogleスプレッドシートに書き出すGASプロダクト。
 
+## 目次
+
+- [なぜこのツールを作ったか](#なぜこのツールを作ったか)
+- [機能](#機能)
+- [セットアップ](#セットアップ)
+- [利用可能な関数](#利用可能な関数)
+- [必要なAPIトークン](#必要なapiトークン)
+- [ディレクトリ構成](#ディレクトリ構成)
+- [開発](#開発)
+- [ドキュメント](#ドキュメント)
+
 ## なぜこのツールを作ったか
 
 AI駆動開発が当たり前になりつつある今、「本当に生産性は上がっているのか？」という疑問を持っていませんか。
@@ -211,8 +222,8 @@ removeRepo('your-org/repo-name');
 | 関数 | 説明 |
 |------|------|
 | `syncDevOpsMetrics()` | 手動でメトリクスを同期 |
-| `syncCycleTime(days?, prop?)` | サイクルタイムを計測（Notion連携必須） |
-| `syncCodingTime(prop?)` | コーディング時間を計測（Notion + GitHub連携必須） |
+| `syncCycleTime(days?)` | サイクルタイムを計測（Notion連携必須） |
+| `syncCodingTime()` | コーディング時間を計測（Notion + GitHub連携必須） |
 | `syncReworkRate(days?)` | 手戻り率を計測（GitHub連携必須） |
 | `syncReviewEfficiency(days?)` | レビュー効率を計測（GitHub連携必須） |
 | `syncPRSize(days?)` | PRサイズを計測（GitHub連携必須） |
@@ -273,36 +284,15 @@ Organization運用やセキュリティ要件が厳しい環境では、GitHub A
 
 ### Notion Integration Token（オプション）
 
-Notion連携を使用する場合のみ必要です。
+Notion連携を使用する場合のみ必要です。サイクルタイム、コーディング時間、開発者満足度の計測に使用します。
 
-#### 1. インテグレーションの作成
+**クイックスタート:**
 
-1. [Notion Integrations](https://www.notion.so/my-integrations) にアクセス
-2. 「+ 新しいインテグレーション」をクリック
-3. 以下を設定：
-   - **名前**: DevSyncGAS
-   - **関連ワークスペース**: 対象のワークスペースを選択
-   - **機能**: 「コンテンツを読み取る」にチェック
-4. 「送信」をクリックし、表示された「内部インテグレーションシークレット」をコピー
+1. [Notion Integrations](https://www.notion.so/profile/integrations) でインテグレーションを作成
+2. 対象データベースで「Add connections」からインテグレーションを接続
+3. `setup()` でトークンとDatabase IDを設定
 
-#### 2. データベースへの接続
-
-1. 計測対象のNotionデータベースを開く
-2. 右上の「•••」メニューをクリック
-3. 「接続先」→「DevSyncGAS」を選択して接続
-
-#### 3. Database IDの取得
-
-データベースのURLからIDを取得します：
-```
-https://www.notion.so/ワークスペース名/【この部分がDATABASE_ID】?v=...
-```
-
-`setup()` 関数の第3・第4引数にNotion設定を渡してください：
-
-```javascript
-setup('github_token', 'spreadsheet_id', 'notion_token', 'notion_database_id');
-```
+詳細な手順は **[Notion連携セットアップガイド](docs/NOTION_SETUP.md)** を参照してください。
 
 ## ディレクトリ構成
 
@@ -363,6 +353,7 @@ bun run lint
 - [開発者満足度実装ガイド](docs/DEVELOPER_SATISFACTION.md) - タスク完了時の満足度スコアの計測方法
 
 ### 導入・運用
+- [Notion連携セットアップガイド](docs/NOTION_SETUP.md) - Notion連携の設定方法、プロパティ名のカスタマイズ
 - [GitHub Apps 認証ガイド](docs/GITHUB_APPS_AUTH.md) - Organization向けのGitHub Apps認証の設定方法
 - [組織導入ガイド＆トラブルシューティング](docs/SETUP_AND_TROUBLESHOOTING.md) - 組織での導入手順、権限設定、トラブル対応
 

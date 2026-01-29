@@ -1,4 +1,5 @@
-import type { Config, GitHubRepository, GitHubAppConfig } from "../types";
+import type { Config, GitHubRepository, GitHubAppConfig, NotionPropertyNames } from "../types";
+import { DEFAULT_NOTION_PROPERTY_NAMES } from "../types";
 import { getContainer } from "../container";
 import { resolveGitHubToken } from "../services/githubAuth";
 
@@ -34,6 +35,12 @@ export function getConfig(): Config {
   const sheetName = storageClient.getProperty("SHEET_NAME") ?? "DevOps Metrics";
   const repositoriesJson = storageClient.getProperty("GITHUB_REPOSITORIES");
 
+  // Notionプロパティ名のカスタム設定を取得
+  const notionPropertyNamesJson = storageClient.getProperty("NOTION_PROPERTY_NAMES");
+  const notionPropertyNames: Partial<NotionPropertyNames> | undefined = notionPropertyNamesJson
+    ? JSON.parse(notionPropertyNamesJson)
+    : undefined;
+
   if (!spreadsheetId) throw new Error("SPREADSHEET_ID is not set");
 
   const repositories: GitHubRepository[] = repositoriesJson
@@ -56,7 +63,7 @@ export function getConfig(): Config {
 
     return {
       github: { appConfig, repositories },
-      notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
+      notion: { token: notionToken || "", databaseId: notionDatabaseId || "", propertyNames: notionPropertyNames },
       spreadsheet: { id: spreadsheetId, sheetName },
     };
   }
@@ -66,7 +73,7 @@ export function getConfig(): Config {
 
   return {
     github: { token: githubToken, repositories },
-    notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
+    notion: { token: notionToken || "", databaseId: notionDatabaseId || "", propertyNames: notionPropertyNames },
     spreadsheet: { id: spreadsheetId, sheetName },
   };
 }
@@ -90,6 +97,9 @@ export function setConfig(config: Partial<Config>): void {
   }
   if (config.notion?.databaseId) {
     storageClient.setProperty("NOTION_DATABASE_ID", config.notion.databaseId);
+  }
+  if (config.notion?.propertyNames) {
+    storageClient.setProperty("NOTION_PROPERTY_NAMES", JSON.stringify(config.notion.propertyNames));
   }
   if (config.spreadsheet?.id) {
     storageClient.setProperty("SPREADSHEET_ID", config.spreadsheet.id);
@@ -136,4 +146,43 @@ export function removeRepository(fullName: string): void {
   const config = getConfig();
   config.github.repositories = config.github.repositories.filter((r) => r.fullName !== fullName);
   setConfig({ github: config.github });
+}
+
+/**
+ * Notionプロパティ名をカスタム設定
+ *
+ * @example
+ * // 日本語プロパティ名を使う場合
+ * setNotionPropertyNames({
+ *   startedDate: "着手日",
+ *   completedDate: "完了日",
+ *   satisfaction: "満足度",
+ *   prUrl: "PR URL"
+ * });
+ */
+export function setNotionPropertyNames(propertyNames: Partial<NotionPropertyNames>): void {
+  const { storageClient } = getContainer();
+  storageClient.setProperty("NOTION_PROPERTY_NAMES", JSON.stringify(propertyNames));
+}
+
+/**
+ * 現在のNotionプロパティ名設定を取得（デフォルト値とマージ済み）
+ */
+export function getNotionPropertyNames(): NotionPropertyNames {
+  const { storageClient } = getContainer();
+  const json = storageClient.getProperty("NOTION_PROPERTY_NAMES");
+  const custom: Partial<NotionPropertyNames> = json ? JSON.parse(json) : {};
+
+  return {
+    ...DEFAULT_NOTION_PROPERTY_NAMES,
+    ...custom,
+  };
+}
+
+/**
+ * Notionプロパティ名設定をリセット（デフォルトに戻す）
+ */
+export function resetNotionPropertyNames(): void {
+  const { storageClient } = getContainer();
+  storageClient.deleteProperty("NOTION_PROPERTY_NAMES");
 }

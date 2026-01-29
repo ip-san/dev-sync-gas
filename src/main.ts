@@ -1,4 +1,4 @@
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode } from "./config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, setNotionPropertyNames, getNotionPropertyNames, resetNotionPropertyNames } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange, getPullRequestsForTasks, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs } from "./services/github";
 import { getTasksForCycleTime, getTasksForCodingTime, getTasksForSatisfaction } from "./services/notion";
@@ -231,9 +231,8 @@ function generateSummary(): void {
  * 仕様理解から実装完了までの効率を測定する指標
  *
  * @param days - 計測期間（日数）デフォルト30日
- * @param completedDateProperty - Notionの完了日プロパティ名（デフォルト: "Date Done"）
  */
-function syncCycleTime(days: number = 30, completedDateProperty: string = "Date Done"): void {
+function syncCycleTime(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
@@ -253,12 +252,15 @@ function syncCycleTime(days: number = 30, completedDateProperty: string = "Date 
   Logger.log(`⏱️ Calculating Cycle Time for ${days} days`);
   Logger.log(`   Period: ${period}`);
 
+  // 設定からカスタムプロパティ名を取得
+  const propertyNames = config.notion.propertyNames;
+
   const tasksResult = getTasksForCycleTime(
     config.notion.databaseId,
     config.notion.token,
     startDateStr,
     endDateStr,
-    completedDateProperty
+    propertyNames
   );
 
   if (!tasksResult.success || !tasksResult.data) {
@@ -307,7 +309,8 @@ function showCycleTimeDetails(days: number = 30): void {
     config.notion.databaseId,
     config.notion.token,
     startDateStr,
-    endDateStr
+    endDateStr,
+    config.notion.propertyNames
   );
 
   if (!tasksResult.success || !tasksResult.data) {
@@ -331,10 +334,8 @@ function showCycleTimeDetails(days: number = 30): void {
  *
  * 定義: 着手（Notion進行中）からPR作成（GitHub）までの時間
  * 純粋なコーディング作業にかかった時間を測定
- *
- * @param startedDateProperty - Notionの着手日プロパティ名（デフォルト: "Date Started"）
  */
-function syncCodingTime(startedDateProperty: string = "Date Started"): void {
+function syncCodingTime(): void {
   ensureContainerInitialized();
   const config = getConfig();
 
@@ -357,7 +358,7 @@ function syncCodingTime(startedDateProperty: string = "Date Started"): void {
   const tasksResult = getTasksForCodingTime(
     config.notion.databaseId,
     config.notion.token,
-    startedDateProperty
+    config.notion.propertyNames
   );
 
   if (!tasksResult.success || !tasksResult.data) {
@@ -414,7 +415,8 @@ function showCodingTimeDetails(): void {
 
   const tasksResult = getTasksForCodingTime(
     config.notion.databaseId,
-    config.notion.token
+    config.notion.token,
+    config.notion.propertyNames
   );
 
   if (!tasksResult.success || !tasksResult.data) {
@@ -845,7 +847,8 @@ function syncDeveloperSatisfaction(days: number = 30): void {
     config.notion.databaseId,
     config.notion.token,
     startDateStr,
-    endDateStr
+    endDateStr,
+    config.notion.propertyNames
   );
 
   if (!tasksResult.success || !tasksResult.data) {
@@ -895,7 +898,8 @@ function showDeveloperSatisfactionDetails(days: number = 30): void {
     config.notion.databaseId,
     config.notion.token,
     startDateStr,
-    endDateStr
+    endDateStr,
+    config.notion.propertyNames
   );
 
   if (!tasksResult.success || !tasksResult.data) {
@@ -963,6 +967,68 @@ global.syncPRSize = syncPRSize;
 global.showPRSizeDetails = showPRSizeDetails;
 global.syncDeveloperSatisfaction = syncDeveloperSatisfaction;
 global.showDeveloperSatisfactionDetails = showDeveloperSatisfactionDetails;
+
+// =============================================================================
+// Notionプロパティ名設定関数
+// =============================================================================
+
+/**
+ * Notionプロパティ名をカスタム設定
+ *
+ * @example
+ * // 日本語プロパティ名を使う場合
+ * configureNotionProperties({
+ *   startedDate: "着手日",
+ *   completedDate: "完了日",
+ *   satisfaction: "満足度",
+ *   prUrl: "PR URL"
+ * });
+ */
+function configureNotionProperties(propertyNames: {
+  startedDate?: string;
+  completedDate?: string;
+  satisfaction?: string;
+  prUrl?: string;
+}): void {
+  ensureContainerInitialized();
+  setNotionPropertyNames(propertyNames);
+  Logger.log("✅ Notion property names configured:");
+  const current = getNotionPropertyNames();
+  Logger.log(`   着手日: ${current.startedDate}`);
+  Logger.log(`   完了日: ${current.completedDate}`);
+  Logger.log(`   満足度: ${current.satisfaction}`);
+  Logger.log(`   PR URL: ${current.prUrl}`);
+}
+
+/**
+ * 現在のNotionプロパティ名設定を表示
+ */
+function showNotionPropertyNames(): void {
+  ensureContainerInitialized();
+  const names = getNotionPropertyNames();
+  Logger.log("📋 Current Notion Property Names:");
+  Logger.log(`   着手日 (startedDate): ${names.startedDate}`);
+  Logger.log(`   完了日 (completedDate): ${names.completedDate}`);
+  Logger.log(`   満足度 (satisfaction): ${names.satisfaction}`);
+  Logger.log(`   PR URL (prUrl): ${names.prUrl}`);
+}
+
+/**
+ * Notionプロパティ名設定をリセット（デフォルトに戻す）
+ */
+function resetNotionProperties(): void {
+  ensureContainerInitialized();
+  resetNotionPropertyNames();
+  Logger.log("✅ Notion property names reset to defaults:");
+  Logger.log("   着手日: Date Started");
+  Logger.log("   完了日: Date Done");
+  Logger.log("   満足度: Satisfaction");
+  Logger.log("   PR URL: PR URL");
+}
+
+global.configureNotionProperties = configureNotionProperties;
+global.showNotionPropertyNames = showNotionPropertyNames;
+global.resetNotionProperties = resetNotionProperties;
 
 // =============================================================================
 // スキーママイグレーション関数

@@ -145,6 +145,11 @@ bun run push
 | `listRepos()` | 登録済みリポジトリ一覧 |
 | `cleanup(days)` | 古いデータを削除 |
 | `generateSummary()` | サマリーシートを作成 |
+| `previewMigration()` | スキーマ変更のプレビュー（ドライラン） |
+| `migrateAllSchemas()` | 全シートのスキーママイグレーション実行 |
+| `migrateSheet(sheetName)` | 特定シートのマイグレーション |
+| `updateHeadersOnly()` | ヘッダー行のみ最新に更新 |
+| `showBackupCleanupHelp()` | バックアップシート削除の手順を表示 |
 
 ## 必要なAPIトークン
 

@@ -7,6 +7,8 @@ import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime,
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
 import { createGasAdapters } from "./adapters/gas";
 import type { DevOpsMetrics, CycleTimeMetrics, GitHubPullRequest } from "./types";
+import { ALL_SCHEMAS, findSchemaBySheetName } from "./schemas";
+import { getMigrationPreview, migrateSheetSchema, updateSheetHeadersOnly, logMigrationPreview, logMigrationResult, logMigrationSummary, logBackupCleanupInstructions } from "./services/migration";
 
 // GAS環境でコンテナを初期化
 function ensureContainerInitialized(): void {
@@ -961,3 +963,106 @@ global.syncPRSize = syncPRSize;
 global.showPRSizeDetails = showPRSizeDetails;
 global.syncDeveloperSatisfaction = syncDeveloperSatisfaction;
 global.showDeveloperSatisfactionDetails = showDeveloperSatisfactionDetails;
+
+// =============================================================================
+// スキーママイグレーション関数
+// =============================================================================
+
+/**
+ * 全シートのマイグレーションをプレビュー（ドライラン）
+ * 実際の変更は行わず、何が変更されるかをログ出力する
+ */
+function previewMigration(): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
+
+  logger.log("=== Schema Migration Preview ===");
+  logger.log("This is a dry run. No changes will be made.\n");
+
+  for (const schema of ALL_SCHEMAS) {
+    const preview = getMigrationPreview(spreadsheet, schema);
+    logMigrationPreview(preview);
+  }
+
+  logger.log("\nTo apply migrations, run: migrateAllSchemas()");
+}
+
+/**
+ * 全シートのスキーママイグレーションを実行
+ */
+function migrateAllSchemas(): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
+
+  logger.log("=== Starting Schema Migration ===\n");
+
+  const results = ALL_SCHEMAS.map((schema) => {
+    logger.log(`Migrating: ${schema.sheetName}...`);
+    const result = migrateSheetSchema(spreadsheet, schema);
+    logMigrationResult(result);
+    return result;
+  });
+
+  logMigrationSummary(results);
+}
+
+/**
+ * 特定のシートのみマイグレーションを実行
+ */
+function migrateSheet(sheetName: string): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const { spreadsheetClient, logger } = getContainer();
+
+  const schema = findSchemaBySheetName(sheetName);
+  if (!schema) {
+    logger.log(`❌ Error: Unknown sheet name: ${sheetName}`);
+    logger.log("Available sheets:");
+    ALL_SCHEMAS.forEach((s) => logger.log(`  - ${s.sheetName}`));
+    return;
+  }
+
+  const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
+  const result = migrateSheetSchema(spreadsheet, schema);
+  logMigrationResult(result);
+}
+
+/**
+ * ヘッダー行のみを最新に更新（データの列順は変更しない）
+ * より安全なオプション
+ */
+function updateHeadersOnly(): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const { spreadsheetClient, logger } = getContainer();
+  const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
+
+  logger.log("=== Updating Headers Only ===\n");
+
+  const results = ALL_SCHEMAS.map((schema) => {
+    logger.log(`Updating headers: ${schema.sheetName}...`);
+    const result = updateSheetHeadersOnly(spreadsheet, schema);
+    logMigrationResult(result);
+    return result;
+  });
+
+  logMigrationSummary(results);
+}
+
+/**
+ * バックアップシートの削除方法を表示
+ */
+function showBackupCleanupHelp(): void {
+  ensureContainerInitialized();
+  logBackupCleanupInstructions();
+}
+
+global.previewMigration = previewMigration;
+global.migrateAllSchemas = migrateAllSchemas;
+global.migrateSheet = migrateSheet;
+global.updateHeadersOnly = updateHeadersOnly;
+global.showBackupCleanupHelp = showBackupCleanupHelp;

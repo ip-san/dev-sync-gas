@@ -17,8 +17,9 @@ import {
   calculateReworkRate,
   calculateReviewEfficiency,
   calculatePRSize,
+  aggregateMultiRepoMetrics,
 } from "../../src/utils/metrics";
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, PRReworkData, PRReviewData, PRSizeData } from "../../src/types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, PRReworkData, PRReviewData, PRSizeData, DevOpsMetrics } from "../../src/types";
 
 describe("calculateLeadTime", () => {
   it("マージされたPRがない場合は0を返す", () => {
@@ -1854,5 +1855,149 @@ describe("calculatePRSize", () => {
     expect(result.filesChanged.avg).toBe(13);
     expect(result.filesChanged.min).toBe(1);
     expect(result.filesChanged.max).toBe(25);
+  });
+});
+
+describe("aggregateMultiRepoMetrics", () => {
+  it("空の配列の場合は空のサマリーを返す", () => {
+    const result = aggregateMultiRepoMetrics([]);
+
+    expect(result.repositorySummaries).toEqual([]);
+    expect(result.overallSummary.totalRepositories).toBe(0);
+    expect(result.overallSummary.avgDeploymentCount).toBe(0);
+    expect(result.overallSummary.avgLeadTimeHours).toBe(0);
+    expect(result.overallSummary.avgChangeFailureRate).toBe(0);
+    expect(result.overallSummary.avgMttrHours).toBeNull();
+  });
+
+  it("単一リポジトリの場合は正しく集計する", () => {
+    const metrics: DevOpsMetrics[] = [
+      {
+        date: "2024-01-01",
+        repository: "owner/repo1",
+        deploymentCount: 5,
+        deploymentFrequency: "daily",
+        leadTimeForChangesHours: 10,
+        totalDeployments: 5,
+        failedDeployments: 1,
+        changeFailureRate: 20,
+        meanTimeToRecoveryHours: 2,
+      },
+      {
+        date: "2024-01-02",
+        repository: "owner/repo1",
+        deploymentCount: 3,
+        deploymentFrequency: "daily",
+        leadTimeForChangesHours: 14,
+        totalDeployments: 3,
+        failedDeployments: 0,
+        changeFailureRate: 0,
+        meanTimeToRecoveryHours: null,
+      },
+    ];
+
+    const result = aggregateMultiRepoMetrics(metrics);
+
+    expect(result.repositorySummaries.length).toBe(1);
+    expect(result.repositorySummaries[0].repository).toBe("owner/repo1");
+    expect(result.repositorySummaries[0].dataPointCount).toBe(2);
+    expect(result.repositorySummaries[0].avgDeploymentCount).toBe(4); // (5+3)/2
+    expect(result.repositorySummaries[0].avgLeadTimeHours).toBe(12); // (10+14)/2
+    expect(result.repositorySummaries[0].avgChangeFailureRate).toBe(10); // (20+0)/2
+    expect(result.repositorySummaries[0].avgMttrHours).toBe(2); // MTTRがあるのは1件のみ
+    expect(result.repositorySummaries[0].lastUpdated).toBe("2024-01-02");
+
+    // 単一リポジトリなので全体平均も同じ
+    expect(result.overallSummary.totalRepositories).toBe(1);
+    expect(result.overallSummary.avgDeploymentCount).toBe(4);
+    expect(result.overallSummary.avgLeadTimeHours).toBe(12);
+  });
+
+  it("複数リポジトリの場合はリポジトリごとと全体を集計する", () => {
+    const metrics: DevOpsMetrics[] = [
+      {
+        date: "2024-01-01",
+        repository: "owner/repo1",
+        deploymentCount: 10,
+        deploymentFrequency: "daily",
+        leadTimeForChangesHours: 8,
+        totalDeployments: 10,
+        failedDeployments: 2,
+        changeFailureRate: 20,
+        meanTimeToRecoveryHours: 4,
+      },
+      {
+        date: "2024-01-01",
+        repository: "owner/repo2",
+        deploymentCount: 6,
+        deploymentFrequency: "daily",
+        leadTimeForChangesHours: 16,
+        totalDeployments: 6,
+        failedDeployments: 0,
+        changeFailureRate: 0,
+        meanTimeToRecoveryHours: null,
+      },
+      {
+        date: "2024-01-02",
+        repository: "owner/repo1",
+        deploymentCount: 8,
+        deploymentFrequency: "daily",
+        leadTimeForChangesHours: 12,
+        totalDeployments: 8,
+        failedDeployments: 1,
+        changeFailureRate: 12.5,
+        meanTimeToRecoveryHours: 2,
+      },
+    ];
+
+    const result = aggregateMultiRepoMetrics(metrics);
+
+    expect(result.repositorySummaries.length).toBe(2);
+
+    // repo1: deploymentCount=(10+8)/2=9, leadTime=(8+12)/2=10, cfr=(20+12.5)/2=16.25, mttr=(4+2)/2=3
+    const repo1 = result.repositorySummaries.find(s => s.repository === "owner/repo1")!;
+    expect(repo1.dataPointCount).toBe(2);
+    expect(repo1.avgDeploymentCount).toBe(9);
+    expect(repo1.avgLeadTimeHours).toBe(10);
+    expect(repo1.avgChangeFailureRate).toBe(16.3); // 四捨五入
+    expect(repo1.avgMttrHours).toBe(3);
+
+    // repo2: 1件のみなのでそのまま
+    const repo2 = result.repositorySummaries.find(s => s.repository === "owner/repo2")!;
+    expect(repo2.dataPointCount).toBe(1);
+    expect(repo2.avgDeploymentCount).toBe(6);
+    expect(repo2.avgLeadTimeHours).toBe(16);
+    expect(repo2.avgChangeFailureRate).toBe(0);
+    expect(repo2.avgMttrHours).toBeNull();
+
+    // 全体平均: リポジトリ平均の平均
+    // deploymentCount=(9+6)/2=7.5, leadTime=(10+16)/2=13, cfr=(16.3+0)/2=8.15
+    expect(result.overallSummary.totalRepositories).toBe(2);
+    expect(result.overallSummary.avgDeploymentCount).toBe(7.5);
+    expect(result.overallSummary.avgLeadTimeHours).toBe(13);
+    expect(result.overallSummary.avgChangeFailureRate).toBe(8.2); // 四捨五入
+    // MTTRはrepo1のみ有効なので3
+    expect(result.overallSummary.avgMttrHours).toBe(3);
+  });
+
+  it("全てのMTTRがnullの場合は全体平均もnull", () => {
+    const metrics: DevOpsMetrics[] = [
+      {
+        date: "2024-01-01",
+        repository: "owner/repo1",
+        deploymentCount: 5,
+        deploymentFrequency: "daily",
+        leadTimeForChangesHours: 10,
+        totalDeployments: 5,
+        failedDeployments: 0,
+        changeFailureRate: 0,
+        meanTimeToRecoveryHours: null,
+      },
+    ];
+
+    const result = aggregateMultiRepoMetrics(metrics);
+
+    expect(result.repositorySummaries[0].avgMttrHours).toBeNull();
+    expect(result.overallSummary.avgMttrHours).toBeNull();
   });
 });

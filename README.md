@@ -245,6 +245,53 @@ removeRepo('your-org/repo-name');
 | `resetCodingTimeLabelsConfig()` | ラベル設定をリセット |
 | `showCodingTimeConfig()` | 全設定を表示 |
 
+### プロジェクトグループ（複数スプレッドシート対応）
+
+複数のスプレッドシートにリポジトリ群を分けて出力できます。例えば、チームごとやプロダクトごとに別のスプレッドシートで管理したい場合に便利です。
+
+| 関数 | 説明 |
+|------|------|
+| `createProject(name, spreadsheetId, sheetName?)` | プロジェクトグループを作成 |
+| `modifyProject(name, spreadsheetId?, sheetName?)` | プロジェクトの設定を変更 |
+| `deleteProject(name)` | プロジェクトグループを削除 |
+| `listProjects()` | プロジェクト一覧を表示 |
+| `addRepoToProject(projectName, owner, repoName)` | プロジェクトにリポジトリを追加 |
+| `removeRepoFromProject(projectName, fullName)` | プロジェクトからリポジトリを削除 |
+| `syncAllProjects()` | 全プロジェクトのメトリクスを収集 |
+| `syncProject(projectName)` | 特定プロジェクトのメトリクスを収集 |
+| `syncAllProjectsHistorical(days)` | 全プロジェクトの過去データを収集 |
+| `generateAllProjectSummaries()` | 全プロジェクトのサマリーシートを生成 |
+
+#### 使用例
+
+```javascript
+// プロジェクトを作成（チームAはspreadsheet-aに出力）
+createProject('TeamA', 'spreadsheet-id-a', 'DevOps Metrics');
+
+// プロジェクトにリポジトリを追加
+addRepoToProject('TeamA', 'your-org', 'frontend');
+addRepoToProject('TeamA', 'your-org', 'backend');
+
+// 別のプロジェクトを作成（チームBはspreadsheet-bに出力）
+createProject('TeamB', 'spreadsheet-id-b', 'DevOps Metrics');
+addRepoToProject('TeamB', 'your-org', 'mobile-app');
+addRepoToProject('TeamB', 'your-org', 'api-gateway');
+
+// プロジェクト一覧を確認
+listProjects();
+
+// 全プロジェクトのメトリクスを収集
+syncAllProjects();
+
+// 特定プロジェクトのみ収集
+syncProject('TeamA');
+
+// 全プロジェクトのサマリーシートを生成
+generateAllProjectSummaries();
+```
+
+> **Note**: プロジェクトグループが設定されていない場合は、従来の単一スプレッドシートモードで動作します（後方互換性あり）。
+
 ### 運用・メンテナンス
 
 | 関数 | 説明 |

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubAuthMode, getGitHubToken, clearGitHubAppConfig } from "../../src/config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubAuthMode, getGitHubToken, clearGitHubAppConfig, getProjects, addProject, removeProject, addRepositoryToProject, removeRepositoryFromProject } from "../../src/config/settings";
 import { setupTestContainer, teardownTestContainer, type TestContainer } from "../helpers/setup";
 
 describe("settings", () => {
@@ -313,6 +313,162 @@ describe("settings", () => {
       expect(config.github.appConfig?.installationId).toBe("67890");
       expect(config.github.token).toBeUndefined();
       expect(config.github.repositories).toHaveLength(1);
+    });
+  });
+
+  describe("プロジェクトグループ管理", () => {
+    beforeEach(() => {
+      container.storageClient.setProperties({
+        GITHUB_TOKEN: "test-token",
+        SPREADSHEET_ID: "default-spreadsheet",
+      });
+    });
+
+    describe("getProjects", () => {
+      it("プロジェクトが設定されていない場合は空配列を返す", () => {
+        const projects = getProjects();
+        expect(projects).toEqual([]);
+      });
+
+      it("設定されたプロジェクトを取得する", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          {
+            name: "project1",
+            spreadsheetId: "sheet1",
+            sheetName: "DevOps Metrics",
+            repositories: [{ owner: "owner1", name: "repo1", fullName: "owner1/repo1" }],
+          },
+        ]));
+
+        const projects = getProjects();
+        expect(projects).toHaveLength(1);
+        expect(projects[0].name).toBe("project1");
+        expect(projects[0].repositories).toHaveLength(1);
+      });
+    });
+
+    describe("addProject", () => {
+      it("プロジェクトを追加する", () => {
+        addProject({
+          name: "newProject",
+          spreadsheetId: "new-sheet-id",
+          sheetName: "Metrics",
+          repositories: [],
+        });
+
+        const projects = getProjects();
+        expect(projects).toHaveLength(1);
+        expect(projects[0].name).toBe("newProject");
+        expect(projects[0].spreadsheetId).toBe("new-sheet-id");
+      });
+
+      it("同名のプロジェクトが存在する場合はエラーを投げる", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          { name: "existing", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+        ]));
+
+        expect(() => addProject({
+          name: "existing",
+          spreadsheetId: "sheet2",
+          sheetName: "Test",
+          repositories: [],
+        })).toThrow('Project "existing" already exists');
+      });
+    });
+
+    describe("removeProject", () => {
+      it("プロジェクトを削除する", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+          { name: "project2", spreadsheetId: "sheet2", sheetName: "Test", repositories: [] },
+        ]));
+
+        removeProject("project1");
+
+        const projects = getProjects();
+        expect(projects).toHaveLength(1);
+        expect(projects[0].name).toBe("project2");
+      });
+    });
+
+    describe("addRepositoryToProject", () => {
+      it("プロジェクトにリポジトリを追加する", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+        ]));
+
+        addRepositoryToProject("project1", "owner", "repo");
+
+        const projects = getProjects();
+        expect(projects[0].repositories).toHaveLength(1);
+        expect(projects[0].repositories[0].fullName).toBe("owner/repo");
+      });
+
+      it("存在しないプロジェクトにはエラーを投げる", () => {
+        expect(() => addRepositoryToProject("nonexistent", "owner", "repo"))
+          .toThrow('Project "nonexistent" not found');
+      });
+
+      it("重複するリポジトリは追加しない", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          {
+            name: "project1",
+            spreadsheetId: "sheet1",
+            sheetName: "Test",
+            repositories: [{ owner: "owner", name: "repo", fullName: "owner/repo" }],
+          },
+        ]));
+
+        addRepositoryToProject("project1", "owner", "repo");
+
+        const projects = getProjects();
+        expect(projects[0].repositories).toHaveLength(1);
+      });
+    });
+
+    describe("removeRepositoryFromProject", () => {
+      it("プロジェクトからリポジトリを削除する", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          {
+            name: "project1",
+            spreadsheetId: "sheet1",
+            sheetName: "Test",
+            repositories: [
+              { owner: "owner1", name: "repo1", fullName: "owner1/repo1" },
+              { owner: "owner2", name: "repo2", fullName: "owner2/repo2" },
+            ],
+          },
+        ]));
+
+        removeRepositoryFromProject("project1", "owner1/repo1");
+
+        const projects = getProjects();
+        expect(projects[0].repositories).toHaveLength(1);
+        expect(projects[0].repositories[0].fullName).toBe("owner2/repo2");
+      });
+    });
+
+    describe("getConfig with projects", () => {
+      it("projectsが設定されている場合はconfigに含まれる", () => {
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+        ]));
+
+        const config = getConfig();
+        expect(config.projects).toBeDefined();
+        expect(config.projects).toHaveLength(1);
+      });
+
+      it("projectsがある場合はSPREADSHEET_IDがなくてもエラーにならない", () => {
+        container.storageClient.deleteProperty("SPREADSHEET_ID");
+        container.storageClient.setProperty("PROJECTS", JSON.stringify([
+          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+        ]));
+
+        const config = getConfig();
+        expect(config.projects).toHaveLength(1);
+        expect(config.spreadsheet.id).toBe("");
+      });
     });
   });
 });

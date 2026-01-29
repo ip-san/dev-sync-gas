@@ -194,7 +194,8 @@ describe("spreadsheet", () => {
       const data = summarySheet!.getData();
       expect(data[0]).toEqual([
         "リポジトリ",
-        "平均デプロイ頻度",
+        "データポイント数",
+        "平均デプロイ回数",
         "平均リードタイム (時間)",
         "平均変更障害率 (%)",
         "平均復旧時間 (時間)",

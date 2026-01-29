@@ -479,17 +479,35 @@ export interface GitHubAuthConfig {
   token?: string;
   /** GitHub Apps設定（Apps認証時に使用） */
   appConfig?: GitHubAppConfig;
-  /** リポジトリ一覧 */
+  /** リポジトリ一覧（後方互換性のため維持、projectsが優先される） */
+  repositories: GitHubRepository[];
+}
+
+/**
+ * プロジェクトグループ
+ * スプレッドシートとリポジトリ群をグループ化
+ */
+export interface ProjectGroup {
+  /** グループ名（識別用） */
+  name: string;
+  /** 出力先スプレッドシートID */
+  spreadsheetId: string;
+  /** シート名（デフォルト: "DevOps Metrics"） */
+  sheetName: string;
+  /** このグループに属するリポジトリ一覧 */
   repositories: GitHubRepository[];
 }
 
 // 設定の型定義
 export interface Config {
   github: GitHubAuthConfig;
+  /** 単一スプレッドシート設定（後方互換性のため維持） */
   spreadsheet: {
     id: string;
     sheetName: string;
   };
+  /** プロジェクトグループ一覧（複数スプレッドシート対応） */
+  projects?: ProjectGroup[];
 }
 
 export interface ApiResponse<T> {

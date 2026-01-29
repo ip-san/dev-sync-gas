@@ -1,4 +1,4 @@
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels, getCodingTimeIssueLabels, setCodingTimeIssueLabels, resetCodingTimeIssueLabels } from "./config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels, getCodingTimeIssueLabels, setCodingTimeIssueLabels, resetCodingTimeIssueLabels, getProjects, addProject, updateProject, removeProject, addRepositoryToProject, removeRepositoryFromProject } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs, getCycleTimeData, getCodingTimeData } from "./services/github";
 import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet } from "./services/spreadsheet";
@@ -53,6 +53,97 @@ function syncDevOpsMetrics(dateRange?: DateRange): void {
 }
 
 /**
+ * 全プロジェクトグループのDevOps指標を収集
+ * 各グループのリポジトリ指標を対応するスプレッドシートに書き出す
+ */
+function syncAllProjects(dateRange?: DateRange): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const projects = config.projects ?? [];
+
+  if (projects.length === 0) {
+    Logger.log("⚠️ No projects configured. Using legacy single spreadsheet mode.");
+    syncDevOpsMetrics(dateRange);
+    return;
+  }
+
+  Logger.log(`📊 Syncing ${projects.length} project groups`);
+
+  const token = getGitHubToken();
+
+  for (const project of projects) {
+    Logger.log(`\n🔹 Project: ${project.name}`);
+    Logger.log(`   Spreadsheet: ${project.spreadsheetId}`);
+    Logger.log(`   Repositories: ${project.repositories.length}`);
+
+    if (project.repositories.length === 0) {
+      Logger.log(`   ⚠️ No repositories in this project, skipping`);
+      continue;
+    }
+
+    project.repositories.forEach((repo) => {
+      Logger.log(`     - ${repo.fullName}`);
+    });
+
+    const { pullRequests, workflowRuns, deployments } = getAllRepositoriesData(
+      project.repositories,
+      token,
+      { dateRange }
+    );
+
+    Logger.log(`   📥 Fetched ${pullRequests.length} PRs, ${workflowRuns.length} workflow runs, ${deployments.length} deployments`);
+
+    const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
+      calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+    );
+
+    writeMetricsToSheet(project.spreadsheetId, project.sheetName, metrics);
+
+    Logger.log(`   ✅ Synced metrics for ${metrics.length} repositories`);
+  }
+
+  Logger.log(`\n✅ All ${projects.length} projects synced`);
+}
+
+/**
+ * 指定したプロジェクトのDevOps指標を収集
+ */
+function syncProject(projectName: string, dateRange?: DateRange): void {
+  ensureContainerInitialized();
+  const projects = getProjects();
+  const project = projects.find((p) => p.name === projectName);
+
+  if (!project) {
+    Logger.log(`❌ Project "${projectName}" not found`);
+    return;
+  }
+
+  Logger.log(`📊 Syncing project: ${project.name}`);
+  Logger.log(`   Spreadsheet: ${project.spreadsheetId}`);
+  Logger.log(`   Repositories: ${project.repositories.length}`);
+
+  if (project.repositories.length === 0) {
+    Logger.log(`   ⚠️ No repositories in this project`);
+    return;
+  }
+
+  const token = getGitHubToken();
+  const { pullRequests, workflowRuns, deployments } = getAllRepositoriesData(
+    project.repositories,
+    token,
+    { dateRange }
+  );
+
+  const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
+    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+  );
+
+  writeMetricsToSheet(project.spreadsheetId, project.sheetName, metrics);
+
+  Logger.log(`✅ Synced metrics for ${metrics.length} repositories`);
+}
+
+/**
  * 過去N日分のメトリクスを取得
  */
 function syncHistoricalMetrics(days: number): void {
@@ -65,6 +156,21 @@ function syncHistoricalMetrics(days: number): void {
   Logger.log(`   To: ${until.toISOString()}`);
 
   syncDevOpsMetrics({ since, until });
+}
+
+/**
+ * 全プロジェクトの過去N日分のメトリクスを取得
+ */
+function syncAllProjectsHistorical(days: number): void {
+  const until = new Date();
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  Logger.log(`📅 Fetching metrics for the last ${days} days`);
+  Logger.log(`   From: ${since.toISOString()}`);
+  Logger.log(`   To: ${until.toISOString()}`);
+
+  syncAllProjects({ since, until });
 }
 
 /**
@@ -890,7 +996,10 @@ function testPermissions(): void {
 // GASグローバルスコープにエクスポート
 declare const global: any;
 global.syncDevOpsMetrics = syncDevOpsMetrics;
+global.syncAllProjects = syncAllProjects;
+global.syncProject = syncProject;
 global.syncHistoricalMetrics = syncHistoricalMetrics;
+global.syncAllProjectsHistorical = syncAllProjectsHistorical;
 global.syncLast30Days = syncLast30Days;
 global.syncLast90Days = syncLast90Days;
 global.testPermissions = testPermissions;
@@ -1187,3 +1296,127 @@ global.migrateAllSchemas = migrateAllSchemas;
 global.migrateSheet = migrateSheet;
 global.updateHeadersOnly = updateHeadersOnly;
 global.showBackupCleanupHelp = showBackupCleanupHelp;
+
+// =============================================================================
+// プロジェクトグループ管理関数
+// =============================================================================
+
+/**
+ * プロジェクトグループを作成
+ * @param name - グループ名
+ * @param spreadsheetId - 出力先スプレッドシートID
+ * @param sheetName - シート名（省略時: "DevOps Metrics"）
+ */
+function createProject(name: string, spreadsheetId: string, sheetName = "DevOps Metrics"): void {
+  ensureContainerInitialized();
+  addProject({
+    name,
+    spreadsheetId,
+    sheetName,
+    repositories: [],
+  });
+  Logger.log(`✅ Project "${name}" created`);
+  Logger.log(`   Spreadsheet: ${spreadsheetId}`);
+  Logger.log(`   Sheet: ${sheetName}`);
+}
+
+/**
+ * プロジェクトグループを削除
+ */
+function deleteProject(name: string): void {
+  ensureContainerInitialized();
+  removeProject(name);
+  Logger.log(`✅ Project "${name}" deleted`);
+}
+
+/**
+ * プロジェクト一覧を表示
+ */
+function listProjects(): void {
+  ensureContainerInitialized();
+  const projects = getProjects();
+
+  if (projects.length === 0) {
+    Logger.log("📋 No projects configured");
+    Logger.log("   Use createProject(name, spreadsheetId) to create one");
+    return;
+  }
+
+  Logger.log(`📋 Projects: ${projects.length}`);
+  for (const project of projects) {
+    Logger.log(`\n🔹 ${project.name}`);
+    Logger.log(`   Spreadsheet: ${project.spreadsheetId}`);
+    Logger.log(`   Sheet: ${project.sheetName}`);
+    Logger.log(`   Repositories: ${project.repositories.length}`);
+    project.repositories.forEach((repo) => {
+      Logger.log(`     - ${repo.fullName}`);
+    });
+  }
+}
+
+/**
+ * プロジェクトにリポジトリを追加
+ */
+function addRepoToProject(projectName: string, owner: string, repoName: string): void {
+  ensureContainerInitialized();
+  addRepositoryToProject(projectName, owner, repoName);
+  Logger.log(`✅ Repository "${owner}/${repoName}" added to project "${projectName}"`);
+}
+
+/**
+ * プロジェクトからリポジトリを削除
+ */
+function removeRepoFromProject(projectName: string, fullName: string): void {
+  ensureContainerInitialized();
+  removeRepositoryFromProject(projectName, fullName);
+  Logger.log(`✅ Repository "${fullName}" removed from project "${projectName}"`);
+}
+
+/**
+ * 全プロジェクトのサマリーシートを生成
+ */
+function generateAllProjectSummaries(): void {
+  ensureContainerInitialized();
+  const projects = getProjects();
+
+  if (projects.length === 0) {
+    Logger.log("⚠️ No projects configured. Using legacy single spreadsheet mode.");
+    generateSummary();
+    return;
+  }
+
+  for (const project of projects) {
+    Logger.log(`📊 Generating summary for project: ${project.name}`);
+    createSummarySheet(project.spreadsheetId, project.sheetName);
+  }
+
+  Logger.log(`✅ Generated summaries for ${projects.length} projects`);
+}
+
+/**
+ * プロジェクトのスプレッドシートIDまたはシート名を更新
+ */
+function modifyProject(name: string, spreadsheetId?: string, sheetName?: string): void {
+  ensureContainerInitialized();
+  const updates: { spreadsheetId?: string; sheetName?: string; repositories?: never } = {};
+  if (spreadsheetId) updates.spreadsheetId = spreadsheetId;
+  if (sheetName) updates.sheetName = sheetName;
+
+  if (Object.keys(updates).length === 0) {
+    Logger.log("⚠️ No updates specified. Provide spreadsheetId and/or sheetName.");
+    return;
+  }
+
+  updateProject(name, updates);
+  Logger.log(`✅ Project "${name}" updated`);
+  if (spreadsheetId) Logger.log(`   Spreadsheet: ${spreadsheetId}`);
+  if (sheetName) Logger.log(`   Sheet: ${sheetName}`);
+}
+
+global.createProject = createProject;
+global.deleteProject = deleteProject;
+global.modifyProject = modifyProject;
+global.listProjects = listProjects;
+global.addRepoToProject = addRepoToProject;
+global.removeRepoFromProject = removeRepoFromProject;
+global.generateAllProjectSummaries = generateAllProjectSummaries;

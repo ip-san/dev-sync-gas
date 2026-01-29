@@ -1,6 +1,7 @@
 import type { DevOpsMetrics, CycleTimeMetrics, CodingTimeMetrics, ReworkRateMetrics, ReviewEfficiencyMetrics, PRSizeMetrics } from "../types";
 import type { Sheet } from "../interfaces";
 import { getContainer } from "../container";
+import { aggregateMultiRepoMetrics } from "../utils/metrics";
 
 /**
  * DevOps Metrics シートのヘッダー定義
@@ -106,7 +107,7 @@ export function createSummarySheet(
   spreadsheetId: string,
   sourceSheetName: string
 ): void {
-  const { spreadsheetClient } = getContainer();
+  const { spreadsheetClient, logger } = getContainer();
   const spreadsheet = spreadsheetClient.openById(spreadsheetId);
   const summarySheetName = `${sourceSheetName} - Summary`;
 
@@ -118,7 +119,10 @@ export function createSummarySheet(
   }
 
   const sourceSheet = spreadsheet.getSheetByName(sourceSheetName);
-  if (!sourceSheet) return;
+  if (!sourceSheet) {
+    logger.log("⚠️ Source sheet not found");
+    return;
+  }
 
   /**
    * サマリーシートのヘッダー定義
@@ -126,7 +130,8 @@ export function createSummarySheet(
    */
   const summaryHeaders = [
     "リポジトリ",              // 対象リポジトリ名
-    "平均デプロイ頻度",        // 平均デプロイ回数/日
+    "データポイント数",        // 集計対象のレコード数
+    "平均デプロイ回数",        // 平均デプロイ回数
     "平均リードタイム (時間)", // 平均リードタイム
     "平均変更障害率 (%)",      // 平均変更障害率
     "平均復旧時間 (時間)",     // 平均MTTR
@@ -135,6 +140,83 @@ export function createSummarySheet(
 
   summarySheet.getRange(1, 1, 1, summaryHeaders.length).setValues([summaryHeaders]);
   summarySheet.getRange(1, 1, 1, summaryHeaders.length).setFontWeight("bold");
+  summarySheet.setFrozenRows(1);
+
+  // ソースシートからデータを読み取り集計
+  const data = sourceSheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    logger.log("⚠️ No data in source sheet");
+    return;
+  }
+
+  // ヘッダー行をスキップしてDevOpsMetrics形式に変換
+  const metrics: DevOpsMetrics[] = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    metrics.push({
+      date: String(row[0]),
+      repository: String(row[1]),
+      deploymentCount: Number(row[2]) || 0,
+      deploymentFrequency: row[3] as "daily" | "weekly" | "monthly" | "yearly",
+      leadTimeForChangesHours: Number(row[4]) || 0,
+      totalDeployments: Number(row[5]) || 0,
+      failedDeployments: Number(row[6]) || 0,
+      changeFailureRate: Number(row[7]) || 0,
+      meanTimeToRecoveryHours: row[8] === "N/A" ? null : Number(row[8]) || null,
+    });
+  }
+
+  // 集計
+  const aggregated = aggregateMultiRepoMetrics(metrics);
+
+  // リポジトリごとのサマリー行を出力
+  const rows: (string | number)[][] = [];
+  for (const summary of aggregated.repositorySummaries) {
+    rows.push([
+      summary.repository,
+      summary.dataPointCount,
+      summary.avgDeploymentCount,
+      summary.avgLeadTimeHours,
+      summary.avgChangeFailureRate,
+      summary.avgMttrHours ?? "N/A",
+      summary.lastUpdated,
+    ]);
+  }
+
+  // 全体平均行を追加
+  if (aggregated.repositorySummaries.length > 1) {
+    rows.push([
+      "【全体平均】",
+      metrics.length,
+      aggregated.overallSummary.avgDeploymentCount,
+      aggregated.overallSummary.avgLeadTimeHours,
+      aggregated.overallSummary.avgChangeFailureRate,
+      aggregated.overallSummary.avgMttrHours ?? "N/A",
+      new Date().toISOString(),
+    ]);
+  }
+
+  if (rows.length > 0) {
+    summarySheet.getRange(2, 1, rows.length, summaryHeaders.length).setValues(rows);
+
+    // フォーマット設定
+    const lastRow = rows.length + 1;
+    summarySheet.getRange(2, 3, rows.length, 1).setNumberFormat("#,##0.0");
+    summarySheet.getRange(2, 4, rows.length, 1).setNumberFormat("#,##0.0");
+    summarySheet.getRange(2, 5, rows.length, 1).setNumberFormat("#,##0.0");
+
+    // 全体平均行を太字にする
+    if (aggregated.repositorySummaries.length > 1) {
+      summarySheet.getRange(lastRow, 1, 1, summaryHeaders.length).setFontWeight("bold");
+    }
+
+    // 列幅の自動調整
+    for (let i = 1; i <= summaryHeaders.length; i++) {
+      summarySheet.autoResizeColumn(i);
+    }
+  }
+
+  logger.log(`✅ Summary sheet created with ${aggregated.repositorySummaries.length} repositories`);
 }
 
 const CYCLE_TIME_SHEET_NAME = "サイクルタイム";

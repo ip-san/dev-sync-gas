@@ -102,17 +102,27 @@ const REPOSITORIES = [
 bun run push
 ```
 
-### 7. 初期設定の実行
+### 7. GASエディタで初期設定を実行
 
-GASエディタで `initConfig` 関数を実行します。これにより設定がScript Propertiesに保存されます。
+1. https://script.google.com/ にアクセス
+2. デプロイしたプロジェクト「DevSyncGAS」を開く
+3. 関数選択ドロップダウンで `initConfig` を選択
+4. 「実行」ボタンをクリック
+5. 初回実行時は「承認が必要です」と表示されるので、画面の指示に従って権限を許可
 
-> **Note**: 一度実行すれば設定は永続化されます。以降は `syncDevOpsMetrics` を実行するだけでOKです。
+> **Note**: 一度実行すれば設定はScript Propertiesに永続化されます。以降は `syncDevOpsMetrics` を実行するだけでOKです。
 
-### 8. トリガー設定（オプション）
+### 8. 日次トリガーの設定（推奨）
 
-```javascript
-createDailyTrigger(); // 毎日9時に自動実行
-```
+毎日自動でメトリクスを収集するには、トリガーを設定します。
+
+1. GASエディタを開く（手順7から続けて操作する場合は不要）
+2. 関数選択ドロップダウンから `createDailyTrigger` を選択
+3. 「実行」ボタンをクリック
+
+これで毎日午前9時に `syncDevOpsMetrics` が自動実行されます。
+
+> **Note**: トリガーの確認・削除は、GASエディタの左メニュー「トリガー」（時計アイコン）から行えます。
 
 ## 利用可能な関数
 

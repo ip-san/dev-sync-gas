@@ -248,16 +248,17 @@ removeRepo('your-org/repo-name');
 
 Fine-grained personal access tokens（推奨）を使用してください。
 
-1. GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens**
-2. 「Generate new token」をクリック
-3. 以下を設定：
+1. [GitHub Personal Access Tokens](https://github.com/settings/personal-access-tokens/new) にアクセス
+2. 以下を設定：
    - **Token name**: DevSyncGAS
-   - **Expiration**: 任意（90日など）
-   - **Repository access**: 対象リポジトリを選択
-   - **Permissions**:
+   - **Expiration**: 任意（90日など、最長1年）
+   - **Resource owner**: 自分のアカウントまたはOrganizationを選択
+   - **Repository access**: 「Only select repositories」で対象リポジトリを選択
+   - **Permissions** → **Repository permissions**:
      - `Pull requests`: Read-only
      - `Actions`: Read-only
-     - `Metadata`: Read-only（必須）
+     - `Metadata`: Read-only（自動で設定されます）
+3. 「Generate token」をクリックし、表示されたトークンをコピー（再表示不可）
 
 #### 方式2: GitHub Apps - Organization/チーム向け
 
@@ -274,8 +275,28 @@ Organization運用やセキュリティ要件が厳しい環境では、GitHub A
 
 Notion連携を使用する場合のみ必要です。
 
-1. https://www.notion.so/my-integrations でインテグレーションを作成
-2. 対象データベースにインテグレーションを追加
+#### 1. インテグレーションの作成
+
+1. [Notion Integrations](https://www.notion.so/my-integrations) にアクセス
+2. 「+ 新しいインテグレーション」をクリック
+3. 以下を設定：
+   - **名前**: DevSyncGAS
+   - **関連ワークスペース**: 対象のワークスペースを選択
+   - **機能**: 「コンテンツを読み取る」にチェック
+4. 「送信」をクリックし、表示された「内部インテグレーションシークレット」をコピー
+
+#### 2. データベースへの接続
+
+1. 計測対象のNotionデータベースを開く
+2. 右上の「•••」メニューをクリック
+3. 「接続先」→「DevSyncGAS」を選択して接続
+
+#### 3. Database IDの取得
+
+データベースのURLからIDを取得します：
+```
+https://www.notion.so/ワークスペース名/【この部分がDATABASE_ID】?v=...
+```
 
 `setup()` 関数の第3・第4引数にNotion設定を渡してください：
 

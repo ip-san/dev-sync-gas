@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubAuthMode, getGitHubToken, clearGitHubAppConfig } from "../../src/config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubAuthMode, getGitHubToken, clearGitHubAppConfig, diagnoseConfig, formatDiagnosticResult } from "../../src/config/settings";
 import { setupTestContainer, teardownTestContainer, type TestContainer } from "../helpers/setup";
 
 describe("settings", () => {
@@ -21,7 +21,7 @@ describe("settings", () => {
     it("GitHub認証が設定されていない場合はエラーを投げる", () => {
       container.storageClient.setProperty("SPREADSHEET_ID", "test-spreadsheet-id");
 
-      expect(() => getConfig()).toThrow("GitHub authentication not configured");
+      expect(() => getConfig()).toThrow("GitHub認証が設定されていません");
     });
 
     it("SPREADSHEET_IDがない場合はエラーを投げる", () => {
@@ -313,6 +313,146 @@ describe("settings", () => {
       expect(config.github.appConfig?.installationId).toBe("67890");
       expect(config.github.token).toBeUndefined();
       expect(config.github.repositories).toHaveLength(1);
+    });
+  });
+
+  describe("diagnoseConfig", () => {
+    it("全て設定されている場合はエラーなし", () => {
+      container.storageClient.setProperties({
+        GITHUB_TOKEN: "ghp_test_token",
+        SPREADSHEET_ID: "test-spreadsheet-id",
+        GITHUB_REPOSITORIES: JSON.stringify([
+          { owner: "owner1", name: "repo1", fullName: "owner1/repo1" },
+        ]),
+      });
+
+      const result = diagnoseConfig();
+
+      expect(result.hasErrors).toBe(false);
+      expect(result.hasWarnings).toBe(false);
+      expect(result.items.every(item => item.status === "ok")).toBe(true);
+    });
+
+    it("SPREADSHEET_ID未設定でエラーを報告", () => {
+      container.storageClient.setProperties({
+        GITHUB_TOKEN: "ghp_test_token",
+      });
+
+      const result = diagnoseConfig();
+
+      expect(result.hasErrors).toBe(true);
+      const spreadsheetItem = result.items.find(item => item.name === "Spreadsheet ID");
+      expect(spreadsheetItem?.status).toBe("error");
+      expect(spreadsheetItem?.hint).toContain("setup");
+    });
+
+    it("GitHub認証未設定でエラーを報告", () => {
+      container.storageClient.setProperties({
+        SPREADSHEET_ID: "test-id",
+      });
+
+      const result = diagnoseConfig();
+
+      expect(result.hasErrors).toBe(true);
+      const authItem = result.items.find(item => item.name === "GitHub認証");
+      expect(authItem?.status).toBe("error");
+      expect(authItem?.message).toContain("設定されていません");
+    });
+
+    it("GitHub Apps設定が不完全な場合は具体的に報告", () => {
+      container.storageClient.setProperties({
+        SPREADSHEET_ID: "test-id",
+        GITHUB_APP_ID: "12345",
+        // Private KeyとInstallation IDが未設定
+      });
+
+      const result = diagnoseConfig();
+
+      expect(result.hasErrors).toBe(true);
+      const authItem = result.items.find(item => item.name === "GitHub認証");
+      expect(authItem?.status).toBe("error");
+      expect(authItem?.message).toContain("不完全");
+      expect(authItem?.message).toContain("Private Key");
+      expect(authItem?.message).toContain("Installation ID");
+    });
+
+    it("リポジトリ未登録で警告を報告", () => {
+      container.storageClient.setProperties({
+        GITHUB_TOKEN: "ghp_test_token",
+        SPREADSHEET_ID: "test-id",
+      });
+
+      const result = diagnoseConfig();
+
+      expect(result.hasWarnings).toBe(true);
+      const repoItem = result.items.find(item => item.name === "リポジトリ");
+      expect(repoItem?.status).toBe("warning");
+      expect(repoItem?.hint).toContain("addRepo");
+    });
+
+    it("通常と異なるトークン形式で警告を報告", () => {
+      container.storageClient.setProperties({
+        GITHUB_TOKEN: "unusual_token_format",
+        SPREADSHEET_ID: "test-id",
+        GITHUB_REPOSITORIES: JSON.stringify([
+          { owner: "owner1", name: "repo1", fullName: "owner1/repo1" },
+        ]),
+      });
+
+      const result = diagnoseConfig();
+
+      expect(result.hasWarnings).toBe(true);
+      const authItem = result.items.find(item => item.name === "GitHub認証");
+      expect(authItem?.status).toBe("warning");
+      expect(authItem?.hint).toContain("ghp_");
+    });
+  });
+
+  describe("formatDiagnosticResult", () => {
+    it("エラーがある場合は適切なメッセージを表示", () => {
+      const result = {
+        items: [
+          { name: "Test", status: "error" as const, message: "エラーです", hint: "ヒントです" },
+        ],
+        hasErrors: true,
+        hasWarnings: false,
+      };
+
+      const formatted = formatDiagnosticResult(result);
+
+      expect(formatted).toContain("❌ Test: エラーです");
+      expect(formatted).toContain("→ ヒントです");
+      expect(formatted).toContain("エラーがあります");
+    });
+
+    it("警告がある場合は適切なメッセージを表示", () => {
+      const result = {
+        items: [
+          { name: "Test", status: "warning" as const, message: "警告です" },
+        ],
+        hasErrors: false,
+        hasWarnings: true,
+      };
+
+      const formatted = formatDiagnosticResult(result);
+
+      expect(formatted).toContain("⚠️ Test: 警告です");
+      expect(formatted).toContain("警告があります");
+    });
+
+    it("全て正常な場合は適切なメッセージを表示", () => {
+      const result = {
+        items: [
+          { name: "Test", status: "ok" as const, message: "正常です" },
+        ],
+        hasErrors: false,
+        hasWarnings: false,
+      };
+
+      const formatted = formatDiagnosticResult(result);
+
+      expect(formatted).toContain("✅ Test: 正常です");
+      expect(formatted).toContain("すべての設定が正常です");
     });
   });
 });

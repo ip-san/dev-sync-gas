@@ -77,7 +77,18 @@ bunx clasp create --title "DevSyncGAS" --type standalone --rootDir ./dist
 
 > **Note**: `.clasp.example.json` をコピーして `.clasp.json` を手動作成することもできます。
 
-### 5. 初期設定ファイルの作成
+### 5. スプレッドシートの作成
+
+1. [Google スプレッドシート](https://sheets.google.com/) で新しいスプレッドシートを作成
+2. URLからスプレッドシートIDを取得
+
+```
+https://docs.google.com/spreadsheets/d/【この部分がSPREADSHEET_ID】/edit
+```
+
+> **Note**: シートは自動作成されるため、空のスプレッドシートのままでOKです。
+
+### 6. 初期設定ファイルの作成
 
 ```bash
 cp src/init.example.ts src/init.ts
@@ -87,7 +98,7 @@ cp src/init.example.ts src/init.ts
 
 ```typescript
 const GITHUB_TOKEN = "your_github_token_here";
-const SPREADSHEET_ID = "your_spreadsheet_id_here";
+const SPREADSHEET_ID = "your_spreadsheet_id_here";  // 手順5で取得したID
 
 // 計測対象のリポジトリを追加（複数可）
 const REPOSITORIES = [
@@ -95,19 +106,23 @@ const REPOSITORIES = [
   { owner: "your-org", name: "backend" },
   { owner: "your-org", name: "api-server" },
 ];
+
+// Notion連携を使用する場合（オプション）
+const NOTION_TOKEN = "";        // 空欄のままでもOK
+const NOTION_DATABASE_ID = "";  // 空欄のままでもOK
 ```
 
 > **Note**: `src/init.ts` はgit管理外です。トークンをコミットしないでください。
 >
-> **Tip**: リポジトリは `init.ts` で事前に定義しておくか、デプロイ後にGASエディタで `addRepo()` を使って追加できます（手順8参照）。
+> **Tip**: リポジトリは `init.ts` で事前に定義しておくか、デプロイ後にGASエディタで `addRepo()` を使って追加できます（手順9参照）。
 
-### 6. ビルド＆デプロイ
+### 7. ビルド＆デプロイ
 
 ```bash
 bun run push
 ```
 
-### 7. GASエディタで初期設定を実行
+### 8. GASエディタで初期設定を実行
 
 1. https://script.google.com/ にアクセス
 2. デプロイしたプロジェクト「DevSyncGAS」を開く
@@ -117,9 +132,9 @@ bun run push
 
 > **Note**: 一度実行すれば設定はScript Propertiesに永続化されます。以降は `syncDevOpsMetrics` を実行するだけでOKです。
 
-### 8. リポジトリの登録（init.tsで設定済みの場合はスキップ可）
+### 9. リポジトリの登録（init.tsで設定済みの場合はスキップ可）
 
-手順5で `init.ts` にリポジトリを設定した場合、`initConfig` 実行時に自動登録されます。
+手順6で `init.ts` にリポジトリを設定した場合、`initConfig` 実行時に自動登録されます。
 
 追加・変更が必要な場合は、GASエディタで以下の関数を実行してください。
 
@@ -141,11 +156,22 @@ removeRepo('your-org/repo-name');
 
 > **Note**: リポジトリは何個でも追加できます。追加したリポジトリすべてのメトリクスが1つのスプレッドシートに集約されます。
 
-### 9. 日次トリガーの設定（推奨）
+### 10. 動作確認
+
+セットアップが完了したら、手動でメトリクス収集を実行して動作確認します。
+
+1. 関数選択ドロップダウンで `syncDevOpsMetrics` を選択
+2. 「実行」ボタンをクリック
+3. 実行ログで「✅ Synced metrics for X repositories」と表示されれば成功
+4. スプレッドシートを開いて「DevOps Metrics」シートにデータが書き込まれていることを確認
+
+> **出力されるシート**: DevOps Metrics, DevOps Metrics - Summary, サイクルタイム, コーディング時間, 手戻り率, レビュー効率, PRサイズ, 開発者満足度（各メトリクス収集関数を実行すると対応するシートが作成されます）
+
+### 11. 日次トリガーの設定（推奨）
 
 毎日自動でメトリクスを収集するには、トリガーを設定します。
 
-1. GASエディタを開く（手順7から続けて操作する場合は不要）
+1. GASエディタを開く（手順10から続けて操作する場合は不要）
 2. 関数選択ドロップダウンから `createDailyTrigger` を選択
 3. 「実行」ボタンをクリック
 

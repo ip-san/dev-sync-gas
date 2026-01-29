@@ -1,4 +1,4 @@
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels, getCodingTimeIssueLabels, setCodingTimeIssueLabels, resetCodingTimeIssueLabels } from "./config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels, getCodingTimeIssueLabels, setCodingTimeIssueLabels, resetCodingTimeIssueLabels, diagnoseConfig, formatDiagnosticResult } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs, getCycleTimeData, getCodingTimeData } from "./services/github";
 import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet } from "./services/spreadsheet";
@@ -1187,3 +1187,32 @@ global.migrateAllSchemas = migrateAllSchemas;
 global.migrateSheet = migrateSheet;
 global.updateHeadersOnly = updateHeadersOnly;
 global.showBackupCleanupHelp = showBackupCleanupHelp;
+
+// =============================================================================
+// 設定診断関数
+// =============================================================================
+
+/**
+ * 設定状況を診断して問題を報告する
+ * 設定ミスがあった場合、何が問題でどう修正すべきかを分かりやすく表示
+ *
+ * @example
+ * // GASエディタで実行
+ * checkConfig();
+ *
+ * // 出力例:
+ * // === DevSyncGAS 設定診断 ===
+ * // ✅ Spreadsheet ID: 設定済み: 1234567890...
+ * // ❌ GitHub認証: GitHub認証が設定されていません
+ * //    → setup('GITHUB_TOKEN', 'SPREADSHEET_ID') でPAT認証を設定してください
+ * // ⚠️ リポジトリ: リポジトリが登録されていません
+ * //    → addRepo('owner', 'repo-name') でリポジトリを追加してください
+ */
+function checkConfig(): void {
+  ensureContainerInitialized();
+  const result = diagnoseConfig();
+  const formatted = formatDiagnosticResult(result);
+  Logger.log(formatted);
+}
+
+global.checkConfig = checkConfig;

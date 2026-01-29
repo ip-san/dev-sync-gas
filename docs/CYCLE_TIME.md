@@ -1,15 +1,14 @@
 # サイクルタイム（Cycle Time）実装ガイド
 
-Notionのタスク管理データを使用して、サイクルタイムを計測する機能の解説です。
+GitHub IssueからProductionマージまでのサイクルタイムを計測する機能の解説です。
 
 ---
 
 ## 目次
 
 - [サイクルタイムとは](#サイクルタイムとは)
-- [公式定義との比較](#公式定義との比較)
 - [計測方法](#計測方法)
-- [Notionの設定](#notionの設定)
+- [設定](#設定)
 - [使い方](#使い方)
 - [出力データ](#出力データ)
 - [DORA Metricsとの違い](#dora-metricsとの違い)
@@ -21,12 +20,14 @@ Notionのタスク管理データを使用して、サイクルタイムを計�
 
 サイクルタイムは、タスクの**着手から完了までの時間**を測定する指標です。
 
-```
-着手（Date Started）───────────→ 完了（Date Done）
-        ↑                              ↑
-   作業開始                      タスク完了
+本実装では、GitHubのIssue作成からProductionブランチへのマージまでの時間を計測します。
 
-   ←──────── サイクルタイム ────────→
+```
+Issue作成 ──────────→ Productionマージ
+    ↑                      ↑
+  着手日                 完了日
+
+  ←──── サイクルタイム ────→
 ```
 
 ### 公式定義
@@ -48,53 +49,34 @@ Notionのタスク管理データを使用して、サイクルタイムを計�
 
 ---
 
-## 公式定義との比較
-
-各ツール・フレームワークでのサイクルタイムの定義と、本実装との対応を示します。
+## 計測方法
 
 ### 本実装の定義
 
 | 開始点 | 終了点 | 計算式 |
 |--------|--------|--------|
-| Notionの着手日（Date Started） | Notionの完了日（Date Done） | 完了日時 - 着手日時 |
+| GitHub Issue作成日時 | Productionブランチへのマージ日時 | マージ日時 - Issue作成日時 |
 
-### 各ツールの定義
+### PRチェーン追跡
 
-| ソース | 開始点 | 終了点 | 本実装との一致度 |
-|--------|--------|--------|-----------------|
-| **Azure DevOps** | 作業開始（In Progress） | 完了（Done） | ✅ 一致 |
-| **Atlassian Jira** | In Progress状態 | Done状態 | ✅ 一致 |
-| **Kanban/Lean** | in-progress列 | done列 | ✅ 一致 |
-| **GitLab** | MRでのIssue参照 | Issueクローズ | ⚠️ 異なる（コード中心） |
-
-### Kanban/Leanにおけるサイクルタイム
-
-トヨタ生産方式（TPS）を起源とするKanbanでは、サイクルタイムはWIP（仕掛品）と密接に関連しています：
-
-> The larger the count of "in progress" items, the longer the cycle time. That is one of the reasons why Kanban seeks to limit WIP.
->
-> — [Kanban Tool](https://kanbantool.com/kanban-guide/cycle-time)
-
-本実装は、**Kanban/Agile文脈でのサイクルタイム**（着手〜完了）を採用しています。
-
----
-
-## 計測方法
-
-### データソース
-
-Notionデータベースから以下のフィールドを取得します：
-
-| フィールド | Notionプロパティ名 | 説明 |
-|-----------|-------------------|------|
-| 着手日 | `Date Started` / `Started` / `着手日` / `開始日` | サイクルタイムの開始点 |
-| 完了日 | `Date Done` / `Completed` / `完了日` / `Done` | サイクルタイムの終了点 |
-
-### 計算式
+多段階マージ（feature→main→staging→production）の場合、PRチェーンを追跡してProductionマージを検出します。
 
 ```
-サイクルタイム = 完了日時 - 着手日時
+Issue #123 作成 (着手日)
+    ↓
+PR1 (feature→main) ← "Fixes #123" でリンク
+    ↓ マージコミットSHA
+PR2 (main→staging)
+    ↓ マージコミットSHA
+PR3 (staging→xxx_production) ← このマージ日 = 完了日
 ```
+
+### 追跡方法
+
+1. **Issue作成日時**: `GET /repos/{owner}/{repo}/issues/{number}` の `created_at`
+2. **リンクPR検出**: Timeline APIの `cross-referenced` イベントからPR番号を取得
+3. **PRチェーン追跡**: マージコミットSHAを使って次のPRを検索
+4. **Production検出**: `base` ブランチ名に設定パターン（デフォルト: `production`）が含まれるPRを検出
 
 ### 統計値
 
@@ -107,47 +89,55 @@ Notionデータベースから以下のフィールドを取得します：
 
 ---
 
-## Notionの設定
+## 設定
 
-### 必要なプロパティ
+### Productionブランチパターン
 
-Notionデータベースに以下のDateプロパティを追加してください：
+Productionブランチを識別するパターンを設定します。ブランチ名にこのパターンが含まれていればProductionとみなします。
 
-| プロパティ名 | タイプ | 説明 |
-|-------------|--------|------|
-| `Date Started` | Date | タスクに着手した日時 |
-| `Date Done` | Date | タスクが完了した日時 |
+```javascript
+// デフォルト: "production"
+// "xxx_production", "production-release" などにマッチ
+configureProductionBranch("production");
 
-> **Note**: 日本語名（`着手日`、`完了日`）でも認識されます。
+// "release" ブランチを使用する場合
+configureProductionBranch("release");
 
-### 推奨: 数式プロパティ
+// 現在の設定を確認
+showProductionBranch();
 
-Notion上でサイクルタイムを自動計算する数式を追加することもできます：
-
-```
-// Cycle Time (days)
-if(and(prop("Date Started"), prop("Date Done")),
-  dateBetween(prop("Date Done"), prop("Date Started"), "days"),
-  0
-)
+// デフォルトにリセット
+resetProductionBranch();
 ```
 
-### ワークフロー例
+### ラベルフィルタ
 
+特定のラベルが付いたIssueのみを計測対象にできます。
+
+```javascript
+// "feature" ラベルのIssueのみ計測
+configureCycleTimeLabels(["feature"]);
+
+// 複数ラベル（OR条件）
+configureCycleTimeLabels(["feature", "bug"]);
+
+// 現在の設定を確認
+showCycleTimeLabels();
+
+// 全Issueを対象にリセット
+resetCycleTimeLabelsConfig();
+
+// 全設定を一覧表示
+showCycleTimeConfig();
 ```
-1. タスク作成
-   └→ Issueやチケットから自動作成、または手動作成
 
-2. 着手時
-   └→ Date Started に現在日時を設定
+### IssueとPRのリンク
 
-3. 完了時
-   └→ Date Done に現在日時を設定
-   └→ ステータスを Done に変更
+IssueとPRをリンクするには、PRのdescriptionまたはコミットメッセージに以下のキーワードを含めます：
 
-4. 計測
-   └→ syncCycleTime() でデータを取得・集計
-```
+- `Fixes #123`
+- `Closes #123`
+- `Resolves #123`
 
 ---
 
@@ -168,31 +158,30 @@ syncCycleTime(90);
 ### オプション
 
 ```javascript
-// 完了日プロパティ名をカスタマイズ
-syncCycleTime(30, "完了日");
-
 // タスク詳細をログで確認（デバッグ用）
 showCycleTimeDetails(30);
 ```
 
 ### 前提条件
 
-1. **Notion連携の設定が必要**
+1. **GitHub連携の設定が必要**
 
 ```javascript
-// setup() で Notion Token と Database ID を設定
 setup(
   'ghp_xxxx',           // GitHub PAT
-  'spreadsheet-id',     // Google Spreadsheet ID
-  'secret_xxxx',        // Notion Token ← 必須
-  'database-id'         // Notion Database ID ← 必須
+  'spreadsheet-id'      // Google Spreadsheet ID
 );
 ```
 
-2. **Notionインテグレーションの権限**
+2. **リポジトリの登録**
 
-対象データベースにインテグレーションを追加してください：
-- データベース右上の「...」→「接続」→ インテグレーションを選択
+```javascript
+addRepo('your-org', 'your-repo');
+```
+
+3. **IssueとPRのリンク**
+
+PRのdescriptionに `Fixes #123` などのキーワードでIssueをリンク
 
 ---
 
@@ -202,24 +191,24 @@ setup(
 
 2つのシートが作成されます：
 
-#### 「Cycle Time」シート（サマリー）
+#### 「サイクルタイム」シート（サマリー）
 
-| Period | Completed Tasks | Avg (hours) | Avg (days) | Median | Min | Max | Recorded At |
-|--------|-----------------|-------------|------------|--------|-----|-----|-------------|
+| 期間 | 完了タスク数 | 平均 (時間) | 平均 (日) | 中央値 | 最小 | 最大 | 記録日時 |
+|------|-------------|-------------|-----------|--------|------|------|----------|
 | 2024-01-01〜2024-01-31 | 15 | 48.5 | 2.0 | 36.0 | 4.0 | 120.0 | 2024-01-31T... |
 
-#### 「Cycle Time - Details」シート（タスク詳細）
+#### 「サイクルタイム - Details」シート（Issue詳細）
 
-| Task ID | Title | Started At | Completed At | Cycle Time (hours) | Cycle Time (days) |
-|---------|-------|------------|--------------|-------------------|------------------|
-| abc-123 | Implement feature X | 2024-01-10T10:00 | 2024-01-11T14:00 | 28.0 | 1.2 |
+| Issue番号 | タイトル | リポジトリ | Issue作成日時 | Productionマージ日時 | サイクルタイム (時間) | サイクルタイム (日) | PRチェーン |
+|-----------|---------|-----------|--------------|---------------------|---------------------|-------------------|-----------|
+| #123 | Implement feature X | org/repo | 2024-01-10T10:00 | 2024-01-11T14:00 | 28.0 | 1.2 | #1→#2→#3 |
 
 ### ログ出力例
 
 ```
 ⏱️ Calculating Cycle Time for 30 days
    Period: 2024-01-01〜2024-01-31
-📥 Fetched 15 tasks with cycle time data
+📥 Fetched 15 issues with cycle time data
 📊 Cycle Time Results:
    Completed tasks: 15
    Average: 48.5 hours (2.0 days)
@@ -244,24 +233,24 @@ DORAの「Lead Time for Changes」と本実装の「サイクルタイム」は�
 | 観点 | Lead Time for Changes (DORA) | Cycle Time (本実装) |
 |------|------------------------------|---------------------|
 | **視点** | デリバリーパイプライン | タスク管理 |
-| **開始点** | コードコミット | タスク着手 |
-| **終了点** | 本番デプロイ | タスク完了 |
+| **開始点** | コードコミット | Issue作成 |
+| **終了点** | 本番デプロイ | Productionマージ |
 | **測定対象** | CI/CDの効率 | 開発作業の効率 |
-| **データソース** | GitHub (PR, Deployments) | Notion |
+| **データソース** | GitHub (PR, Deployments) | GitHub (Issues, PRs) |
 
 ### 指標の関係性
 
 ```
-タスク作成 ─→ 着手 ─────────→ コーディング ─→ PR作成 ─→ マージ ─→ デプロイ ─→ 完了
-              │                              │                    │
-              └──── Cycle Time (本実装) ─────┴── Lead Time (DORA) ┘
+Issue作成 ─→ 着手 ─→ コーディング ─→ PR作成 ─→ マージ ─→ Productionマージ ─→ デプロイ
+    │                              │                            │
+    └──────── Cycle Time (本実装) ─┴──── Lead Time (DORA) ──────┘
 ```
 
 ### 全指標の比較
 
 | 指標 | データソース | 測定対象 | フレームワーク |
 |------|-------------|----------|---------------|
-| **サイクルタイム** | Notion | タスク着手〜完了 | Kanban/Agile |
+| **サイクルタイム** | GitHub Issues/PRs | Issue作成〜Productionマージ | Kanban/Agile |
 | Lead Time for Changes | GitHub | コミット〜デプロイ | DORA |
 | Deployment Frequency | GitHub | デプロイ回数 | DORA |
 | Change Failure Rate | GitHub | デプロイ失敗率 | DORA |
@@ -276,42 +265,39 @@ DORAの「Lead Time for Changes」と本実装の「サイクルタイム」は�
 
 ## 制約事項
 
-1. **手動入力依存**: 着手日・完了日はNotionで手動設定が必要
-2. **日時の精度**: Notionの日付プロパティの設定（日付のみ/日時）に依存
-3. **Notion API制限**: 一度に100件までのタスクを取得
+1. **PRリンク必須**: IssueとPRが `Fixes #123` などでリンクされている必要あり
+2. **API呼び出し回数**: Issue数 × (1 + リンクPR数 + PRチェーン深度)
+3. **GAS実行時間制限**: 6分を超える場合は期間を短くするか、ラベルフィルタで対象を絞る
+4. **PRチェーン深度**: 最大5段階まで追跡
 
-### 対象外のタスク
+### 対象外のIssue
 
-以下のタスクはサイクルタイム計算から除外されます：
+以下のIssueはサイクルタイム計算から除外されます：
 
-- 着手日（Date Started）が未設定
-- 完了日（Date Done）が未設定
-- 計測期間外に完了したタスク
+- PRにリンクされていないIssue
+- Productionブランチにマージされていないリンクを持つIssue
+- 計測期間外にProductionマージされたIssue
 
 ---
 
 ## トラブルシューティング
 
-### 「Notion integration is not configured」エラー
+### Issueが取得されない
 
-```javascript
-// Notion設定を確認
-const config = getConfig();
-console.log(config.notion);
-```
+1. GitHub PAT の権限を確認（Issues: Read-only）
+2. リポジトリが正しく登録されているか確認 (`listRepos()`)
+3. 計測期間内にProductionマージされたIssueが存在するか確認
 
-Notion Token と Database ID が設定されているか確認してください。
+### サイクルタイムがnullになる
 
-### タスクが取得されない
+1. IssueとPRがリンクされているか確認（`Fixes #123` など）
+2. PRがProductionブランチにマージされているか確認
+3. Productionブランチパターンが正しいか確認 (`showProductionBranch()`)
 
-1. Notionインテグレーションがデータベースに接続されているか確認
-2. 日付プロパティ名が正しいか確認（`Date Started`, `Date Done` など）
-3. 計測期間内に完了日があるタスクが存在するか確認
+### PRチェーンが検出されない
 
-### サイクルタイムが異常に長い/短い
-
-- Notionの日付プロパティで「時刻を含める」設定を確認
-- 日付のみの場合、00:00:00として計算されます
+1. 各PRがマージ済みか確認
+2. マージ方法を確認（squashマージの場合はマージコミットSHAが異なる）
 
 ---
 
@@ -321,37 +307,27 @@ Notion Token と Database ID が設定されているか確認してください
 
 1. **Microsoft Azure DevOps - Cycle Time and Lead Time**
    - https://learn.microsoft.com/en-us/azure/devops/report/dashboards/cycle-time-and-lead-time
-   - サイクルタイムとリードタイムの公式定義。本実装の定義はこれに準拠
+   - サイクルタイムとリードタイムの公式定義
 
 2. **Atlassian Jira - Cycle Time Report**
    - https://support.atlassian.com/jira-software-cloud/docs/view-and-understand-your-cycle-time-report/
    - Jiraにおけるサイクルタイムの定義と計測方法
 
-3. **GitLab - Value Stream Analytics**
-   - https://docs.gitlab.com/user/group/value_stream_analytics/
-   - GitLabにおけるサイクルタイムの定義（MR参照〜Issueクローズ）
-
-4. **Apache DevLake - Lead Time for Changes**
+3. **Apache DevLake - Lead Time for Changes**
    - https://devlake.apache.org/docs/Metrics/LeadTimeForChanges/
-   - DORAのLead Time for Changesの定義。*Accelerate* 書籍からの引用を含む
+   - DORAのLead Time for Changesの定義
 
 ### Kanban/Lean関連
 
-5. **Kanban Tool - Cycle Time**
+4. **Kanban Tool - Cycle Time**
    - https://kanbantool.com/kanban-guide/cycle-time
    - Kanban文脈でのサイクルタイムの定義とWIPとの関係
 
-### 比較・解説記事
-
-6. **LinearB - Lead Time vs Cycle Time**
-   - https://linearb.io/blog/lead-time-vs-cycle-time
-   - ソフトウェア開発におけるリードタイムとサイクルタイムの比較
-
 ### 書籍
 
-7. **Accelerate: The Science of Lean Software and DevOps**
+5. **Accelerate: The Science of Lean Software and DevOps**
    - Nicole Forsgren, Jez Humble, Gene Kim 著
-   - DORA研究の基礎となった書籍。Lead Time for Changesの公式定義を含む
+   - DORA研究の基礎となった書籍
 
 ---
 
@@ -359,4 +335,4 @@ Notion Token と Database ID が設定されているか確認してください
 
 | 日付 | 内容 |
 |------|------|
-| 2025-01 | 初版作成。Notionベースのサイクルタイム計測機能を追加 |
+| 2025-01 | GitHub Issue/PRベースの計測方式に変更 |

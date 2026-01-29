@@ -47,7 +47,7 @@ Claude CodeやCopilotなどのAIツールを導入して「コードを書く速
   - Change Failure Rate（変更失敗率）
   - Mean Time to Recovery（平均復旧時間）
 - サイクルタイム計測（[詳細ドキュメント](docs/CYCLE_TIME.md)）
-  - Notionのタスク着手〜完了までの時間を自動集計
+  - GitHub Issue作成〜Productionマージまでの時間を自動集計
 - コーディング時間計測（[詳細ドキュメント](docs/CODING_TIME.md)）
   - Notionのタスク着手〜GitHub PR作成までの時間を自動集計
 - レビュー効率計測（[詳細ドキュメント](docs/REVIEW_EFFICIENCY.md)）
@@ -222,7 +222,7 @@ removeRepo('your-org/repo-name');
 | 関数 | 説明 |
 |------|------|
 | `syncDevOpsMetrics()` | 手動でメトリクスを同期 |
-| `syncCycleTime(days?)` | サイクルタイムを計測（Notion連携必須） |
+| `syncCycleTime(days?)` | サイクルタイムを計測（GitHub連携必須） |
 | `syncCodingTime()` | コーディング時間を計測（Notion + GitHub連携必須） |
 | `syncReworkRate(days?)` | 手戻り率を計測（GitHub連携必須） |
 | `syncReviewEfficiency(days?)` | レビュー効率を計測（GitHub連携必須） |
@@ -284,7 +284,7 @@ Organization運用やセキュリティ要件が厳しい環境では、GitHub A
 
 ### Notion Integration Token（オプション）
 
-Notion連携を使用する場合のみ必要です。サイクルタイム、コーディング時間、開発者満足度の計測に使用します。
+Notion連携を使用する場合のみ必要です。コーディング時間、開発者満足度の計測に使用します。
 
 **クイックスタート:**
 
@@ -341,7 +341,7 @@ bun run lint
 
 ### スピードと効率
 - [DORA Metrics 実装ガイド](docs/DORA_METRICS.md) - デプロイ頻度・リードタイム・変更障害率・MTTRの計測方法
-- [サイクルタイム実装ガイド](docs/CYCLE_TIME.md) - Notionタスクの着手〜完了時間の計測方法
+- [サイクルタイム実装ガイド](docs/CYCLE_TIME.md) - GitHub Issue作成〜Productionマージの計測方法
 - [コーディング時間実装ガイド](docs/CODING_TIME.md) - Notion着手〜GitHub PR作成時間の計測方法
 
 ### 安定性と品質

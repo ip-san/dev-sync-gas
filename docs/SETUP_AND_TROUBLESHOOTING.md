@@ -25,7 +25,7 @@ DevSyncGASは以下の3つのサービスと連携します：
 | サービス | 取得データ | 接続方式 |
 |----------|-----------|----------|
 | **GitHub** | PR情報、デプロイ情報、ワークフロー | REST API |
-| **Notion** | タスク情報、サイクルタイム、満足度 | REST API |
+| **Notion** | タスク情報、コーディング時間、満足度 | REST API |
 | **Google Sheets** | 指標出力先 | GAS API |
 
 ```
@@ -919,7 +919,7 @@ testPermissions();
 // GitHub接続テスト（DORA指標）
 syncHistoricalMetrics(7);  // 過去7日分で軽くテスト
 
-// Notion接続テスト（サイクルタイム）
+// サイクルタイム接続テスト（GitHub Issue/PR）
 syncCycleTime(7);  // 過去7日分で軽くテスト
 
 // リポジトリ一覧確認

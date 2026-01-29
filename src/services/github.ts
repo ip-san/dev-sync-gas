@@ -1,4 +1,4 @@
-import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, NotionTask, PRReworkData, PRReviewData, PRSizeData } from "../types";
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment, GitHubIncident, GitHubRepository, ApiResponse, NotionTask, PRReworkData, PRReviewData, PRSizeData, GitHubIssue, PRChainItem, GitHubIssueCycleTime } from "../types";
 import { getContainer } from "../container";
 
 const GITHUB_API_BASE = "https://api.github.com";
@@ -1059,4 +1059,415 @@ export function getPRSizeDataForPRs(
   }
 
   return sizeData;
+}
+
+// ============================================================
+// Cycle Time関連
+// ============================================================
+
+/**
+ * リポジトリのIssueを取得（PRを除外）
+ *
+ * @param repo - GitHubリポジトリ
+ * @param token - GitHub Personal Access Token
+ * @param options - オプション（日付範囲、ラベルフィルタ）
+ * @returns Issue配列
+ */
+export function getIssues(
+  repo: GitHubRepository,
+  token: string,
+  options?: {
+    dateRange?: DateRange;
+    labels?: string[];
+  }
+): ApiResponse<GitHubIssue[]> {
+  const { logger } = getContainer();
+  const allIssues: GitHubIssue[] = [];
+  let page = 1;
+  const perPage = 100;
+
+  // クエリパラメータを構築
+  const queryParams: string[] = [
+    "state=all",
+    `per_page=${perPage}`,
+  ];
+
+  if (options?.labels && options.labels.length > 0) {
+    queryParams.push(`labels=${options.labels.join(",")}`);
+  }
+
+  if (options?.dateRange?.start) {
+    queryParams.push(`since=${options.dateRange.start}`);
+  }
+
+  logger.log(`  📋 Fetching issues from ${repo.fullName}...`);
+
+  while (true) {
+    const endpoint = `/repos/${repo.owner}/${repo.name}/issues?${queryParams.join("&")}&page=${page}`;
+    const response = fetchGitHub<any[]>(endpoint, token);
+
+    if (!response.success || !response.data) {
+      return response as ApiResponse<GitHubIssue[]>;
+    }
+
+    if (response.data.length === 0) break;
+
+    for (const item of response.data) {
+      // PRはissuesエンドポイントにも含まれるので除外
+      if (item.pull_request) continue;
+
+      // 日付範囲チェック（endのみ、sinceはAPIで処理）
+      if (options?.dateRange?.end) {
+        const createdAt = new Date(item.created_at);
+        const endDate = new Date(options.dateRange.end);
+        if (createdAt > endDate) continue;
+      }
+
+      const issue: GitHubIssue = {
+        id: item.id,
+        number: item.number,
+        title: item.title,
+        state: item.state,
+        createdAt: item.created_at,
+        closedAt: item.closed_at,
+        labels: item.labels?.map((l: any) => l.name) ?? [],
+        repository: repo.fullName,
+      };
+      allIssues.push(issue);
+    }
+
+    if (response.data.length < perPage) break;
+    page++;
+  }
+
+  logger.log(`  ✅ Found ${allIssues.length} issues`);
+  return { success: true, data: allIssues };
+}
+
+/**
+ * IssueにリンクされたPR番号を取得（Timeline APIを使用）
+ *
+ * @param owner - リポジトリオーナー
+ * @param repo - リポジトリ名
+ * @param issueNumber - Issue番号
+ * @param token - GitHub Personal Access Token
+ * @returns リンクされたPR番号の配列
+ */
+export function getLinkedPRsForIssue(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  token: string
+): ApiResponse<number[]> {
+  const prNumbers: number[] = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (true) {
+    const endpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/timeline?per_page=${perPage}&page=${page}`;
+    const response = fetchGitHub<any[]>(endpoint, token);
+
+    if (!response.success || !response.data) {
+      return response as ApiResponse<number[]>;
+    }
+
+    if (response.data.length === 0) break;
+
+    for (const event of response.data) {
+      // cross-referencedイベントからPRを抽出
+      if (event.event === "cross-referenced" && event.source?.issue?.pull_request) {
+        const prNumber = event.source.issue.number;
+        // 同じリポジトリのPRのみ
+        const sourceRepo = event.source.issue.repository?.full_name;
+        if (sourceRepo === `${owner}/${repo}` && !prNumbers.includes(prNumber)) {
+          prNumbers.push(prNumber);
+        }
+      }
+    }
+
+    if (response.data.length < perPage) break;
+    page++;
+  }
+
+  return { success: true, data: prNumbers };
+}
+
+/**
+ * PR詳細を取得（ブランチ情報、マージコミットSHA含む）
+ *
+ * @param owner - リポジトリオーナー
+ * @param repo - リポジトリ名
+ * @param prNumber - PR番号
+ * @param token - GitHub Personal Access Token
+ * @returns PR詳細
+ */
+export function getPullRequestWithBranches(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string
+): ApiResponse<GitHubPullRequest> {
+  const endpoint = `/repos/${owner}/${repo}/pulls/${prNumber}`;
+  const response = fetchGitHub<any>(endpoint, token);
+
+  if (!response.success || !response.data) {
+    return response as ApiResponse<GitHubPullRequest>;
+  }
+
+  const pr = response.data;
+  const pullRequest: GitHubPullRequest = {
+    id: pr.id,
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    draft: pr.draft ?? false,
+    createdAt: pr.created_at,
+    mergedAt: pr.merged_at,
+    repository: `${owner}/${repo}`,
+    author: pr.user?.login ?? "unknown",
+    baseBranch: pr.base?.ref,
+    headBranch: pr.head?.ref,
+    mergeCommitSha: pr.merge_commit_sha,
+  };
+
+  return { success: true, data: pullRequest };
+}
+
+/**
+ * コミットSHAを含むPRを検索
+ *
+ * @param owner - リポジトリオーナー
+ * @param repo - リポジトリ名
+ * @param commitSha - コミットSHA
+ * @param token - GitHub Personal Access Token
+ * @returns PRまたはnull
+ */
+export function findPRContainingCommit(
+  owner: string,
+  repo: string,
+  commitSha: string,
+  token: string
+): ApiResponse<GitHubPullRequest | null> {
+  const endpoint = `/repos/${owner}/${repo}/commits/${commitSha}/pulls`;
+  const response = fetchGitHub<any[]>(endpoint, token);
+
+  if (!response.success) {
+    // 404の場合はnullを返す（コミットが見つからない）
+    if (response.error?.includes("404")) {
+      return { success: true, data: null };
+    }
+    return response as ApiResponse<GitHubPullRequest | null>;
+  }
+
+  if (!response.data || response.data.length === 0) {
+    return { success: true, data: null };
+  }
+
+  // マージ済みのPRを優先
+  const mergedPR = response.data.find((pr: any) => pr.merged_at !== null);
+  const targetPR = mergedPR || response.data[0];
+
+  const pullRequest: GitHubPullRequest = {
+    id: targetPR.id,
+    number: targetPR.number,
+    title: targetPR.title,
+    state: targetPR.state,
+    draft: targetPR.draft ?? false,
+    createdAt: targetPR.created_at,
+    mergedAt: targetPR.merged_at,
+    repository: `${owner}/${repo}`,
+    author: targetPR.user?.login ?? "unknown",
+    baseBranch: targetPR.base?.ref,
+    headBranch: targetPR.head?.ref,
+    mergeCommitSha: targetPR.merge_commit_sha,
+  };
+
+  return { success: true, data: pullRequest };
+}
+
+/**
+ * PRチェーンを追跡してproductionブランチへのマージを検出
+ *
+ * @param owner - リポジトリオーナー
+ * @param repo - リポジトリ名
+ * @param initialPRNumber - 開始PR番号
+ * @param token - GitHub Personal Access Token
+ * @param productionPattern - productionブランチ名のパターン（部分一致）
+ * @returns productionマージ日時とPRチェーン
+ */
+export function trackToProductionMerge(
+  owner: string,
+  repo: string,
+  initialPRNumber: number,
+  token: string,
+  productionPattern: string = "production"
+): ApiResponse<{
+  productionMergedAt: string | null;
+  prChain: PRChainItem[];
+}> {
+  const { logger } = getContainer();
+  const prChain: PRChainItem[] = [];
+  const maxDepth = 5;
+  let currentPRNumber = initialPRNumber;
+  let productionMergedAt: string | null = null;
+
+  for (let depth = 0; depth < maxDepth; depth++) {
+    const prResult = getPullRequestWithBranches(owner, repo, currentPRNumber, token);
+
+    if (!prResult.success || !prResult.data) {
+      logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
+      break;
+    }
+
+    const pr = prResult.data;
+    prChain.push({
+      prNumber: pr.number,
+      baseBranch: pr.baseBranch ?? "unknown",
+      headBranch: pr.headBranch ?? "unknown",
+      mergedAt: pr.mergedAt,
+    });
+
+    // productionブランチへのマージを検出
+    if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
+      if (pr.mergedAt) {
+        productionMergedAt = pr.mergedAt;
+        logger.log(`    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`);
+      }
+      break;
+    }
+
+    // マージされていない場合は追跡終了
+    if (!pr.mergedAt || !pr.mergeCommitSha) {
+      break;
+    }
+
+    // マージコミットSHAから次のPRを検索
+    const nextPRResult = findPRContainingCommit(owner, repo, pr.mergeCommitSha, token);
+
+    if (!nextPRResult.success || !nextPRResult.data) {
+      // 次のPRが見つからない場合は終了
+      break;
+    }
+
+    // 同じPRの場合は無限ループを防止
+    if (nextPRResult.data.number === currentPRNumber) {
+      break;
+    }
+
+    currentPRNumber = nextPRResult.data.number;
+  }
+
+  return {
+    success: true,
+    data: { productionMergedAt, prChain },
+  };
+}
+
+/**
+ * 複数リポジトリからサイクルタイムデータを取得
+ *
+ * @param repositories - GitHubリポジトリ配列
+ * @param token - GitHub Personal Access Token
+ * @param options - オプション（日付範囲、productionブランチパターン、ラベルフィルタ）
+ * @returns サイクルタイムデータ配列
+ */
+export function getGitHubCycleTimeData(
+  repositories: GitHubRepository[],
+  token: string,
+  options: {
+    dateRange?: DateRange;
+    productionBranchPattern?: string;
+    labels?: string[];
+  } = {}
+): ApiResponse<GitHubIssueCycleTime[]> {
+  const { logger } = getContainer();
+  const productionPattern = options.productionBranchPattern ?? "production";
+  const allCycleTimeData: GitHubIssueCycleTime[] = [];
+
+  for (const repo of repositories) {
+    logger.log(`🔍 Processing ${repo.fullName}...`);
+
+    // 1. Issueを取得
+    const issuesResult = getIssues(repo, token, {
+      dateRange: options.dateRange,
+      labels: options.labels,
+    });
+
+    if (!issuesResult.success || !issuesResult.data) {
+      logger.log(`  ⚠️ Failed to fetch issues: ${issuesResult.error}`);
+      continue;
+    }
+
+    const issues = issuesResult.data;
+    logger.log(`  📋 Found ${issues.length} issues to process`);
+
+    // 2. 各IssueについてリンクPRとproductionマージを追跡
+    for (const issue of issues) {
+      logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
+
+      // リンクされたPRを取得
+      const linkedPRsResult = getLinkedPRsForIssue(repo.owner, repo.name, issue.number, token);
+
+      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
+        logger.log(`    ⏭️ No linked PRs found`);
+        allCycleTimeData.push({
+          issueNumber: issue.number,
+          issueTitle: issue.title,
+          repository: repo.fullName,
+          issueCreatedAt: issue.createdAt,
+          productionMergedAt: null,
+          cycleTimeHours: null,
+          prChain: [],
+        });
+        continue;
+      }
+
+      logger.log(`    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.join(", ")}`);
+
+      // 最初のリンクPRからproductionマージを追跡
+      // 複数PRがリンクされている場合は、最初のマージ済みPRを優先
+      let bestResult: { productionMergedAt: string | null; prChain: PRChainItem[] } | null = null;
+
+      for (const prNumber of linkedPRsResult.data) {
+        const trackResult = trackToProductionMerge(repo.owner, repo.name, prNumber, token, productionPattern);
+
+        if (trackResult.success && trackResult.data) {
+          if (trackResult.data.productionMergedAt) {
+            // productionマージが見つかった場合は採用
+            if (!bestResult || !bestResult.productionMergedAt ||
+                new Date(trackResult.data.productionMergedAt) < new Date(bestResult.productionMergedAt)) {
+              bestResult = trackResult.data;
+            }
+          } else if (!bestResult) {
+            // まだ結果がない場合は未マージでも保存
+            bestResult = trackResult.data;
+          }
+        }
+      }
+
+      const prChain = bestResult?.prChain ?? [];
+      const productionMergedAt = bestResult?.productionMergedAt ?? null;
+
+      // サイクルタイム計算
+      let cycleTimeHours: number | null = null;
+      if (productionMergedAt) {
+        const startTime = new Date(issue.createdAt).getTime();
+        const endTime = new Date(productionMergedAt).getTime();
+        cycleTimeHours = Math.round((endTime - startTime) / (1000 * 60 * 60) * 10) / 10;
+      }
+
+      allCycleTimeData.push({
+        issueNumber: issue.number,
+        issueTitle: issue.title,
+        repository: repo.fullName,
+        issueCreatedAt: issue.createdAt,
+        productionMergedAt,
+        cycleTimeHours,
+        prChain,
+      });
+    }
+  }
+
+  logger.log(`✅ Total: ${allCycleTimeData.length} issues processed`);
+  return { success: true, data: allCycleTimeData };
 }

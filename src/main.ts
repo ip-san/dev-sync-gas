@@ -1,7 +1,7 @@
-import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, setNotionPropertyNames, getNotionPropertyNames, resetNotionPropertyNames } from "./config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode, setNotionPropertyNames, getNotionPropertyNames, resetNotionPropertyNames, getProductionBranchPattern, setProductionBranchPattern, resetProductionBranchPattern, getCycleTimeIssueLabels, setCycleTimeIssueLabels, resetCycleTimeIssueLabels } from "./config/settings";
 import "./init";
-import { getAllRepositoriesData, DateRange, getPullRequestsForTasks, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs } from "./services/github";
-import { getTasksForCycleTime, getTasksForCodingTime, getTasksForSatisfaction } from "./services/notion";
+import { getAllRepositoriesData, DateRange, getPullRequestsForTasks, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs, getGitHubCycleTimeData } from "./services/github";
+import { getTasksForCodingTime, getTasksForSatisfaction } from "./services/notion";
 import { writeMetricsToSheet, clearOldData, createSummarySheet, writeCycleTimeToSheet, writeCodingTimeToSheet, writeReworkRateToSheet, writeReviewEfficiencyToSheet, writePRSizeToSheet, writeDeveloperSatisfactionToSheet } from "./services/spreadsheet";
 import { calculateMetricsForRepository, calculateCycleTime, calculateCodingTime, calculateReworkRate, calculateReviewEfficiency, calculatePRSize, calculateDeveloperSatisfaction } from "./utils/metrics";
 import { initializeContainer, isContainerInitialized, getContainer } from "./container";
@@ -227,8 +227,9 @@ function generateSummary(): void {
 /**
  * サイクルタイムを計算してスプレッドシートに書き出す
  *
- * 定義: 着手（Notion）から完了（Notion）までの時間
- * 仕様理解から実装完了までの効率を測定する指標
+ * 定義:
+ * - 着手日: Issue作成日時
+ * - 完了日: productionブランチへのPRマージ日時
  *
  * @param days - 計測期間（日数）デフォルト30日
  */
@@ -236,11 +237,17 @@ function syncCycleTime(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.notion.token || !config.notion.databaseId) {
-    Logger.log("⚠️ Notion integration is not configured. Set notionToken and notionDatabaseId in setup()");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App");
     return;
   }
 
+  if (config.github.repositories.length === 0) {
+    Logger.log("⚠️ No repositories configured. Add repositories with addRepo()");
+    return;
+  }
+
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -249,31 +256,44 @@ function syncCycleTime(days: number = 30): void {
   const endDateStr = endDate.toISOString().split("T")[0];
   const period = `${startDateStr}〜${endDateStr}`;
 
-  Logger.log(`⏱️ Calculating Cycle Time for ${days} days`);
+  const productionPattern = getProductionBranchPattern();
+  const labels = getCycleTimeIssueLabels();
+
+  Logger.log(`⏱️ Calculating Cycle Time (GitHub) for ${days} days`);
   Logger.log(`   Period: ${period}`);
+  Logger.log(`   Production branch pattern: "${productionPattern}"`);
+  if (labels.length > 0) {
+    Logger.log(`   Issue labels: ${labels.join(", ")}`);
+  } else {
+    Logger.log(`   Issue labels: (all issues)`);
+  }
 
-  // 設定からカスタムプロパティ名を取得
-  const propertyNames = config.notion.propertyNames;
-
-  const tasksResult = getTasksForCycleTime(
-    config.notion.databaseId,
-    config.notion.token,
-    startDateStr,
-    endDateStr,
-    propertyNames
+  // GitHubからサイクルタイムデータを取得
+  const cycleTimeResult = getGitHubCycleTimeData(
+    config.github.repositories,
+    token,
+    {
+      dateRange: {
+        start: startDateStr,
+        end: endDateStr,
+      },
+      productionBranchPattern: productionPattern,
+      labels: labels.length > 0 ? labels : undefined,
+    }
   );
 
-  if (!tasksResult.success || !tasksResult.data) {
-    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+  if (!cycleTimeResult.success || !cycleTimeResult.data) {
+    Logger.log(`❌ Failed to fetch cycle time data: ${cycleTimeResult.error}`);
     return;
   }
 
-  Logger.log(`📥 Fetched ${tasksResult.data.length} tasks with cycle time data`);
+  Logger.log(`📥 Fetched ${cycleTimeResult.data.length} issues`);
 
-  const cycleTimeMetrics = calculateCycleTime(tasksResult.data, period);
+  // メトリクス計算
+  const cycleTimeMetrics = calculateCycleTime(cycleTimeResult.data, period);
 
   Logger.log(`📊 Cycle Time Results:`);
-  Logger.log(`   Completed tasks: ${cycleTimeMetrics.completedTaskCount}`);
+  Logger.log(`   Issues with production merge: ${cycleTimeMetrics.completedTaskCount}`);
   if (cycleTimeMetrics.avgCycleTimeHours !== null) {
     Logger.log(`   Average: ${cycleTimeMetrics.avgCycleTimeHours} hours (${(cycleTimeMetrics.avgCycleTimeHours / 24).toFixed(1)} days)`);
     Logger.log(`   Median: ${cycleTimeMetrics.medianCycleTimeHours} hours`);
@@ -287,17 +307,23 @@ function syncCycleTime(days: number = 30): void {
 }
 
 /**
- * サイクルタイムのタスク詳細を表示（デバッグ用）
+ * サイクルタイムのIssue詳細を表示（デバッグ用）
  */
 function showCycleTimeDetails(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.notion.token || !config.notion.databaseId) {
-    Logger.log("⚠️ Notion integration is not configured");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured");
     return;
   }
 
+  if (config.github.repositories.length === 0) {
+    Logger.log("⚠️ No repositories configured");
+    return;
+  }
+
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -305,27 +331,38 @@ function showCycleTimeDetails(days: number = 30): void {
   const startDateStr = startDate.toISOString().split("T")[0];
   const endDateStr = endDate.toISOString().split("T")[0];
 
-  const tasksResult = getTasksForCycleTime(
-    config.notion.databaseId,
-    config.notion.token,
-    startDateStr,
-    endDateStr,
-    config.notion.propertyNames
+  const productionPattern = getProductionBranchPattern();
+  const labels = getCycleTimeIssueLabels();
+
+  const cycleTimeResult = getGitHubCycleTimeData(
+    config.github.repositories,
+    token,
+    {
+      dateRange: {
+        start: startDateStr,
+        end: endDateStr,
+      },
+      productionBranchPattern: productionPattern,
+      labels: labels.length > 0 ? labels : undefined,
+    }
   );
 
-  if (!tasksResult.success || !tasksResult.data) {
-    Logger.log(`❌ Failed to fetch tasks: ${tasksResult.error}`);
+  if (!cycleTimeResult.success || !cycleTimeResult.data) {
+    Logger.log(`❌ Failed to fetch cycle time data: ${cycleTimeResult.error}`);
     return;
   }
 
-  const cycleTimeMetrics = calculateCycleTime(tasksResult.data, `${startDateStr}〜${endDateStr}`);
+  const cycleTimeMetrics = calculateCycleTime(cycleTimeResult.data, `${startDateStr}〜${endDateStr}`);
 
-  Logger.log(`\n📋 Task Details (${cycleTimeMetrics.completedTaskCount} tasks):\n`);
-  cycleTimeMetrics.taskDetails.forEach((task, i) => {
-    const daysValue = (task.cycleTimeHours / 24).toFixed(1);
-    Logger.log(`${i + 1}. ${task.title}`);
-    Logger.log(`   Started: ${task.startedAt} → Completed: ${task.completedAt}`);
-    Logger.log(`   Cycle Time: ${task.cycleTimeHours} hours (${daysValue} days)\n`);
+  Logger.log(`\n📋 Issue Details (${cycleTimeMetrics.completedTaskCount} issues with production merge):\n`);
+  cycleTimeMetrics.issueDetails.forEach((issue, i) => {
+    const daysValue = (issue.cycleTimeHours / 24).toFixed(1);
+    Logger.log(`${i + 1}. #${issue.issueNumber}: ${issue.title}`);
+    Logger.log(`   Repository: ${issue.repository}`);
+    Logger.log(`   Issue Created: ${issue.issueCreatedAt}`);
+    Logger.log(`   Production Merged: ${issue.productionMergedAt}`);
+    Logger.log(`   Cycle Time: ${issue.cycleTimeHours} hours (${daysValue} days)`);
+    Logger.log(`   PR Chain: ${issue.prChainSummary}\n`);
   });
 }
 
@@ -1029,6 +1066,111 @@ function resetNotionProperties(): void {
 global.configureNotionProperties = configureNotionProperties;
 global.showNotionPropertyNames = showNotionPropertyNames;
 global.resetNotionProperties = resetNotionProperties;
+
+// =============================================================================
+// サイクルタイム設定関数
+// =============================================================================
+
+/**
+ * productionブランチパターンを設定
+ * このパターンを含むブランチへのマージをproductionリリースとみなす
+ *
+ * @example
+ * // "xxx_production" にマッチ
+ * configureProductionBranch("production");
+ *
+ * // "release" ブランチにマッチ
+ * configureProductionBranch("release");
+ */
+function configureProductionBranch(pattern: string): void {
+  ensureContainerInitialized();
+  setProductionBranchPattern(pattern);
+  Logger.log(`✅ Production branch pattern set to: "${pattern}"`);
+}
+
+/**
+ * 現在のproductionブランチパターンを表示
+ */
+function showProductionBranch(): void {
+  ensureContainerInitialized();
+  const pattern = getProductionBranchPattern();
+  Logger.log(`📋 Production branch pattern: "${pattern}"`);
+}
+
+/**
+ * productionブランチパターンをリセット
+ */
+function resetProductionBranch(): void {
+  ensureContainerInitialized();
+  resetProductionBranchPattern();
+  Logger.log('✅ Production branch pattern reset to: "production"');
+}
+
+/**
+ * サイクルタイム計測対象のIssueラベルを設定
+ * 空配列を設定すると全Issueが対象になる
+ *
+ * @example
+ * // "feature" と "enhancement" ラベルを持つIssueのみ計測
+ * configureCycleTimeLabels(["feature", "enhancement"]);
+ *
+ * // 全Issueを対象にする
+ * configureCycleTimeLabels([]);
+ */
+function configureCycleTimeLabels(labels: string[]): void {
+  ensureContainerInitialized();
+  setCycleTimeIssueLabels(labels);
+  if (labels.length > 0) {
+    Logger.log(`✅ Cycle time labels set to: ${labels.join(", ")}`);
+  } else {
+    Logger.log("✅ Cycle time labels cleared (all issues will be tracked)");
+  }
+}
+
+/**
+ * 現在のサイクルタイムIssueラベルを表示
+ */
+function showCycleTimeLabels(): void {
+  ensureContainerInitialized();
+  const labels = getCycleTimeIssueLabels();
+  if (labels.length > 0) {
+    Logger.log(`📋 Cycle time labels: ${labels.join(", ")}`);
+  } else {
+    Logger.log("📋 Cycle time labels: (all issues)");
+  }
+}
+
+/**
+ * サイクルタイムIssueラベルをリセット（全Issue対象に戻す）
+ */
+function resetCycleTimeLabelsConfig(): void {
+  ensureContainerInitialized();
+  resetCycleTimeIssueLabels();
+  Logger.log("✅ Cycle time labels reset (all issues will be tracked)");
+}
+
+/**
+ * サイクルタイム設定を一覧表示
+ */
+function showCycleTimeConfig(): void {
+  ensureContainerInitialized();
+  Logger.log("📋 Cycle Time Configuration:");
+  Logger.log(`   Production branch pattern: "${getProductionBranchPattern()}"`);
+  const labels = getCycleTimeIssueLabels();
+  if (labels.length > 0) {
+    Logger.log(`   Issue labels: ${labels.join(", ")}`);
+  } else {
+    Logger.log("   Issue labels: (all issues)");
+  }
+}
+
+global.configureProductionBranch = configureProductionBranch;
+global.showProductionBranch = showProductionBranch;
+global.resetProductionBranch = resetProductionBranch;
+global.configureCycleTimeLabels = configureCycleTimeLabels;
+global.showCycleTimeLabels = showCycleTimeLabels;
+global.resetCycleTimeLabelsConfig = resetCycleTimeLabelsConfig;
+global.showCycleTimeConfig = showCycleTimeConfig;
 
 // =============================================================================
 // スキーママイグレーション関数

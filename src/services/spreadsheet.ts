@@ -141,16 +141,16 @@ const CYCLE_TIME_SHEET_NAME = "サイクルタイム";
 
 /**
  * サイクルタイム シートのヘッダー定義
- * タスク着手から完了までの時間を計測
+ * GitHub Issue作成からproductionマージまでの時間を計測
  */
 const CYCLE_TIME_HEADERS = [
   "期間",                    // 計測期間
-  "完了タスク数",            // 期間内に完了したタスクの数
-  "平均サイクルタイム (時間)", // 全タスクの平均値
+  "完了Issue数",             // 期間内にproductionマージされたIssueの数
+  "平均サイクルタイム (時間)", // 全Issueの平均値
   "平均サイクルタイム (日)",   // 日単位での平均値
   "中央値 (時間)",           // ソート後の中央値（外れ値の影響を受けにくい）
-  "最小 (時間)",             // 最も短かったタスク
-  "最大 (時間)",             // 最も長かったタスク
+  "最小 (時間)",             // 最も短かったIssue
+  "最大 (時間)",             // 最も長かったIssue
   "記録日時",                // データ記録時刻
 ];
 
@@ -158,20 +158,22 @@ const CYCLE_TIME_HEADERS = [
  * サイクルタイム詳細シートのヘッダー定義
  */
 const CYCLE_TIME_DETAIL_HEADERS = [
-  "タスクID",                // NotionのタスクID
-  "タイトル",                // タスク名
-  "着手日時",                // 作業開始日時
-  "完了日時",                // タスク完了日時
-  "サイクルタイム (時間)",   // 着手から完了までの時間
+  "Issue番号",               // GitHubのIssue番号
+  "タイトル",                // Issue名
+  "リポジトリ",              // 対象リポジトリ
+  "Issue作成日時",           // Issue作成日時（着手日）
+  "Productionマージ日時",    // productionマージ日時（完了日）
+  "サイクルタイム (時間)",   // Issue作成からマージまでの時間
   "サイクルタイム (日)",     // 日単位でのサイクルタイム
+  "PRチェーン",              // PRの連鎖（例: "#1→#2→#3"）
 ];
 
 /**
  * サイクルタイム指標をスプレッドシートに書き出す
  *
  * 2つのシートを作成/更新:
- * - "Cycle Time": サマリー情報
- * - "Cycle Time - Details": 各タスクの詳細
+ * - "サイクルタイム": サマリー情報
+ * - "サイクルタイム - Details": 各Issueの詳細
  */
 export function writeCycleTimeToSheet(
   spreadsheetId: string,
@@ -228,14 +230,16 @@ export function writeCycleTimeToSheet(
     detailSheet.setFrozenRows(1);
   }
 
-  if (metrics.taskDetails.length > 0) {
-    const detailRows = metrics.taskDetails.map((task) => [
-      task.taskId,
-      task.title,
-      task.startedAt,
-      task.completedAt,
-      task.cycleTimeHours,
-      Math.round((task.cycleTimeHours / 24) * 10) / 10,
+  if (metrics.issueDetails.length > 0) {
+    const detailRows = metrics.issueDetails.map((issue) => [
+      `#${issue.issueNumber}`,
+      issue.title,
+      issue.repository,
+      issue.issueCreatedAt,
+      issue.productionMergedAt,
+      issue.cycleTimeHours,
+      Math.round((issue.cycleTimeHours / 24) * 10) / 10,
+      issue.prChainSummary,
     ]);
 
     const detailLastRow = detailSheet.getLastRow();
@@ -244,7 +248,7 @@ export function writeCycleTimeToSheet(
     // 数値フォーマット（新しく追加した行を含む）
     const newDetailLastRow = detailSheet.getLastRow();
     if (newDetailLastRow > 1) {
-      detailSheet.getRange(2, 5, newDetailLastRow - 1, 2).setNumberFormat("#,##0.0");
+      detailSheet.getRange(2, 6, newDetailLastRow - 1, 2).setNumberFormat("#,##0.0");
     }
 
     // 列幅の自動調整

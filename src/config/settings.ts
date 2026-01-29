@@ -186,3 +186,80 @@ export function resetNotionPropertyNames(): void {
   const { storageClient } = getContainer();
   storageClient.deleteProperty("NOTION_PROPERTY_NAMES");
 }
+
+// ============================================================
+// サイクルタイム設定
+// ============================================================
+
+/** デフォルトのproductionブランチパターン */
+const DEFAULT_PRODUCTION_BRANCH_PATTERN = "production";
+
+/**
+ * productionブランチパターンを取得
+ * このパターンを含むブランチへのマージをproductionリリースとみなす
+ *
+ * @returns productionブランチパターン（デフォルト: "production"）
+ */
+export function getProductionBranchPattern(): string {
+  const { storageClient } = getContainer();
+  return storageClient.getProperty("PRODUCTION_BRANCH_PATTERN") ?? DEFAULT_PRODUCTION_BRANCH_PATTERN;
+}
+
+/**
+ * productionブランチパターンを設定
+ *
+ * @example
+ * // "xxx_production" にマッチ
+ * setProductionBranchPattern("production");
+ *
+ * // "release" ブランチにマッチ
+ * setProductionBranchPattern("release");
+ */
+export function setProductionBranchPattern(pattern: string): void {
+  const { storageClient } = getContainer();
+  storageClient.setProperty("PRODUCTION_BRANCH_PATTERN", pattern);
+}
+
+/**
+ * productionブランチパターン設定をリセット
+ */
+export function resetProductionBranchPattern(): void {
+  const { storageClient } = getContainer();
+  storageClient.deleteProperty("PRODUCTION_BRANCH_PATTERN");
+}
+
+/**
+ * サイクルタイム計測対象のIssueラベルを取得
+ * 空配列の場合は全Issueが対象
+ *
+ * @returns ラベル配列（デフォルト: []）
+ */
+export function getCycleTimeIssueLabels(): string[] {
+  const { storageClient } = getContainer();
+  const json = storageClient.getProperty("CYCLE_TIME_ISSUE_LABELS");
+  if (!json) return [];
+  return JSON.parse(json);
+}
+
+/**
+ * サイクルタイム計測対象のIssueラベルを設定
+ *
+ * @example
+ * // "feature" と "enhancement" ラベルを持つIssueのみ計測
+ * setCycleTimeIssueLabels(["feature", "enhancement"]);
+ *
+ * // 全Issueを対象にする
+ * setCycleTimeIssueLabels([]);
+ */
+export function setCycleTimeIssueLabels(labels: string[]): void {
+  const { storageClient } = getContainer();
+  storageClient.setProperty("CYCLE_TIME_ISSUE_LABELS", JSON.stringify(labels));
+}
+
+/**
+ * サイクルタイムIssueラベル設定をリセット（全Issue対象に戻す）
+ */
+export function resetCycleTimeIssueLabels(): void {
+  const { storageClient } = getContainer();
+  storageClient.deleteProperty("CYCLE_TIME_ISSUE_LABELS");
+}

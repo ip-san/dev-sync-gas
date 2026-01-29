@@ -21,6 +21,12 @@ export interface GitHubPullRequest {
   deletions?: number;
   /** 変更ファイル数 */
   changedFiles?: number;
+  /** ベースブランチ名（マージ先） */
+  baseBranch?: string;
+  /** ヘッドブランチ名（マージ元） */
+  headBranch?: string;
+  /** マージコミットSHA */
+  mergeCommitSha?: string | null;
 }
 
 export interface GitHubDeployment {
@@ -59,6 +65,50 @@ export interface GitHubIncident {
   repository: string;
 }
 
+/**
+ * GitHub Issue（サイクルタイム計測用）
+ * Issue作成日を着手日として使用
+ */
+export interface GitHubIssue {
+  id: number;
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  createdAt: string;
+  closedAt: string | null;
+  /** Issueに付与されたラベル一覧 */
+  labels: string[];
+  repository: string;
+}
+
+/**
+ * PRチェーンの各アイテム
+ * feature→main→staging→production の追跡に使用
+ */
+export interface PRChainItem {
+  prNumber: number;
+  baseBranch: string;
+  headBranch: string;
+  mergedAt: string | null;
+}
+
+/**
+ * Issue→productionマージのサイクルタイムデータ
+ */
+export interface GitHubIssueCycleTime {
+  issueNumber: number;
+  issueTitle: string;
+  repository: string;
+  /** Issue作成日時（着手日） */
+  issueCreatedAt: string;
+  /** productionブランチへのマージ日時（完了日） */
+  productionMergedAt: string | null;
+  /** サイクルタイム（時間）- productionマージがない場合はnull */
+  cycleTimeHours: number | null;
+  /** 追跡されたPRチェーン */
+  prChain: PRChainItem[];
+}
+
 // Notion関連の型定義
 export interface NotionTask {
   id: string;
@@ -78,12 +128,12 @@ export interface NotionTask {
 
 /**
  * サイクルタイム指標
- * 着手（Notion）〜完了（Notion）の時間を測定
+ * Issue作成（GitHub）〜productionマージ（GitHub）の時間を測定
  */
 export interface CycleTimeMetrics {
   /** 計測期間 */
   period: string;
-  /** 完了タスク数 */
+  /** 完了Issue数 */
   completedTaskCount: number;
   /** 平均サイクルタイム（時間） */
   avgCycleTimeHours: number | null;
@@ -93,19 +143,25 @@ export interface CycleTimeMetrics {
   minCycleTimeHours: number | null;
   /** 最大サイクルタイム（時間） */
   maxCycleTimeHours: number | null;
-  /** 各タスクのサイクルタイム詳細 */
-  taskDetails: TaskCycleTime[];
+  /** 各Issueのサイクルタイム詳細 */
+  issueDetails: IssueCycleTimeDetail[];
 }
 
 /**
- * 個別タスクのサイクルタイム
+ * 個別Issueのサイクルタイム
  */
-export interface TaskCycleTime {
-  taskId: string;
+export interface IssueCycleTimeDetail {
+  issueNumber: number;
   title: string;
-  startedAt: string;
-  completedAt: string;
+  repository: string;
+  /** Issue作成日時（着手日） */
+  issueCreatedAt: string;
+  /** productionマージ日時（完了日） */
+  productionMergedAt: string;
+  /** サイクルタイム（時間） */
   cycleTimeHours: number;
+  /** PRチェーン（例: "#1→#2→#3"） */
+  prChainSummary: string;
 }
 
 /**

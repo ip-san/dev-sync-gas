@@ -1,4 +1,4 @@
-import { getConfig, setConfig, addRepository, removeRepository } from "./config/settings";
+import { getConfig, setConfig, addRepository, removeRepository, getGitHubToken, getGitHubAuthMode } from "./config/settings";
 import "./init";
 import { getAllRepositoriesData, DateRange, getPullRequestsForTasks, getPullRequests, getReworkDataForPRs, getReviewEfficiencyDataForPRs, getPRSizeDataForPRs } from "./services/github";
 import { getTasksForCycleTime, getTasksForCodingTime, getTasksForSatisfaction } from "./services/notion";
@@ -31,9 +31,10 @@ function syncDevOpsMetrics(dateRange?: DateRange): void {
     Logger.log(`📅 Date range: ${dateRange.since?.toISOString()} ~ ${dateRange.until?.toISOString()}`);
   }
 
+  const token = getGitHubToken();
   const { pullRequests, workflowRuns, deployments } = getAllRepositoriesData(
     config.github.repositories,
-    config.github.token,
+    token,
     { dateRange }
   );
 
@@ -105,7 +106,7 @@ function createDailyTrigger(): void {
 }
 
 /**
- * 初期セットアップ - スクリプトプロパティを設定
+ * 初期セットアップ（PAT認証） - スクリプトプロパティを設定
  * notionToken, notionDatabaseId はオプショナル
  */
 function setup(
@@ -121,7 +122,54 @@ function setup(
     spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
   });
 
-  Logger.log("✅ Configuration saved. Add repositories with addRepo()");
+  Logger.log("✅ Configuration saved (PAT auth). Add repositories with addRepo()");
+}
+
+/**
+ * GitHub Apps認証用セットアップ
+ *
+ * @param appId - GitHub App ID
+ * @param privateKey - Private Key（PEM形式、改行は\nで）
+ * @param installationId - Installation ID
+ * @param spreadsheetId - Google Spreadsheet ID
+ * @param notionToken - Notion Token（オプション）
+ * @param notionDatabaseId - Notion Database ID（オプション）
+ */
+function setupWithGitHubApp(
+  appId: string,
+  privateKey: string,
+  installationId: string,
+  spreadsheetId: string,
+  notionToken?: string,
+  notionDatabaseId?: string
+): void {
+  ensureContainerInitialized();
+  setConfig({
+    github: {
+      appConfig: { appId, privateKey, installationId },
+      repositories: [],
+    },
+    notion: { token: notionToken || "", databaseId: notionDatabaseId || "" },
+    spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
+  });
+
+  Logger.log("✅ Configuration saved (GitHub App auth). Add repositories with addRepo()");
+}
+
+/**
+ * 現在の認証モードを表示
+ */
+function showAuthMode(): void {
+  ensureContainerInitialized();
+  const mode = getGitHubAuthMode();
+
+  if (mode === "app") {
+    Logger.log("🔐 Current auth mode: GitHub App");
+  } else if (mode === "pat") {
+    Logger.log("🔐 Current auth mode: Personal Access Token (PAT)");
+  } else {
+    Logger.log("⚠️ GitHub authentication is not configured");
+  }
 }
 
 /**
@@ -293,8 +341,8 @@ function syncCodingTime(startedDateProperty: string = "Date Started"): void {
     return;
   }
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured. Set githubToken in setup()");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App");
     return;
   }
 
@@ -323,8 +371,9 @@ function syncCodingTime(startedDateProperty: string = "Date Started"): void {
   }
 
   // GitHubからPR情報を取得
+  const token = getGitHubToken();
   Logger.log(`📡 Fetching PR information from GitHub...`);
-  const prMap = getPullRequestsForTasks(tasksResult.data, config.github.token);
+  const prMap = getPullRequestsForTasks(tasksResult.data, token);
   Logger.log(`   Found ${prMap.size} PRs`);
 
   // コーディング時間を計算
@@ -356,8 +405,8 @@ function showCodingTimeDetails(): void {
     return;
   }
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured");
     return;
   }
 
@@ -371,7 +420,8 @@ function showCodingTimeDetails(): void {
     return;
   }
 
-  const prMap = getPullRequestsForTasks(tasksResult.data, config.github.token);
+  const token = getGitHubToken();
+  const prMap = getPullRequestsForTasks(tasksResult.data, token);
   const codingTimeMetrics = calculateCodingTime(tasksResult.data, prMap, "");
 
   Logger.log(`\n📋 Coding Time Details (${codingTimeMetrics.taskCount} tasks):\n`);
@@ -396,8 +446,8 @@ function syncReworkRate(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured. Set githubToken in setup()");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App");
     return;
   }
 
@@ -406,6 +456,7 @@ function syncReworkRate(days: number = 30): void {
     return;
   }
 
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -421,7 +472,7 @@ function syncReworkRate(days: number = 30): void {
   const allPRs: GitHubPullRequest[] = [];
   for (const repo of config.github.repositories) {
     Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
-    const prsResult = getPullRequests(repo, config.github.token, "all", {
+    const prsResult = getPullRequests(repo, token, "all", {
       since: startDate,
       until: endDate,
     });
@@ -442,7 +493,7 @@ function syncReworkRate(days: number = 30): void {
   }
 
   Logger.log(`📊 Fetching rework data for ${allPRs.length} PRs...`);
-  const reworkData = getReworkDataForPRs(allPRs, config.github.token);
+  const reworkData = getReworkDataForPRs(allPRs, token);
 
   const reworkMetrics = calculateReworkRate(reworkData, period);
 
@@ -463,8 +514,8 @@ function showReworkRateDetails(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured");
     return;
   }
 
@@ -473,13 +524,14 @@ function showReworkRateDetails(days: number = 30): void {
     return;
   }
 
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
   const allPRs: GitHubPullRequest[] = [];
   for (const repo of config.github.repositories) {
-    const prsResult = getPullRequests(repo, config.github.token, "all", {
+    const prsResult = getPullRequests(repo, token, "all", {
       since: startDate,
       until: endDate,
     });
@@ -490,7 +542,7 @@ function showReworkRateDetails(days: number = 30): void {
     }
   }
 
-  const reworkData = getReworkDataForPRs(allPRs, config.github.token);
+  const reworkData = getReworkDataForPRs(allPRs, token);
   const startDateStr = startDate.toISOString().split("T")[0];
   const endDateStr = endDate.toISOString().split("T")[0];
   const reworkMetrics = calculateReworkRate(reworkData, `${startDateStr}〜${endDateStr}`);
@@ -518,8 +570,8 @@ function syncReviewEfficiency(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured. Set githubToken in setup()");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App");
     return;
   }
 
@@ -528,6 +580,7 @@ function syncReviewEfficiency(days: number = 30): void {
     return;
   }
 
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -543,7 +596,7 @@ function syncReviewEfficiency(days: number = 30): void {
   const allPRs: GitHubPullRequest[] = [];
   for (const repo of config.github.repositories) {
     Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
-    const prsResult = getPullRequests(repo, config.github.token, "all", {
+    const prsResult = getPullRequests(repo, token, "all", {
       since: startDate,
       until: endDate,
     });
@@ -564,7 +617,7 @@ function syncReviewEfficiency(days: number = 30): void {
   }
 
   Logger.log(`📊 Fetching review data for ${allPRs.length} PRs...`);
-  const reviewData = getReviewEfficiencyDataForPRs(allPRs, config.github.token);
+  const reviewData = getReviewEfficiencyDataForPRs(allPRs, token);
 
   const reviewMetrics = calculateReviewEfficiency(reviewData, period);
 
@@ -587,8 +640,8 @@ function showReviewEfficiencyDetails(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured");
     return;
   }
 
@@ -597,13 +650,14 @@ function showReviewEfficiencyDetails(days: number = 30): void {
     return;
   }
 
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
   const allPRs: GitHubPullRequest[] = [];
   for (const repo of config.github.repositories) {
-    const prsResult = getPullRequests(repo, config.github.token, "all", {
+    const prsResult = getPullRequests(repo, token, "all", {
       since: startDate,
       until: endDate,
     });
@@ -614,7 +668,7 @@ function showReviewEfficiencyDetails(days: number = 30): void {
     }
   }
 
-  const reviewData = getReviewEfficiencyDataForPRs(allPRs, config.github.token);
+  const reviewData = getReviewEfficiencyDataForPRs(allPRs, token);
   const startDateStr = startDate.toISOString().split("T")[0];
   const endDateStr = endDate.toISOString().split("T")[0];
   const reviewMetrics = calculateReviewEfficiency(reviewData, `${startDateStr}〜${endDateStr}`);
@@ -646,8 +700,8 @@ function syncPRSize(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured. Set githubToken in setup()");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App");
     return;
   }
 
@@ -656,6 +710,7 @@ function syncPRSize(days: number = 30): void {
     return;
   }
 
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
@@ -671,7 +726,7 @@ function syncPRSize(days: number = 30): void {
   const allPRs: GitHubPullRequest[] = [];
   for (const repo of config.github.repositories) {
     Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
-    const prsResult = getPullRequests(repo, config.github.token, "all", {
+    const prsResult = getPullRequests(repo, token, "all", {
       since: startDate,
       until: endDate,
     });
@@ -692,7 +747,7 @@ function syncPRSize(days: number = 30): void {
   }
 
   Logger.log(`📊 Fetching PR size data for ${allPRs.length} PRs...`);
-  const sizeData = getPRSizeDataForPRs(allPRs, config.github.token);
+  const sizeData = getPRSizeDataForPRs(allPRs, token);
 
   const sizeMetrics = calculatePRSize(sizeData, period);
 
@@ -713,8 +768,8 @@ function showPRSizeDetails(days: number = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!config.github.token) {
-    Logger.log("⚠️ GitHub token is not configured");
+  if (getGitHubAuthMode() === "none") {
+    Logger.log("⚠️ GitHub authentication is not configured");
     return;
   }
 
@@ -723,13 +778,14 @@ function showPRSizeDetails(days: number = 30): void {
     return;
   }
 
+  const token = getGitHubToken();
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
   const allPRs: GitHubPullRequest[] = [];
   for (const repo of config.github.repositories) {
-    const prsResult = getPullRequests(repo, config.github.token, "all", {
+    const prsResult = getPullRequests(repo, token, "all", {
       since: startDate,
       until: endDate,
     });
@@ -740,7 +796,7 @@ function showPRSizeDetails(days: number = 30): void {
     }
   }
 
-  const sizeData = getPRSizeDataForPRs(allPRs, config.github.token);
+  const sizeData = getPRSizeDataForPRs(allPRs, token);
   const startDateStr = startDate.toISOString().split("T")[0];
   const endDateStr = endDate.toISOString().split("T")[0];
   const sizeMetrics = calculatePRSize(sizeData, `${startDateStr}〜${endDateStr}`);
@@ -886,6 +942,8 @@ global.syncLast90Days = syncLast90Days;
 global.testPermissions = testPermissions;
 global.createDailyTrigger = createDailyTrigger;
 global.setup = setup;
+global.setupWithGitHubApp = setupWithGitHubApp;
+global.showAuthMode = showAuthMode;
 global.addRepo = addRepo;
 global.removeRepo = removeRepo;
 global.listRepos = listRepos;

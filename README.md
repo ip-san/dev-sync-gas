@@ -127,7 +127,9 @@ createDailyTrigger(); // 毎日9時に自動実行
 | `syncPRSize(days?)` | PRサイズを計測（GitHub連携必須） |
 | `syncDeveloperSatisfaction(days?)` | 開発者満足度を計測（Notion連携必須） |
 | `createDailyTrigger()` | 日次トリガーを設定 |
-| `setup(github, spreadsheet, notion?, notionDb?)` | 設定をScript Propertiesに保存 |
+| `setup(github, spreadsheet, notion?, notionDb?)` | 設定をScript Propertiesに保存（PAT認証） |
+| `setupWithGitHubApp(appId, key, instId, spreadsheet, ...)` | GitHub Apps認証で設定 |
+| `showAuthMode()` | 現在の認証モードを表示 |
 | `addRepo(owner, name)` | リポジトリを追加 |
 | `removeRepo(fullName)` | リポジトリを削除 |
 | `listRepos()` | 登録済みリポジトリ一覧 |
@@ -136,7 +138,9 @@ createDailyTrigger(); // 毎日9時に自動実行
 
 ## 必要なAPIトークン
 
-### GitHub Personal Access Token
+### GitHub認証（2つの方式から選択）
+
+#### 方式1: Personal Access Token（PAT）- 個人/小規模向け
 
 Fine-grained personal access tokens（推奨）を使用してください。
 
@@ -150,6 +154,17 @@ Fine-grained personal access tokens（推奨）を使用してください。
      - `Pull requests`: Read-only
      - `Actions`: Read-only
      - `Metadata`: Read-only（必須）
+
+#### 方式2: GitHub Apps - Organization/チーム向け
+
+Organization運用やセキュリティ要件が厳しい環境では、GitHub Apps認証を推奨します。
+
+**メリット:**
+- 個人アカウントに依存しない（退職時の影響なし）
+- より高いレート制限（15,000 req/hour）
+- 詳細な監査ログ
+
+詳細は [GitHub Apps 認証ガイド](docs/GITHUB_APPS_AUTH.md) を参照してください。
 
 ### Notion Integration Token（オプション）
 
@@ -223,6 +238,7 @@ bun run lint
 - [開発者満足度実装ガイド](docs/DEVELOPER_SATISFACTION.md) - タスク完了時の満足度スコアの計測方法
 
 ### 導入・運用
+- [GitHub Apps 認証ガイド](docs/GITHUB_APPS_AUTH.md) - Organization向けのGitHub Apps認証の設定方法
 - [組織導入ガイド＆トラブルシューティング](docs/SETUP_AND_TROUBLESHOOTING.md) - 組織での導入手順、権限設定、トラブル対応
 
 ## License

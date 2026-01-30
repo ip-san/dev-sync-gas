@@ -489,65 +489,6 @@ export function getIncidents(
 }
 
 /**
- * GitHub PR URLをパースしてowner, repo, numberを取得
- *
- * @param url - PR URL（例: "https://github.com/owner/repo/pull/123"）
- * @returns パース結果またはnull
- */
-export function parsePrUrl(url: string): { owner: string; repo: string; number: number } | null {
-  // https://github.com/owner/repo/pull/123 形式を想定
-  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-  if (!match) {
-    return null;
-  }
-  return {
-    owner: match[1],
-    repo: match[2],
-    number: parseInt(match[3], 10),
-  };
-}
-
-/**
- * PR URLから単一のPR情報を取得
- *
- * @param prUrl - PR URL（例: "https://github.com/owner/repo/pull/123"）
- * @param token - GitHub Personal Access Token
- * @returns PR情報
- */
-export function getPullRequestByUrl(
-  prUrl: string,
-  token: string
-): ApiResponse<GitHubPullRequest> {
-  const parsed = parsePrUrl(prUrl);
-  if (!parsed) {
-    return { success: false, error: `Invalid PR URL format: ${prUrl}` };
-  }
-
-  const endpoint = `/repos/${parsed.owner}/${parsed.repo}/pulls/${parsed.number}`;
-  const response = fetchGitHub<any>(endpoint, token);
-
-  if (!response.success || !response.data) {
-    return response as ApiResponse<GitHubPullRequest>;
-  }
-
-  const pr = response.data;
-  return {
-    success: true,
-    data: {
-      id: pr.id,
-      number: pr.number,
-      title: pr.title,
-      state: pr.state,
-      createdAt: pr.created_at,
-      mergedAt: pr.merged_at,
-      closedAt: pr.closed_at,
-      author: pr.user?.login ?? "unknown",
-      repository: `${parsed.owner}/${parsed.repo}`,
-    },
-  };
-}
-
-/**
  * PRのコミット一覧を取得
  *
  * @param owner - リポジトリオーナー
@@ -1192,7 +1133,6 @@ export function getPullRequestWithBranches(
     number: pr.number,
     title: pr.title,
     state: pr.state,
-    draft: pr.draft ?? false,
     createdAt: pr.created_at,
     mergedAt: pr.merged_at,
     repository: `${owner}/${repo}`,
@@ -1244,7 +1184,6 @@ export function findPRContainingCommit(
     number: targetPR.number,
     title: targetPR.title,
     state: targetPR.state,
-    draft: targetPR.draft ?? false,
     createdAt: targetPR.created_at,
     mergedAt: targetPR.merged_at,
     repository: `${owner}/${repo}`,

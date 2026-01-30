@@ -190,7 +190,7 @@ export function getWorkflowRuns(
 /** 環境名のマッチングモード */
 export type EnvironmentMatchMode = "exact" | "partial";
 
-export interface GetDeploymentsOptions {
+interface GetDeploymentsOptions {
   /**
    * デプロイメント環境名
    * 例: "production", "prod", "staging"
@@ -402,7 +402,7 @@ export function getAllRepositoriesData(
 /**
  * インシデント取得オプション
  */
-export interface GetIncidentsOptions {
+interface GetIncidentsOptions {
   /**
    * インシデントとして認識するラベル
    * 指定したラベルのいずれかを持つIssueを取得
@@ -497,7 +497,7 @@ export function getIncidents(
  * @param token - GitHub Personal Access Token
  * @returns コミットの配列（作成日時付き）
  */
-export function getPRCommits(
+function getPRCommits(
   owner: string,
   repo: string,
   prNumber: number,
@@ -544,7 +544,7 @@ export function getPRCommits(
  * @param token - GitHub Personal Access Token
  * @returns force push回数
  */
-export function getPRForcePushCount(
+function getPRForcePushCount(
   owner: string,
   repo: string,
   prNumber: number,
@@ -655,7 +655,7 @@ export function getReworkDataForPRs(
 /**
  * GitHub Reviewの状態
  */
-export type ReviewState = "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "PENDING" | "DISMISSED";
+type ReviewState = "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "PENDING" | "DISMISSED";
 
 /**
  * PRのレビュー一覧を取得
@@ -666,7 +666,7 @@ export type ReviewState = "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "PEND
  * @param token - GitHub Personal Access Token
  * @returns レビューの配列
  */
-export function getPRReviews(
+function getPRReviews(
   owner: string,
   repo: string,
   prNumber: number,
@@ -720,7 +720,7 @@ export function getPRReviews(
  * @param token - GitHub Personal Access Token
  * @returns ready_for_review時刻（ドラフトでない場合はnull）
  */
-export function getPRReadyForReviewAt(
+function getPRReadyForReviewAt(
   owner: string,
   repo: string,
   prNumber: number,

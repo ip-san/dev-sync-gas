@@ -28,8 +28,8 @@ DevSyncGASは、**感覚ではなくデータで判断する**ためのツール
 
 | DORA指標 | GitHubでの計算方法 |
 |----------|-------------------|
-| **デプロイ頻度** | GitHub Deployments API（または"deploy"を含むWorkflow） |
-| **リードタイム** | PR作成 → 本番デプロイまでの時間 |
+| **デプロイ頻度** | Deployments API（environment: "production"）または"deploy"ワークフロー |
+| **リードタイム** | PR作成 → productionデプロイまでの時間 |
 | **変更障害率** | 失敗デプロイ ÷ 総デプロイ数 |
 | **平均修復時間（MTTR）** | 失敗デプロイ → 次の成功デプロイまでの時間 |
 

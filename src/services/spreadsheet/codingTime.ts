@@ -12,6 +12,7 @@ import {
   autoResizeColumns,
   openSpreadsheet,
   formatDecimalColumns,
+  applyDataBorders,
 } from './helpers';
 
 const SHEET_NAME = 'コーディング時間';
@@ -90,6 +91,13 @@ function writeSummarySheet(
   sheet.getRange(lastRow + 1, 1, 1, SUMMARY_HEADERS.length).setValues([row]);
 
   formatDecimalColumns(sheet, 3, 5);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, SUMMARY_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, SUMMARY_HEADERS.length);
 }
 
@@ -123,5 +131,12 @@ function writeDetailSheet(
 
   // コーディング時間列（7〜8列目）を小数点1桁でフォーマット
   formatDecimalColumns(sheet, 7, 2);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }

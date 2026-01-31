@@ -9,7 +9,13 @@ import type { DevOpsMetrics } from '../../types';
 import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { aggregateMultiRepoMetrics } from '../../utils/metrics';
-import { autoResizeColumns, openSpreadsheet } from './helpers';
+import {
+  autoResizeColumns,
+  openSpreadsheet,
+  styleHeaderRow,
+  applyDataBorders,
+  styleSummaryRow,
+} from './helpers';
 import { readMetricsFromAllRepositorySheets } from './repositorySheet';
 
 /**
@@ -61,8 +67,7 @@ export function createDevOpsSummaryFromRepositorySheets(
 
   // ヘッダー設定
   sheet.getRange(1, 1, 1, DEVOPS_SUMMARY_HEADERS.length).setValues([DEVOPS_SUMMARY_HEADERS]);
-  sheet.getRange(1, 1, 1, DEVOPS_SUMMARY_HEADERS.length).setFontWeight('bold');
-  sheet.setFrozenRows(1);
+  styleHeaderRow(sheet, DEVOPS_SUMMARY_HEADERS.length);
 
   // 行データを作成
   const rows: (string | number)[][] = [];
@@ -125,9 +130,12 @@ function formatSummarySheet(sheet: Sheet, rowCount: number, hasOverallRow: boole
   sheet.getRange(2, 5, rowCount, 1).setNumberFormat('#,##0.0'); // 平均変更障害率
   sheet.getRange(2, 6, rowCount, 1).setNumberFormat('#,##0.0'); // 平均復旧時間
 
-  // 全体平均行を太字に
+  // データ範囲にボーダーを適用
+  applyDataBorders(sheet, rowCount, lastCol);
+
+  // 全体平均行にスタイルを適用
   if (hasOverallRow) {
-    sheet.getRange(rowCount + 1, 1, 1, lastCol).setFontWeight('bold');
+    styleSummaryRow(sheet, rowCount + 1, lastCol);
   }
 
   autoResizeColumns(sheet, lastCol);
@@ -189,8 +197,7 @@ export function createDevOpsSummaryFromMetrics(
 
   // ヘッダー設定
   sheet.getRange(1, 1, 1, DEVOPS_SUMMARY_HEADERS.length).setValues([DEVOPS_SUMMARY_HEADERS]);
-  sheet.getRange(1, 1, 1, DEVOPS_SUMMARY_HEADERS.length).setFontWeight('bold');
-  sheet.setFrozenRows(1);
+  styleHeaderRow(sheet, DEVOPS_SUMMARY_HEADERS.length);
 
   // 行データを作成
   const rows: (string | number)[][] = [];

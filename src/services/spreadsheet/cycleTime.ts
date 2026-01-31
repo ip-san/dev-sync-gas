@@ -12,6 +12,7 @@ import {
   autoResizeColumns,
   openSpreadsheet,
   formatDecimalColumns,
+  applyDataBorders,
 } from './helpers';
 
 const SHEET_NAME = 'サイクルタイム';
@@ -91,6 +92,13 @@ function writeSummarySheet(
 
   // 数値列（3〜7列目）を小数点1桁でフォーマット
   formatDecimalColumns(sheet, 3, 5);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, SUMMARY_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, SUMMARY_HEADERS.length);
 }
 
@@ -124,5 +132,12 @@ function writeDetailSheet(
 
   // サイクルタイム列（6〜7列目）を小数点1桁でフォーマット
   formatDecimalColumns(sheet, 6, 2);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }

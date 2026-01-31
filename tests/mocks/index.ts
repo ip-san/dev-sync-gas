@@ -79,6 +79,12 @@ export class MockSheetRange implements SheetRange {
   private values: unknown[][] = [];
   private fontWeight: string = "";
   private numberFormat: string = "";
+  private backgroundColor: string | null = null;
+  private fontColor: string = "";
+  private horizontalAlignment: string = "";
+  private verticalAlignment: string = "";
+  private fontSize: number = 10;
+  private wrap: boolean = false;
 
   constructor(initialValues: unknown[][] = []) {
     this.values = initialValues;
@@ -88,8 +94,19 @@ export class MockSheetRange implements SheetRange {
     return this.values;
   }
 
+  getValue(): unknown {
+    return this.values[0]?.[0] ?? "";
+  }
+
   setValues(values: unknown[][]): void {
     this.values = values;
+  }
+
+  setValue(value: unknown): void {
+    if (!this.values[0]) {
+      this.values[0] = [];
+    }
+    this.values[0][0] = value;
   }
 
   setFontWeight(weight: string): void {
@@ -100,12 +117,66 @@ export class MockSheetRange implements SheetRange {
     this.numberFormat = format;
   }
 
+  setBackground(color: string | null): void {
+    this.backgroundColor = color;
+  }
+
+  setFontColor(color: string): void {
+    this.fontColor = color;
+  }
+
+  setBorder(
+    _top: boolean | null,
+    _left: boolean | null,
+    _bottom: boolean | null,
+    _right: boolean | null,
+    _vertical: boolean | null,
+    _horizontal: boolean | null,
+    _color?: string | null,
+    _style?: string | null
+  ): void {
+    // Mock implementation - no-op for testing
+  }
+
+  setHorizontalAlignment(alignment: 'left' | 'center' | 'right'): void {
+    this.horizontalAlignment = alignment;
+  }
+
+  setVerticalAlignment(alignment: 'top' | 'middle' | 'bottom'): void {
+    this.verticalAlignment = alignment;
+  }
+
+  setFontSize(size: number): void {
+    this.fontSize = size;
+  }
+
+  setWrap(wrap: boolean): void {
+    this.wrap = wrap;
+  }
+
+  // Test helpers
   getFontWeight(): string {
     return this.fontWeight;
   }
 
   getNumberFormat(): string {
     return this.numberFormat;
+  }
+
+  getBackgroundColor(): string | null {
+    return this.backgroundColor;
+  }
+
+  getFontColor(): string {
+    return this.fontColor;
+  }
+
+  getHorizontalAlignment(): string {
+    return this.horizontalAlignment;
+  }
+
+  getFontSize(): number {
+    return this.fontSize;
   }
 }
 
@@ -123,6 +194,10 @@ export class MockSheet implements Sheet {
 
   getName(): string {
     return this.name;
+  }
+
+  setName(name: string): void {
+    this.name = name;
   }
 
   getRange(row: number, col: number, numRows?: number, numCols?: number): SheetRange {
@@ -231,6 +306,18 @@ export class MockSpreadsheet implements Spreadsheet {
     const sheet = new MockSheet(name);
     this.sheets.set(name, sheet);
     return sheet;
+  }
+
+  deleteSheet(sheet: Sheet): void {
+    this.sheets.delete(sheet.getName());
+  }
+
+  setActiveSheet(_sheet: Sheet): void {
+    // Mock implementation - no-op for testing
+  }
+
+  moveActiveSheet(_position: number): void {
+    // Mock implementation - no-op for testing
   }
 
   // Test helper to add pre-existing sheet

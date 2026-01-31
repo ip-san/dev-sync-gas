@@ -8,7 +8,7 @@
 import type { DevOpsMetrics } from '../../types';
 import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
-import { getOrCreateSheet, autoResizeColumns, openSpreadsheet } from './helpers';
+import { getOrCreateSheet, autoResizeColumns, openSpreadsheet, applyDataBorders } from './helpers';
 import { REPOSITORY_DEVOPS_SCHEMA, getHeadersFromSchema } from '../../schemas';
 
 /**
@@ -148,6 +148,9 @@ function formatRepositorySheet(sheet: Sheet): void {
     sheet.getRange(2, 7, lastRow - 1, 1).setNumberFormat('#,##0.0');
     // MTTR（8列目）: 小数1桁
     sheet.getRange(2, 8, lastRow - 1, 1).setNumberFormat('#,##0.0');
+
+    // データ範囲にボーダーを適用
+    applyDataBorders(sheet, lastRow - 1, lastCol);
   }
 
   autoResizeColumns(sheet, lastCol);

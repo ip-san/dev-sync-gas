@@ -13,6 +13,7 @@ import {
   openSpreadsheet,
   formatDecimalColumns,
   formatIntegerColumns,
+  applyDataBorders,
 } from './helpers';
 
 const SHEET_NAME = 'PRサイズ';
@@ -102,6 +103,12 @@ function writeSummarySheet(
   formatDecimalColumns(sheet, 4, 4); // 変更行数 平均〜最大
   formatDecimalColumns(sheet, 9, 4); // ファイル数 平均〜最大
 
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, SUMMARY_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, SUMMARY_HEADERS.length);
 }
 
@@ -136,5 +143,12 @@ function writeDetailSheet(
 
   // 数値列（6-9列目）を整数でフォーマット
   formatIntegerColumns(sheet, 6, 4);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }

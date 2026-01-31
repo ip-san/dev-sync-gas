@@ -7,7 +7,7 @@
 
 import type { ReworkRateMetrics } from '../../types';
 import { getContainer } from '../../container';
-import { getOrCreateSheet, autoResizeColumns, openSpreadsheet } from './helpers';
+import { getOrCreateSheet, autoResizeColumns, openSpreadsheet, applyDataBorders } from './helpers';
 
 const SHEET_NAME = '手戻り率';
 
@@ -94,6 +94,9 @@ function writeSummarySheet(
     sheet.getRange(2, 8, newLastRow - 1, 1).setNumberFormat('#,##0.0');
     // Force Push率（10列目）
     sheet.getRange(2, 10, newLastRow - 1, 1).setNumberFormat('#,##0.0');
+
+    // データ範囲にボーダーを適用
+    applyDataBorders(sheet, newLastRow - 1, SUMMARY_HEADERS.length);
   }
 
   autoResizeColumns(sheet, SUMMARY_HEADERS.length);
@@ -126,6 +129,12 @@ function writeDetailSheet(
 
   const lastRow = sheet.getLastRow();
   sheet.getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length).setValues(rows);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
+  }
 
   autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }

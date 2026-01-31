@@ -10,6 +10,7 @@ import type {
   Spreadsheet,
   Sheet,
   SheetRange,
+  BorderStyle,
   StorageClient,
   LoggerClient,
   TriggerClient,
@@ -132,6 +133,24 @@ export class GasHttpClient implements HttpClient {
   }
 }
 
+// BorderStyleをGASのBorderStyleにマップ
+function toGasBorderStyle(
+  style: BorderStyle | null | undefined
+): GoogleAppsScript.Spreadsheet.BorderStyle | null {
+  if (!style) {
+    return null;
+  }
+  const styleMap: Record<BorderStyle, GoogleAppsScript.Spreadsheet.BorderStyle> = {
+    dotted: SpreadsheetApp.BorderStyle.DOTTED,
+    dashed: SpreadsheetApp.BorderStyle.DASHED,
+    solid: SpreadsheetApp.BorderStyle.SOLID,
+    solid_medium: SpreadsheetApp.BorderStyle.SOLID_MEDIUM,
+    solid_thick: SpreadsheetApp.BorderStyle.SOLID_THICK,
+    double: SpreadsheetApp.BorderStyle.DOUBLE,
+  };
+  return styleMap[style];
+}
+
 // Spreadsheet Client
 class GasSheetRange implements SheetRange {
   constructor(private range: GoogleAppsScript.Spreadsheet.Range) {}
@@ -158,6 +177,52 @@ class GasSheetRange implements SheetRange {
 
   setNumberFormat(format: string): void {
     this.range.setNumberFormat(format);
+  }
+
+  setBackground(color: string | null): void {
+    this.range.setBackground(color);
+  }
+
+  setFontColor(color: string): void {
+    this.range.setFontColor(color);
+  }
+
+  setBorder(
+    top: boolean | null,
+    left: boolean | null,
+    bottom: boolean | null,
+    right: boolean | null,
+    vertical: boolean | null,
+    horizontal: boolean | null,
+    color?: string | null,
+    style?: BorderStyle | null
+  ): void {
+    this.range.setBorder(
+      top,
+      left,
+      bottom,
+      right,
+      vertical,
+      horizontal,
+      color ?? null,
+      toGasBorderStyle(style)
+    );
+  }
+
+  setHorizontalAlignment(alignment: 'left' | 'center' | 'right'): void {
+    this.range.setHorizontalAlignment(alignment);
+  }
+
+  setVerticalAlignment(alignment: 'top' | 'middle' | 'bottom'): void {
+    this.range.setVerticalAlignment(alignment);
+  }
+
+  setFontSize(size: number): void {
+    this.range.setFontSize(size);
+  }
+
+  setWrap(wrap: boolean): void {
+    this.range.setWrap(wrap);
   }
 }
 

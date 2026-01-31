@@ -29,7 +29,26 @@ export interface SheetRange {
   setValue(value: unknown): void;
   setFontWeight(weight: 'bold' | 'normal' | null): void;
   setNumberFormat(format: string): void;
+  // デザイン用メソッド
+  setBackground(color: string | null): void;
+  setFontColor(color: string): void;
+  setBorder(
+    top: boolean | null,
+    left: boolean | null,
+    bottom: boolean | null,
+    right: boolean | null,
+    vertical: boolean | null,
+    horizontal: boolean | null,
+    color?: string | null,
+    style?: BorderStyle | null
+  ): void;
+  setHorizontalAlignment(alignment: 'left' | 'center' | 'right'): void;
+  setVerticalAlignment(alignment: 'top' | 'middle' | 'bottom'): void;
+  setFontSize(size: number): void;
+  setWrap(wrap: boolean): void;
 }
+
+export type BorderStyle = 'dotted' | 'dashed' | 'solid' | 'solid_medium' | 'solid_thick' | 'double';
 
 export interface Sheet {
   getName(): string;

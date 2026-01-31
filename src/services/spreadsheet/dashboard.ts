@@ -10,7 +10,13 @@ import type { DevOpsMetrics, HealthStatus } from '../../types';
 import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { DEFAULT_HEALTH_THRESHOLDS } from '../../types/dashboard';
-import { autoResizeColumns, openSpreadsheet } from './helpers';
+import {
+  autoResizeColumns,
+  openSpreadsheet,
+  styleHeaderRow,
+  applyDataBorders,
+  styleSummaryRow,
+} from './helpers';
 import { DASHBOARD_SCHEMA, getHeadersFromSchema } from '../../schemas';
 
 const DASHBOARD_HEADERS = getHeadersFromSchema(DASHBOARD_SCHEMA);
@@ -80,16 +86,16 @@ export function determineHealthStatus(
 }
 
 /**
- * ステータスを表示用文字列に変換
+ * ステータスを表示用文字列に変換（絵文字付き）
  */
 function formatStatus(status: HealthStatus): string {
   switch (status) {
     case 'good':
-      return '良好';
+      return '🟢 良好';
     case 'warning':
-      return '要注意';
+      return '🟡 要注意';
     case 'critical':
-      return '要対応';
+      return '🔴 要対応';
   }
 }
 
@@ -201,8 +207,7 @@ export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]):
 
   // ヘッダー設定
   sheet.getRange(1, 1, 1, DASHBOARD_HEADERS.length).setValues([DASHBOARD_HEADERS]);
-  sheet.getRange(1, 1, 1, DASHBOARD_HEADERS.length).setFontWeight('bold');
-  sheet.setFrozenRows(1);
+  styleHeaderRow(sheet, DASHBOARD_HEADERS.length);
 
   if (metrics.length === 0) {
     logger.log('⚠️ No metrics for dashboard');
@@ -289,12 +294,13 @@ function formatDashboardSheet(sheet: Sheet, rowCount: number, hasOverallRow: boo
   sheet.getRange(2, 7, rowCount, 1).setNumberFormat('#,##0.0'); // レビュー待ち
   sheet.getRange(2, 8, rowCount, 1).setNumberFormat('#,##0'); // PRサイズ
 
-  // 全体平均行を太字に
-  if (hasOverallRow) {
-    sheet.getRange(rowCount + 1, 1, 1, lastCol).setFontWeight('bold');
-  }
+  // データ範囲にボーダーを適用
+  applyDataBorders(sheet, rowCount, lastCol);
 
-  // ステータス列の条件付き書式は手動設定が必要（GASの制限）
+  // 全体平均行にスタイルを適用
+  if (hasOverallRow) {
+    styleSummaryRow(sheet, rowCount + 1, lastCol);
+  }
 
   autoResizeColumns(sheet, lastCol);
 }
@@ -418,8 +424,7 @@ export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetri
   ];
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
-  sheet.setFrozenRows(1);
+  styleHeaderRow(sheet, headers.length);
 
   const trends = calculateWeeklyTrends(metrics);
 
@@ -457,6 +462,9 @@ export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetri
   sheet.getRange(2, 3, rows.length, 1).setNumberFormat('#,##0.0');
   sheet.getRange(2, 4, rows.length, 1).setNumberFormat('#,##0.0');
   sheet.getRange(2, 5, rows.length, 1).setNumberFormat('#,##0.0');
+
+  // データ範囲にボーダーを適用
+  applyDataBorders(sheet, rows.length, headers.length);
 
   autoResizeColumns(sheet, headers.length);
 

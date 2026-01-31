@@ -12,6 +12,7 @@ import {
   autoResizeColumns,
   openSpreadsheet,
   formatDecimalColumns,
+  applyDataBorders,
 } from './helpers';
 
 const SHEET_NAME = 'レビュー効率';
@@ -116,6 +117,13 @@ function writeSummarySheet(
 
   // 時間列（3-18列目）を小数点1桁でフォーマット
   formatDecimalColumns(sheet, 3, 16);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, SUMMARY_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, SUMMARY_HEADERS.length);
 }
 
@@ -153,5 +161,12 @@ function writeDetailSheet(
 
   // 時間列（9-12列目）を小数点1桁でフォーマット
   formatDecimalColumns(sheet, 9, 4);
+
+  // データ範囲にボーダーを適用
+  const lastRowAfterWrite = sheet.getLastRow();
+  if (lastRowAfterWrite > 1) {
+    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
+  }
+
   autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }

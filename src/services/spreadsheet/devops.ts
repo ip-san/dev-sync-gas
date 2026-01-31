@@ -11,7 +11,14 @@ import type { DevOpsMetrics } from '../../types';
 import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { aggregateMultiRepoMetrics } from '../../utils/metrics';
-import { getOrCreateSheet, autoResizeColumns, openSpreadsheet } from './helpers';
+import {
+  getOrCreateSheet,
+  autoResizeColumns,
+  openSpreadsheet,
+  styleHeaderRow,
+  applyDataBorders,
+  styleSummaryRow,
+} from './helpers';
 
 /**
  * DevOps Metrics シートのヘッダー定義
@@ -171,6 +178,9 @@ function formatSheet(sheet: Sheet): void {
     sheet.getRange(2, 3, lastRow - 1, 1).setNumberFormat('#,##0');
     sheet.getRange(2, 5, lastRow - 1, 1).setNumberFormat('#,##0.0');
     sheet.getRange(2, 8, lastRow - 1, 1).setNumberFormat('#,##0.0');
+
+    // データ範囲にボーダーを適用
+    applyDataBorders(sheet, lastRow - 1, lastCol);
   }
 
   autoResizeColumns(sheet, lastCol);
@@ -241,8 +251,7 @@ export function createSummarySheet(spreadsheetId: string, sourceSheetName: strin
   ];
 
   summarySheet.getRange(1, 1, 1, summaryHeaders.length).setValues([summaryHeaders]);
-  summarySheet.getRange(1, 1, 1, summaryHeaders.length).setFontWeight('bold');
-  summarySheet.setFrozenRows(1);
+  styleHeaderRow(summarySheet, summaryHeaders.length);
 
   // ソースシートからデータを読み取り
   const data = sourceSheet.getDataRange().getValues();
@@ -349,9 +358,12 @@ function writeSummaryRows(
   sheet.getRange(2, 4, rows.length, 1).setNumberFormat('#,##0.0');
   sheet.getRange(2, 5, rows.length, 1).setNumberFormat('#,##0.0');
 
-  // 全体平均行を太字にする
+  // データ範囲にボーダーを適用
+  applyDataBorders(sheet, rows.length, columnCount);
+
+  // 全体平均行にスタイルを適用
   if (repoCount > 1) {
-    sheet.getRange(lastRow, 1, 1, columnCount).setFontWeight('bold');
+    styleSummaryRow(sheet, lastRow, columnCount);
   }
 
   autoResizeColumns(sheet, columnCount);

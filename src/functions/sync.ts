@@ -286,11 +286,7 @@ export function syncDailyBackfill(days = 30): void {
   Logger.log(`📊 Generated ${dailyMetrics.length} daily records`);
 
   // 4. 重複除外して書き込み
-  writeMetricsWithDuplicateCheck(
-    config.spreadsheet.id,
-    config.spreadsheet.sheetName,
-    dailyMetrics
-  );
+  writeMetricsWithDuplicateCheck(config.spreadsheet.id, config.spreadsheet.sheetName, dailyMetrics);
 }
 
 /**

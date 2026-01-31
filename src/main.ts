@@ -17,6 +17,11 @@ import {
   syncAllProjectsHistorical,
   syncLast30Days,
   syncLast90Days,
+  // 日別バックフィル
+  syncDailyBackfill,
+  backfillAllProjectsDaily,
+  backfillLast30Days,
+  backfillLast90Days,
   cleanup,
   generateSummary,
   generateAllProjectSummaries,
@@ -89,6 +94,12 @@ global.syncLast90Days = syncLast90Days;
 global.cleanup = cleanup;
 global.generateSummary = generateSummary;
 global.generateAllProjectSummaries = generateAllProjectSummaries;
+
+// 日別バックフィル
+global.syncDailyBackfill = syncDailyBackfill;
+global.backfillAllProjectsDaily = backfillAllProjectsDaily;
+global.backfillLast30Days = backfillLast30Days;
+global.backfillLast90Days = backfillLast90Days;
 
 // 拡張指標同期
 global.syncCycleTime = syncCycleTime;

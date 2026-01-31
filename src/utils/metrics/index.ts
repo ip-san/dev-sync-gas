@@ -18,6 +18,11 @@ export {
   calculateMTTR,
   calculateIncidentMetrics,
   calculateMetricsForRepository,
+  // 日別メトリクス計算
+  calculateDailyMetrics,
+  calculateMetricsForDate,
+  generateDateRange,
+  isOnDate,
   type LeadTimeResult,
   type IncidentMetricsResult,
 } from './dora';

@@ -65,6 +65,101 @@ export function writeMetricsToSheet(
 }
 
 /**
+ * 既存データの(date, repository)キーを収集
+ */
+function getExistingKeys(sheet: Sheet): Set<string> {
+  const keys = new Set<string>();
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow <= 1) {
+    return keys;
+  }
+
+  const data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+
+  for (const row of data) {
+    const date = String(row[0]);
+    const repository = String(row[1]);
+    if (date && repository) {
+      keys.add(`${date}_${repository}`);
+    }
+  }
+
+  return keys;
+}
+
+/**
+ * 重複チェック付きでメトリクスを書き込む
+ *
+ * @param spreadsheetId - スプレッドシートID
+ * @param sheetName - シート名
+ * @param metrics - 書き込むメトリクス
+ * @param options - オプション
+ *   - skipDuplicates: 重複をスキップ（デフォルト: true）
+ */
+export function writeMetricsWithDuplicateCheck(
+  spreadsheetId: string,
+  sheetName: string,
+  metrics: DevOpsMetrics[],
+  options: { skipDuplicates?: boolean } = {}
+): void {
+  const { logger } = getContainer();
+  const spreadsheet = openSpreadsheet(spreadsheetId);
+  const sheet = getOrCreateSheet(spreadsheet, sheetName, HEADERS);
+
+  if (metrics.length === 0) {
+    logger.log('⚠️ No metrics to write');
+    return;
+  }
+
+  const skipDuplicates = options.skipDuplicates !== false;
+
+  let metricsToWrite = metrics;
+
+  if (skipDuplicates) {
+    // 既存データの(date, repository)キーを収集
+    const existingKeys = getExistingKeys(sheet);
+    logger.log(`📋 Found ${existingKeys.size} existing records`);
+
+    // 重複を除外
+    const originalCount = metrics.length;
+    metricsToWrite = metrics.filter((m) => {
+      const key = `${m.date}_${m.repository}`;
+      return !existingKeys.has(key);
+    });
+
+    const skippedCount = originalCount - metricsToWrite.length;
+    if (skippedCount > 0) {
+      logger.log(`⏭️ Skipped ${skippedCount} duplicate records`);
+    }
+  }
+
+  if (metricsToWrite.length === 0) {
+    logger.log('✅ All records already exist, nothing to write');
+    return;
+  }
+
+  // 書き込み
+  const rows = metricsToWrite.map((m) => [
+    m.date,
+    m.repository,
+    m.deploymentCount,
+    m.deploymentFrequency,
+    m.leadTimeForChangesHours,
+    m.totalDeployments,
+    m.failedDeployments,
+    m.changeFailureRate,
+    m.meanTimeToRecoveryHours ?? 'N/A',
+  ]);
+
+  const lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow + 1, 1, rows.length, HEADERS.length).setValues(rows);
+
+  formatSheet(sheet);
+  logger.log(`✅ Wrote ${metricsToWrite.length} new records`);
+}
+
+/**
  * シートのフォーマットを整える
  */
 function formatSheet(sheet: Sheet): void {

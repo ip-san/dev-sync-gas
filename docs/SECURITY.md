@@ -25,7 +25,7 @@ DevSyncGASは以下のセキュリティ原則に基づいて設計されてい�
 | **最小権限の原則** | ✅ GitHub APIはRead-onlyのみ |
 | **入力検証** | ✅ 全ての外部入力を検証 |
 | **監査証跡** | ✅ 全ての設定変更を記録 |
-| **機密情報保護** | ⚠️ PropertiesServiceに平文保存（GASの制限） |
+| **機密情報保護** | ✅ Secret Manager統合（PropertiesServiceフォールバック） |
 | **エラーハンドリング** | ✅ 機密情報をエラーメッセージから除外 |
 
 ---
@@ -155,6 +155,37 @@ GitHub Apps Installation Tokenをグローバル変数ではなく、PropertiesS
 - デフォルトタイムアウト: 30秒
 - SSL証明書検証: 有効
 - リダイレクト追跡: 有効
+
+### 7. Google Secret Manager統合
+
+GitHub App Private Keyを安全に保存するため、Google Secret Managerとの統合を実装済みです。
+
+**機能:**
+- Secret Manager APIとの完全統合
+- シークレットの自動バージョン管理
+- PropertiesServiceへの自動フォールバック
+- PropertiesServiceからの移行ヘルパー関数
+
+**セキュリティ改善:**
+- ✅ Private Keyの暗号化保存（Google管理の鍵で暗号化）
+- ✅ IAMによる細かいアクセス制御
+- ✅ Cloud Audit Logsによる操作記録
+- ✅ バージョン管理とロールバック機能
+- ✅ 自動ローテーション対応
+
+**使い方:**
+```javascript
+// Secret Managerを有効化
+enableSecretManager('your-gcp-project-id');
+
+// GitHub App設定（Private Keyは自動的にSecret Managerに保存）
+setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+
+// 既存キーの移行
+migratePrivateKey();
+```
+
+詳細は「[機密情報の取り扱い](#機密情報の取り扱い)」セクションを参照。
 
 ---
 
@@ -317,16 +348,28 @@ deleteSecret('old-api-key');
 
 ## 残存リスクと推奨対策
 
-### リスク1: Private Keyの平文保存
+### リスク1: Private Keyの平文保存 ✅ 対策済み
 
-**現状:**
-- PropertiesServiceに平文で保存
-- GASプロジェクトの編集権限を持つ全員が閲覧可能
+**実装状況:**
+- ✅ Google Secret Manager統合を実装済み
+- ✅ PropertiesServiceからSecret Managerへの移行機能を提供
+- ✅ 自動フォールバック機構により互換性を維持
+
+**残存リスク:**
+- Secret Managerを有効化していない場合、依然としてPropertiesServiceに平文保存
+- Secret Manager APIが利用できない環境（一部のGASプロジェクト制限等）
 
 **推奨対策:**
-1. **最小:** GASプロジェクトの共有を最小限に制限
-2. **推奨:** Google Secret Managerへの移行
-3. **最良:** KMSによる暗号化 + Secret Manager
+1. **必須（組織利用）:** `enableSecretManager()` でSecret Managerを有効化
+2. **推奨:** `migratePrivateKey()` で既存のキーを移行
+3. **最小（個人利用）:** GASプロジェクトの共有を最小限に制限
+
+**実装方法:**
+```javascript
+// Secret Managerを有効化してリスクを解消
+enableSecretManager('your-gcp-project-id');
+setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+```
 
 ### リスク2: スプレッドシートアクセス制御
 

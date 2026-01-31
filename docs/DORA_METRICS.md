@@ -170,33 +170,9 @@ leadTime = (mergedAt - prCreatedAt) / (1000 * 60 * 60); // 時間
 
 ### GitHubでの計算方法
 
-#### 優先: GitHub Deployments API
+#### 優先（推奨）: GitHub Issues（Incident）
 
-デプロイメントの時系列を追跡し、失敗→成功のパターンを検出：
-
-```
-失敗デプロイ発生 (status: "failure" or "error")
-    ↓
-成功デプロイ (status: "success")
-    ↓
-復旧時間 = 成功デプロイ日時 - 失敗デプロイ日時
-```
-
-全復旧パターンの平均を算出。
-
-#### フォールバック: GitHub Actions Workflow Runs
-
-```
-失敗ワークフロー (conclusion: "failure")
-    ↓
-成功ワークフロー (conclusion: "success")
-    ↓
-復旧時間 = 成功実行日時 - 失敗実行日時
-```
-
-#### 真のMTTR: GitHub Issues（Incident）
-
-より正確な計測として、"incident"ラベルのIssueを使用：
+DORA公式定義に最も近い計測方法として、"incident"ラベルのIssueを使用：
 
 ```
 GET /repos/{owner}/{repo}/issues?labels=incident
@@ -208,6 +184,32 @@ Incident Issue作成 (障害検知)
 Incident Issue close (復旧完了)
     ↓
 MTTR = Issue close日時 - Issue作成日時
+```
+
+**デフォルト設定**: DevSyncGASはIncident Issueを優先的に使用します。
+
+#### フォールバック1: GitHub Deployments API
+
+Incident Issueが存在しない場合、デプロイメントの時系列を追跡し、失敗→成功のパターンを検出：
+
+```
+失敗デプロイ発生 (status: "failure" or "error")
+    ↓
+成功デプロイ (status: "success")
+    ↓
+復旧時間 = 成功デプロイ日時 - 失敗デプロイ日時
+```
+
+#### フォールバック2: GitHub Actions Workflow Runs
+
+デプロイメントデータもない場合、ワークフロー実行を使用：
+
+```
+失敗ワークフロー (conclusion: "failure")
+    ↓
+成功ワークフロー (conclusion: "success")
+    ↓
+復旧時間 = 成功実行日時 - 失敗実行日時
 ```
 
 ### 出力例
@@ -308,6 +310,24 @@ configureProductionEnvironment("production-us");
 resetProductionEnvironment();
 ```
 
+### MTTR（Incident）ラベル設定
+
+```javascript
+// デフォルト: "incident"ラベルのIssueを自動取得
+// 特別な設定は不要です
+
+// 障害Issueを作成する場合の例
+// 1. GitHubでIssueを作成
+// 2. ラベル "incident" を付与
+// 3. 復旧後にIssueをクローズ
+// → syncDevOpsMetrics() で自動的にMTTRが計算されます
+```
+
+**推奨運用**:
+- 本番障害が発生したら "incident" ラベル付きIssueを作成
+- 復旧完了後にIssueをクローズ
+- より正確なMTTRが自動計測されます
+
 ### GraphQL vs REST API
 
 | モード | 特徴 | 使いどころ |
@@ -331,7 +351,7 @@ resetProductionEnvironment();
 | **デプロイ頻度** | GitHub Deployments API または "deploy" ワークフロー |
 | **リードタイム** | PR運用（マージ必須） |
 | **変更障害率** | デプロイメントステータス取得 |
-| **MTTR** | デプロイメントステータス または "incident" ラベル付きIssue |
+| **MTTR** | "incident" ラベル付きIssue（推奨） または デプロイメントステータス |
 
 ---
 

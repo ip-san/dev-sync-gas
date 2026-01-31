@@ -96,7 +96,7 @@ describe('calculateMetricsForDate', () => {
         title: 'PR 1',
         state: 'closed',
         createdAt: '2024-01-15T08:00:00Z',
-        mergedAt: '2024-01-15T10:00:00Z', // 2時間後
+        mergedAt: '2024-01-15T10:00:00Z', // PR作成から2時間後
         closedAt: '2024-01-15T10:00:00Z',
         author: 'user',
         repository: 'owner/repo',
@@ -108,7 +108,7 @@ describe('calculateMetricsForDate', () => {
         id: 1,
         sha: 'abc123',
         environment: 'production',
-        createdAt: '2024-01-15T11:00:00Z',
+        createdAt: '2024-01-15T11:00:00Z', // PR作成から3時間後（マージから1時間後）
         updatedAt: '2024-01-15T11:05:00Z',
         status: 'success',
         repository: 'owner/repo',
@@ -120,7 +120,7 @@ describe('calculateMetricsForDate', () => {
     expect(result.date).toBe('2024-01-15');
     expect(result.repository).toBe('owner/repo');
     expect(result.deploymentCount).toBe(1);
-    expect(result.leadTimeForChangesHours).toBe(1); // マージからデプロイまで1時間
+    expect(result.leadTimeForChangesHours).toBe(3); // PR作成からデプロイまで3時間
     expect(result.totalDeployments).toBe(1);
     expect(result.failedDeployments).toBe(0);
     expect(result.changeFailureRate).toBe(0);

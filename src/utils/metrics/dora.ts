@@ -30,7 +30,7 @@ const LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS = 24;
 export interface LeadTimeResult {
   /** 平均リードタイム（時間） */
   hours: number;
-  /** マージ→デプロイで計測されたPR数 */
+  /** PR作成→デプロイで計測されたPR数 */
   mergeToDeployCount: number;
   /** PR作成→マージで計測されたPR数（フォールバック） */
   createToMergeCount: number;
@@ -44,11 +44,14 @@ export interface LeadTimeResult {
  * DORA Metrics: Lead Time for Changes
  *
  * 定義: コードがコミットされてから本番環境にデプロイされるまでの時間
+ * （DORA公式: "committed to version control to deployed in production"）
  *
  * 計算方法:
- * 1. マージ後24時間以内の成功デプロイメントを探す
- * 2. 見つかった場合: マージ→デプロイ時間を計算
- * 3. 見つからない場合: PR作成→マージ時間を計算（フォールバック）
+ * 1. PR作成後の最初の成功デプロイメントを探す
+ * 2. 見つかった場合: PR作成→デプロイ時間を計算
+ * 3. デプロイデータがない場合: PR作成→マージ時間を計算（フォールバック）
+ *
+ * 参考: https://dora.dev/guides/dora-metrics/
  */
 export function calculateLeadTime(
   prs: GitHubPullRequest[],
@@ -59,6 +62,8 @@ export function calculateLeadTime(
 
 /**
  * Lead Timeの詳細計算（測定方法の内訳を含む）
+ *
+ * DORA公式定義に準拠: コミット（PR作成）→本番デプロイ
  */
 export function calculateLeadTimeDetailed(
   prs: GitHubPullRequest[],
@@ -78,19 +83,22 @@ export function calculateLeadTimeDetailed(
   let createToMergeCount = 0;
 
   for (const pr of mergedPRs) {
+    const createdAt = new Date(pr.createdAt).getTime();
     const mergedAt = new Date(pr.mergedAt!).getTime();
 
-    // デプロイメントデータがある場合: マージ後の最初のデプロイを探す
+    // デプロイメントデータがある場合: PR作成後の最初のデプロイを探す
     if (successfulDeployments.length > 0) {
-      const deploymentAfterMerge = successfulDeployments.find(
-        (d) => new Date(d.createdAt).getTime() >= mergedAt
+      const deploymentAfterCreation = successfulDeployments.find(
+        (d) => new Date(d.createdAt).getTime() >= createdAt
       );
 
-      if (deploymentAfterMerge) {
-        const deployedAt = new Date(deploymentAfterMerge.createdAt).getTime();
-        const diffHours = (deployedAt - mergedAt) / MS_TO_HOURS;
-        // マージ後一定時間以内のデプロイのみを関連付ける
-        if (diffHours <= LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS) {
+      if (deploymentAfterCreation) {
+        const deployedAt = new Date(deploymentAfterCreation.createdAt).getTime();
+        const diffHours = (deployedAt - createdAt) / MS_TO_HOURS;
+        // PR作成後一定時間以内のデプロイのみを関連付ける
+        // （マージ時点を基準にデプロイ関連付けの妥当性を確認）
+        const mergeToDeployHours = (deployedAt - mergedAt) / MS_TO_HOURS;
+        if (mergeToDeployHours <= LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS) {
           leadTimes.push(diffHours);
           mergeToDeployCount++;
           continue;
@@ -99,8 +107,7 @@ export function calculateLeadTimeDetailed(
     }
 
     // フォールバック: PR作成からマージまでの時間
-    const created = new Date(pr.createdAt).getTime();
-    const diffHours = (mergedAt - created) / MS_TO_HOURS;
+    const diffHours = (mergedAt - createdAt) / MS_TO_HOURS;
     leadTimes.push(diffHours);
     createToMergeCount++;
   }

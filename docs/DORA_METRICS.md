@@ -46,7 +46,9 @@ syncDailyBackfill(30);
 
 ### 2. Lead Time for Changes（変更リードタイム）
 
-コードがコミットされてから本番環境にデプロイされるまでの時間。
+コードがコミット（PR作成）されてから本番環境にデプロイされるまでの時間。
+
+**DORA公式定義:** "committed to version control to deployed in production"
 
 | レベル | 時間 |
 |--------|------|
@@ -56,9 +58,11 @@ syncDailyBackfill(30);
 | Low | 1週間以上 |
 
 **計算方法:**
-1. マージ後24時間以内のデプロイを探す
-2. 見つかった場合: マージ → デプロイ時間
-3. 見つからない場合: PR作成 → マージ時間（フォールバック）
+1. PR作成後の最初の成功デプロイを探す
+2. 見つかった場合: **PR作成 → デプロイ時間**
+3. デプロイデータがない場合: PR作成 → マージ時間（フォールバック）
+
+> 参考: [DORA Metrics Guide](https://dora.dev/guides/dora-metrics/)
 
 ### 3. Change Failure Rate（変更障害率）
 
@@ -136,7 +140,7 @@ configureIncidentLabels(["incident", "outage", "production-bug"]);
 | 観点 | DORA公式 | DevSyncGAS |
 |------|----------|------------|
 | デプロイ頻度 | オンデマンド（複数回/日）がElite | 1日1回以上をEliteとして扱う |
-| Lead Time | コミット → デプロイ | マージ → デプロイ（またはPR作成 → マージ） |
+| Lead Time | コミット → デプロイ | **PR作成 → デプロイ**（デプロイデータがない場合のみ PR作成 → マージ） |
 | CFR | インシデント発生率 | 失敗デプロイ率 |
 | MTTR | インシデント → 復旧 | 失敗デプロイ → 成功デプロイ（またはIssueベース） |
 

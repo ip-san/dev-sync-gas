@@ -70,7 +70,7 @@ describe("calculateLeadTime", () => {
     expect(calculateLeadTime(prs, [])).toBe(3);
   });
 
-  it("デプロイメントがある場合はマージからデプロイまでの時間を返す", () => {
+  it("デプロイメントがある場合はPR作成からデプロイまでの時間を返す", () => {
     const prs: GitHubPullRequest[] = [
       {
         id: 1,
@@ -90,14 +90,15 @@ describe("calculateLeadTime", () => {
         id: 1,
         sha: "abc123",
         environment: "production",
-        createdAt: "2024-01-01T13:00:00Z", // マージから1時間後
+        createdAt: "2024-01-01T13:00:00Z", // PR作成から3時間後（マージから1時間後）
         updatedAt: "2024-01-01T13:05:00Z",
         status: "success",
         repository: "owner/repo",
       },
     ];
 
-    expect(calculateLeadTime(prs, deployments)).toBe(1);
+    // PR作成(10:00) → デプロイ(13:00) = 3時間
+    expect(calculateLeadTime(prs, deployments)).toBe(3);
   });
 
   it("マージ後24時間以上経過したデプロイは関連付けしない", () => {
@@ -200,7 +201,7 @@ describe("calculateLeadTimeDetailed", () => {
         id: 1,
         sha: "abc123",
         environment: "production",
-        createdAt: "2024-01-01T13:00:00Z", // PR1のマージから1時間後
+        createdAt: "2024-01-01T13:00:00Z", // PR1作成から3時間後（マージから1時間後）
         updatedAt: "2024-01-01T13:05:00Z",
         status: "success",
         repository: "owner/repo",
@@ -210,10 +211,10 @@ describe("calculateLeadTimeDetailed", () => {
 
     const result = calculateLeadTimeDetailed(prs, deployments);
 
-    expect(result.mergeToDeployCount).toBe(1); // PR1
-    expect(result.createToMergeCount).toBe(1); // PR2
-    // 平均: (1 + 4) / 2 = 2.5時間
-    expect(result.hours).toBe(2.5);
+    expect(result.mergeToDeployCount).toBe(1); // PR1: PR作成→デプロイで測定
+    expect(result.createToMergeCount).toBe(1); // PR2: フォールバック
+    // 平均: PR1(作成→デプロイ=3時間) + PR2(作成→マージ=4時間) = 7/2 = 3.5時間
+    expect(result.hours).toBe(3.5);
   });
 
   it("デプロイメントがない場合はすべてフォールバック", () => {
@@ -823,7 +824,7 @@ describe("calculateMetricsForRepository", () => {
         id: 1,
         sha: "sha1",
         environment: "production",
-        createdAt: "2024-01-01T13:00:00Z", // マージから1時間後
+        createdAt: "2024-01-01T13:00:00Z", // PR作成から3時間後（マージから1時間後）
         updatedAt: "2024-01-01T13:05:00Z",
         status: "success",
         repository: "owner/repo",
@@ -831,7 +832,7 @@ describe("calculateMetricsForRepository", () => {
     ];
 
     const metrics = calculateMetricsForRepository("owner/repo", prs, runs, deployments, 30);
-    expect(metrics.leadTimeForChangesHours).toBe(1); // マージからデプロイまで1時間
+    expect(metrics.leadTimeForChangesHours).toBe(3); // PR作成からデプロイまで3時間
     expect(metrics.deploymentCount).toBe(1);
   });
 
@@ -866,7 +867,7 @@ describe("calculateMetricsForRepository", () => {
         id: 1,
         sha: "sha1",
         environment: "production",
-        createdAt: "2024-01-01T13:00:00Z", // PR1のマージから1時間後
+        createdAt: "2024-01-01T13:00:00Z", // PR1作成から3時間後（マージから1時間後）
         updatedAt: "2024-01-01T13:05:00Z",
         status: "success",
         repository: "owner/repo",
@@ -876,8 +877,8 @@ describe("calculateMetricsForRepository", () => {
     const metrics = calculateMetricsForRepository("owner/repo", prs, [], deployments, 30);
 
     expect(metrics.leadTimeMeasurement).toBeDefined();
-    expect(metrics.leadTimeMeasurement!.mergeToDeployCount).toBe(1);
-    expect(metrics.leadTimeMeasurement!.createToMergeCount).toBe(1);
+    expect(metrics.leadTimeMeasurement!.mergeToDeployCount).toBe(1); // PR1: PR作成→デプロイ
+    expect(metrics.leadTimeMeasurement!.createToMergeCount).toBe(1); // PR2: フォールバック
   });
 
   it("インシデントデータがある場合はincidentMetricsを含む", () => {

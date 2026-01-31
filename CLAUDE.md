@@ -43,11 +43,25 @@ tests/
 
 ## 開発コマンド
 ```bash
-bun run build    # TypeScript → GAS用JSにビルド
-bun run push     # ビルド＆GASにデプロイ
-bun test         # テスト実行
-bun run lint     # リント
+bun run build        # TypeScript → GAS用JSにビルド
+bun run push         # ビルド＆GASにデプロイ
+bun test             # テスト実行
+bun run lint         # ESLintチェック
+bun run lint:fix     # ESLint自動修正
+bun run format       # Prettierフォーマット
+bun run format:check # Prettierチェック（CI用）
 ```
+
+## Claude Code カスタムskill
+以下のskillが利用可能です（スラッシュコマンドで実行）：
+
+| コマンド | 説明 |
+|----------|------|
+| `/review` | コード変更をレビューし、lint/test/型チェックを実行 |
+| `/pr-check` | PR作成前のセルフチェック（lint/test/build） |
+| `/dora-validate` | DORA metrics計算ロジックの正当性検証 |
+
+詳細は `.claude/skills/` 配下のSKILL.mdを参照。
 
 ## GAS固有の注意点
 1. **グローバル関数**: GASで実行可能な関数は`global.functionName = functionName`でエクスポート

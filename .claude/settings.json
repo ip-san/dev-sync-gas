@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun test:*)",
+      "Bash(bun run build)",
+      "Bash(bun run lint:*)",
+      "Bash(bun run format:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "WebFetch(domain:dora.dev)",
+      "WebFetch(domain:docs.gitlab.com)"
+    ]
+  }
+}

@@ -11,7 +11,9 @@
     "logs": "clasp logs",
     "test": "bun test",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write 'src/**/*.ts'"
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write 'src/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts'"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",

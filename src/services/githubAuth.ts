@@ -1,11 +1,13 @@
 import { KJUR } from 'jsrsasign';
 import type { GitHubAppConfig } from '../types';
 import { getContainer } from '../container';
+import { getGitHubPrivateKey } from '../utils/secretManager';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
-/** Installation Access Tokenのキャッシュ（有効期限付き） */
-let cachedToken: { token: string; expiresAt: number } | null = null;
+// セキュリティ改善: グローバル変数ではなくPropertiesServiceにキャッシュ
+const CACHE_TOKEN_KEY = '_GITHUB_APP_CACHED_TOKEN';
+const CACHE_EXPIRES_KEY = '_GITHUB_APP_CACHED_EXPIRES';
 
 /**
  * GitHub App用のJWTを生成
@@ -63,27 +65,72 @@ function validatePrivateKey(privateKey: string): void {
 }
 
 /**
+ * エラーコンテンツから機密情報を除外
+ * セキュリティ: エラーメッセージに含まれる可能性のあるトークンやキーを除外
+ *
+ * @param content - 元のエラーコンテンツ
+ * @returns サニタイズされたコンテンツ
+ */
+function sanitizeErrorContent(content: string): string {
+  // 最初の100文字のみを使用（機密情報の露出を最小化）
+  let sanitized = content.substring(0, 100);
+
+  // トークンやキーのパターンをマスク
+  const sensitivePatterns = [
+    /ghp_[a-zA-Z0-9]{36}/g, // GitHub PAT
+    /github_pat_[a-zA-Z0-9_]{82}/g, // Fine-grained PAT
+    /ghs_[a-zA-Z0-9]{36}/g, // GitHub App installation token
+    /-----BEGIN [A-Z ]+-----[\s\S]*?-----END [A-Z ]+-----/g, // PEM keys
+  ];
+
+  for (const pattern of sensitivePatterns) {
+    sanitized = sanitized.replace(pattern, '[REDACTED]');
+  }
+
+  if (content.length > 100) {
+    sanitized += '... (truncated)';
+  }
+
+  return sanitized;
+}
+
+/**
  * Installation Access Tokenを取得
  *
  * @param appConfig - GitHub App設定
  * @returns アクセストークン
  */
 export function getInstallationToken(appConfig: GitHubAppConfig): string {
-  const { httpClient, logger } = getContainer();
+  const { httpClient, logger, storageClient } = getContainer();
 
   // キャッシュが有効な場合はそれを返す（5分のマージンを持たせる）
   const now = Date.now();
-  if (cachedToken && cachedToken.expiresAt > now + 5 * 60 * 1000) {
-    return cachedToken.token;
+  const cachedToken = storageClient.getProperty(CACHE_TOKEN_KEY);
+  const cachedExpiresStr = storageClient.getProperty(CACHE_EXPIRES_KEY);
+
+  if (cachedToken && cachedExpiresStr) {
+    const cachedExpiresAt = parseInt(cachedExpiresStr, 10);
+    if (cachedExpiresAt > now + 5 * 60 * 1000) {
+      return cachedToken;
+    }
   }
 
   logger.log('🔑 Fetching new GitHub App Installation Token...');
 
+  // Private Keyを取得
+  // 優先順位: 1. appConfig.privateKey, 2. Secret Manager, 3. PropertiesService
+  let privateKey: string;
+  if (appConfig.privateKey && appConfig.privateKey !== '') {
+    privateKey = appConfig.privateKey;
+  } else {
+    privateKey = getGitHubPrivateKey();
+  }
+
   // Private Keyの形式を検証
-  validatePrivateKey(appConfig.privateKey);
+  validatePrivateKey(privateKey);
 
   // JWTを生成
-  const jwt = generateJWT(appConfig.appId, appConfig.privateKey);
+  const jwt = generateJWT(appConfig.appId, privateKey);
 
   // Installation Access Tokenを取得
   const url = `${GITHUB_API_BASE}/app/installations/${appConfig.installationId}/access_tokens`;
@@ -104,10 +151,11 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
 
     if (response.statusCode >= 200 && response.statusCode < 300 && response.data) {
       const expiresAt = new Date(response.data.expires_at).getTime();
-      cachedToken = {
-        token: response.data.token,
-        expiresAt,
-      };
+
+      // PropertiesServiceにキャッシュ（セキュリティ改善）
+      storageClient.setProperty(CACHE_TOKEN_KEY, response.data.token);
+      storageClient.setProperty(CACHE_EXPIRES_KEY, expiresAt.toString());
+
       logger.log('✅ GitHub App Installation Token obtained successfully');
       return response.data.token;
     }
@@ -123,8 +171,12 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
       hint =
         ' Hint: Check if the App has the required permissions (Pull requests, Actions, Metadata).';
     }
+
+    // セキュリティ: レスポンス内容から機密情報を除外
+    const safeContent = sanitizeErrorContent(response.content);
+
     throw new Error(
-      `Failed to get installation token: ${response.statusCode} - ${response.content}${hint}`
+      `Failed to get installation token: ${response.statusCode} - ${safeContent}${hint}`
     );
   } catch (error) {
     throw new Error(
@@ -137,7 +189,9 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
  * キャッシュされたトークンをクリア（テスト用）
  */
 export function clearTokenCache(): void {
-  cachedToken = null;
+  const { storageClient } = getContainer();
+  storageClient.deleteProperty(CACHE_TOKEN_KEY);
+  storageClient.deleteProperty(CACHE_EXPIRES_KEY);
 }
 
 /**

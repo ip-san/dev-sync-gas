@@ -22,6 +22,15 @@ import {
 } from '../config/settings';
 import { getContainer } from '../container';
 import { ensureContainerInitialized } from './helpers';
+import {
+  validateSpreadsheetId,
+  validateGitHubToken,
+  validateGitHubAppId,
+  validateGitHubInstallationId,
+  validatePrivateKey,
+} from '../utils/validation';
+import { auditLog } from '../utils/auditLog';
+import { validateSpreadsheetAccess } from '../utils/spreadsheetValidator';
 
 // =============================================================================
 // 初期セットアップ
@@ -32,11 +41,35 @@ import { ensureContainerInitialized } from './helpers';
  */
 export function setup(githubToken: string, spreadsheetId: string): void {
   ensureContainerInitialized();
-  setConfig({
-    github: { token: githubToken, repositories: [] },
-    spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
-  });
-  Logger.log('✅ Configuration saved (PAT auth). Add repositories with addRepo()');
+
+  // 入力検証
+  try {
+    validateGitHubToken(githubToken);
+    validateSpreadsheetId(spreadsheetId);
+    // スプレッドシートへのアクセス権限を検証
+    validateSpreadsheetAccess(spreadsheetId);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    Logger.log(`❌ Validation error: ${errorMessage}`);
+    auditLog('setup.pat', { spreadsheetId }, 'failure', errorMessage);
+    throw error;
+  }
+
+  try {
+    setConfig({
+      github: { token: githubToken, repositories: [] },
+      spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
+    });
+
+    // 監査ログ（トークンは記録しない）
+    auditLog('setup.pat', { spreadsheetId, authMethod: 'PAT' });
+
+    Logger.log('✅ Configuration saved (PAT auth). Add repositories with addRepo()');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    auditLog('setup.pat', { spreadsheetId }, 'failure', errorMessage);
+    throw error;
+  }
 }
 
 /**
@@ -49,14 +82,45 @@ export function setupWithGitHubApp(
   spreadsheetId: string
 ): void {
   ensureContainerInitialized();
-  setConfig({
-    github: {
-      appConfig: { appId, privateKey, installationId },
-      repositories: [],
-    },
-    spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
-  });
-  Logger.log('✅ Configuration saved (GitHub App auth). Add repositories with addRepo()');
+
+  // 入力検証
+  try {
+    validateGitHubAppId(appId);
+    validatePrivateKey(privateKey);
+    validateGitHubInstallationId(installationId);
+    validateSpreadsheetId(spreadsheetId);
+    // スプレッドシートへのアクセス権限を検証
+    validateSpreadsheetAccess(spreadsheetId);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    Logger.log(`❌ Validation error: ${errorMessage}`);
+    auditLog('setup.github_app', { appId, installationId, spreadsheetId }, 'failure', errorMessage);
+    throw error;
+  }
+
+  try {
+    setConfig({
+      github: {
+        appConfig: { appId, privateKey, installationId },
+        repositories: [],
+      },
+      spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
+    });
+
+    // 監査ログ（Private Keyは記録しない）
+    auditLog('setup.github_app', {
+      appId,
+      installationId,
+      spreadsheetId,
+      authMethod: 'GitHub App',
+    });
+
+    Logger.log('✅ Configuration saved (GitHub App auth). Add repositories with addRepo()');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    auditLog('setup.github_app', { appId, installationId, spreadsheetId }, 'failure', errorMessage);
+    throw error;
+  }
 }
 
 /** 現在の認証モードを表示 */
@@ -110,18 +174,30 @@ export function createDailyTrigger(): void {
   ensureContainerInitialized();
   const { triggerClient, logger } = getContainer();
 
-  // 既存のトリガーを削除
-  const triggers = triggerClient.getProjectTriggers();
-  for (const trigger of triggers) {
-    if (trigger.getHandlerFunction() === 'syncDevOpsMetrics') {
-      triggerClient.deleteTrigger(trigger);
+  try {
+    // 既存のトリガーを削除
+    const triggers = triggerClient.getProjectTriggers();
+    for (const trigger of triggers) {
+      if (trigger.getHandlerFunction() === 'syncDevOpsMetrics') {
+        triggerClient.deleteTrigger(trigger);
+      }
     }
+
+    // 毎日午前9時に実行
+    triggerClient.newTrigger('syncDevOpsMetrics').timeBased().everyDays(1).atHour(9).create();
+
+    // 監査ログ
+    auditLog('trigger.create', {
+      functionName: 'syncDevOpsMetrics',
+      schedule: 'daily at 9:00 AM',
+    });
+
+    logger.log('✅ Daily trigger created for 9:00 AM');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    auditLog('trigger.create', { functionName: 'syncDevOpsMetrics' }, 'failure', errorMessage);
+    throw error;
   }
-
-  // 毎日午前9時に実行
-  triggerClient.newTrigger('syncDevOpsMetrics').timeBased().everyDays(1).atHour(9).create();
-
-  logger.log('✅ Daily trigger created for 9:00 AM');
 }
 
 // =============================================================================

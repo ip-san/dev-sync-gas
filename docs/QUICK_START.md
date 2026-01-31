@@ -1,18 +1,18 @@
-# クイックスタート
+# ⚡ クイックスタート
 
 このガイドでは、DevSyncGASを最短でセットアップして動かすまでを説明します。
 
 ---
 
-## 前提条件
+## ✅ 前提条件
 
-- [Bun](https://bun.sh/) がインストールされている
-- Googleアカウントを持っている
-- GitHubアカウントを持っている（計測したいリポジトリにアクセスできる）
+- ✓ [Bun](https://bun.sh/) がインストールされている
+- ✓ Googleアカウントを持っている
+- ✓ GitHubアカウントを持っている（計測したいリポジトリにアクセスできる）
 
 ---
 
-## Step 1: プロジェクトを準備する
+## 1️⃣ Step 1: プロジェクトを準備する
 
 ```bash
 git clone https://github.com/your-org/dev-sync-gas.git
@@ -22,13 +22,13 @@ bun install
 
 ---
 
-## Step 2: Google Apps Scriptにデプロイする
+## 2️⃣ Step 2: Google Apps Scriptにデプロイする
 
-### 2.1 Apps Script APIを有効化
+### 🔧 2.1 Apps Script APIを有効化
 
 https://script.google.com/home/usersettings にアクセスし、「Google Apps Script API」を**オン**にします。
 
-### 2.2 claspでログイン
+### 🔐 2.2 claspでログイン
 
 ```bash
 bunx clasp login
@@ -36,13 +36,13 @@ bunx clasp login
 
 ブラウザが開くので、Googleアカウントで認証してください。
 
-### 2.3 GASプロジェクトを作成
+### 📝 2.3 GASプロジェクトを作成
 
 ```bash
 bunx clasp create --title "DevSyncGAS" --type standalone --rootDir ./dist
 ```
 
-### 2.4 デプロイ
+### 🚀 2.4 デプロイ
 
 ```bash
 bun run push
@@ -50,7 +50,7 @@ bun run push
 
 ---
 
-## Step 3: スプレッドシートを作成する
+## 3️⃣ Step 3: スプレッドシートを作成する
 
 1. [Google スプレッドシート](https://sheets.google.com/) で新しいスプレッドシートを作成
 2. URLからスプレッドシートIDをコピー
@@ -61,7 +61,7 @@ https://docs.google.com/spreadsheets/d/【ここがID】/edit
 
 ---
 
-## Step 4: GitHubトークンを取得する（PAT認証）
+## 4️⃣ Step 4: GitHubトークンを取得する（PAT認証）
 
 1. [GitHub Personal Access Tokens](https://github.com/settings/personal-access-tokens/new) にアクセス
 2. 以下を設定:
@@ -78,7 +78,7 @@ https://docs.google.com/spreadsheets/d/【ここがID】/edit
 
 ---
 
-## Step 5: GASエディタで初期設定
+## 5️⃣ Step 5: GASエディタで初期設定
 
 1. https://script.google.com/ にアクセス
 2. 「DevSyncGAS」プロジェクトを開く
@@ -99,11 +99,11 @@ syncDevOpsMetrics();
 
 ---
 
-## Step 6: 動作確認
+## 6️⃣ Step 6: 動作確認
 
 スプレッドシートを開いて、データが書き込まれていることを確認します。
 
-**作成されるシート:**
+**📊 作成されるシート:**
 - `Dashboard` - 全リポジトリの指標一覧
 - `Dashboard - Trend` - 週次トレンド
 - `DevOps Summary` - リポジトリ比較
@@ -111,7 +111,7 @@ syncDevOpsMetrics();
 
 ---
 
-## 日次自動実行を設定する（オプション）
+## ⏰ 日次自動実行を設定する（オプション）
 
 毎日自動でメトリクスを収集したい場合:
 
@@ -123,15 +123,15 @@ createDailyTrigger();
 
 ---
 
-## 次のステップ
+## 🎯 次のステップ
 
-- **[計測思想を理解する](MEASUREMENT_PHILOSOPHY.md)** - なぜこの指標を、この方法で測るのか
-- **[組織導入ガイド](SETUP_AND_TROUBLESHOOTING.md)** - チームでの導入、トラブルシューティング
-- **[GitHub Apps認証](GITHUB_APPS_AUTH.md)** - 組織向けのセキュアな認証方式
+- **[💡 計測思想を理解する](MEASUREMENT_PHILOSOPHY.md)** - なぜこの指標を、この方法で測るのか
+- **[🏢 組織導入ガイド](SETUP_AND_TROUBLESHOOTING.md)** - チームでの導入、トラブルシューティング
+- **[🔐 GitHub Apps認証](GITHUB_APPS_AUTH.md)** - 組織向けのセキュアな認証方式
 
 ---
 
-## よくある質問
+## ❓ よくある質問
 
 ### Q: 「認証が必要です」が繰り返し表示される
 

@@ -1,9 +1,9 @@
-# DevSyncGAS - Claude Code開発ガイド
+# 👨‍💻 DevSyncGAS - Claude Code開発ガイド
 
-## プロジェクト概要
+## 📋 プロジェクト概要
 GitHub複数リポジトリからDevOps指標（DORA metrics）を収集し、Googleスプレッドシートに書き出すGASプロダクト。
 
-## 技術スタック
+## 🛠️ 技術スタック
 - **言語**: TypeScript
 - **ランタイム**: Bun
 - **ビルド**: esbuild + esbuild-gas-plugin
@@ -14,7 +14,7 @@ GitHub複数リポジトリからDevOps指標（DORA metrics）を収集し、Go
 
 詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照。
 
-## 開発コマンド
+## ⌨️ 開発コマンド
 ```bash
 bun run build        # TypeScript → GAS用JSにビルド
 bun run push         # ビルド＆GASにデプロイ
@@ -25,7 +25,7 @@ bun run format       # Prettierフォーマット
 bun run format:check # Prettierチェック（CI用）
 ```
 
-## Claude Code カスタムskill
+## 🎨 Claude Code カスタムskill
 以下のskillが利用可能です（スラッシュコマンドで実行）：
 
 | コマンド | 説明 |
@@ -36,7 +36,7 @@ bun run format:check # Prettierチェック（CI用）
 
 詳細は `.claude/skills/` 配下のSKILL.mdを参照。
 
-## GAS固有の注意点
+## ⚠️ GAS固有の注意点
 1. **グローバル関数**: GASで実行可能な関数は`global.functionName = functionName`でエクスポート
 2. **API呼び出し**: `fetch`ではなく`UrlFetchApp.fetch`を使用
 3. **ストレージ**: `PropertiesService.getScriptProperties()`でシークレット管理
@@ -131,7 +131,7 @@ Claude Codeに以下のように質問してください：
 - [docs/MEASUREMENT_PHILOSOPHY.md](docs/MEASUREMENT_PHILOSOPHY.md) - 計測思想・設計判断の詳細
 - [docs/adr/](docs/adr/) - 設計判断の記録（ADR）
 
-## 作業完了時のチェック
+## ✅ 作業完了時のチェック
 
 コード変更後は以下を確認してください：
 
@@ -143,9 +143,9 @@ bun run build          # ビルド成功
 ```
 
 確認項目：
-- 未使用のimport/変数がないか
-- 新機能にテストを追加したか
-- 必要に応じてドキュメントを更新したか
+- ✓ 未使用のimport/変数がないか
+- ✓ 新機能にテストを追加したか
+- ✓ 必要に応じてドキュメントを更新したか
 
 ## 設計判断の記録
 

@@ -1,4 +1,4 @@
-# 拡張指標
+# 🎯 拡張指標
 
 **AI時代の開発生産性を測る拡張指標**の定義と、GitHubデータを使った計算方法を説明します。
 
@@ -18,15 +18,15 @@ Issue作成 ─→ PR作成 ─→ レビュー ─→ マージ ─→ Producti
 
 ---
 
-## 1. サイクルタイム（Cycle Time）
+## 🔄 1. サイクルタイム（Cycle Time）
 
 **Issue作成からProductionマージまでの時間**を計測します。
 
-### 定義
+### 📝 定義
 
 タスク起票（Issue作成）から、本番環境への反映（Productionマージ）までの全体の時間。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
 1. IssueとPRのリンクを検出（PR本文の `Fixes #123` など）
 2. PRがProductionブランチにマージされているか確認
@@ -91,15 +91,15 @@ showCycleTimeConfig();
 
 ---
 
-## 2. コーディング時間（Coding Time）
+## ⌨️ 2. コーディング時間（Coding Time）
 
 **Issue作成からPR作成までの時間**を計測します。
 
-### 定義
+### 📝 定義
 
 タスク起票（Issue作成）から、コード完成（PR作成）までの純粋なコーディング時間。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
 1. IssueとPRのリンクを検出（PR本文の `Fixes #123` など）
 2. `Issue作成日時` → `PR作成日時` の経過時間（時間単位）を計算
@@ -148,15 +148,15 @@ showCodingTimeConfig();
 
 ---
 
-## 3. 手戻り率（Rework Rate）
+## 🔁 3. 手戻り率（Rework Rate）
 
 **PRマージ後の追加コミット・Force Pushの回数**を計測します。
 
-### 定義
+### 📝 定義
 
 PRレビュー中に発生した修正作業の量を、追加コミット数とForce Push回数で評価。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
 #### 追加コミット数
 
@@ -191,16 +191,16 @@ GET /repos/{owner}/{repo}/pulls/{number}/events
 
 ---
 
-## 4. レビュー効率（Review Efficiency）
+## 👀 4. レビュー効率（Review Efficiency）
 
 **レビュー待ち時間とレビュー時間**を計測します。
 
-### 定義
+### 📝 定義
 
 - **レビュー待ち時間**: PR作成から最初のレビューまでの時間
 - **レビュー時間**: 最初のレビューからマージまでの時間
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
 ```
 GET /repos/{owner}/{repo}/pulls/{number}/reviews
@@ -231,15 +231,15 @@ reviewTime = (mergedAt - firstReviewAt) / (1000 * 60 * 60); // 時間
 
 ---
 
-## 5. PRサイズ（Pull Request Size）
+## 📏 5. PRサイズ（Pull Request Size）
 
 **変更行数・変更ファイル数**を計測します。
 
-### 定義
+### 📝 定義
 
 PRの規模を、追加行数・削除行数・変更ファイル数で評価。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
 ```
 GET /repos/{owner}/{repo}/pulls/{number}
@@ -273,9 +273,9 @@ GET /repos/{owner}/{repo}/pulls/{number}
 
 ---
 
-## 全体の関係性
+## 🔗 全体の関係性
 
-### DORA指標との違い
+### 📊 DORA指標との違い
 
 | 指標 | 起点 | 終点 | 視点 |
 |------|------|------|------|
@@ -302,9 +302,9 @@ GET /repos/{owner}/{repo}/pulls/{number}
 
 ---
 
-## 使い方
+## 🚀 使い方
 
-### 基本
+### 📋 基本
 
 ```javascript
 // サイクルタイム

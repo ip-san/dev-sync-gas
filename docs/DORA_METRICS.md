@@ -1,4 +1,4 @@
-# DORA指標
+# 📊 DORA指標
 
 **4つのDORA指標(DevOps Research and Assessment Metrics)**の定義と、GitHubデータを使った計算方法を説明します。
 
@@ -16,17 +16,17 @@ MTTR: 障害から復旧までの時間
 
 ---
 
-## 1. デプロイ頻度（Deployment Frequency）
+## 🚀 1. デプロイ頻度（Deployment Frequency）
 
 **本番環境へのデプロイ頻度**を計測します。
 
-### 定義
+### 📝 定義
 
 本番環境に対して、成功したデプロイを何回行ったか。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
-#### 優先: GitHub Deployments API
+#### ✅ 優先: GitHub Deployments API
 
 ```
 GET /repos/{owner}/{repo}/deployments?environment=production
@@ -36,7 +36,7 @@ GET /repos/{owner}/{repo}/deployments?environment=production
 - `status: "success"` のみカウント
 - 環境名は部分一致対応（例: "prod", "production", "production-us"）
 
-#### フォールバック: GitHub Actions Workflow Runs
+#### 🔄 フォールバック: GitHub Actions Workflow Runs
 
 Deployments APIが使われていない場合：
 
@@ -64,19 +64,19 @@ GET /repos/{owner}/{repo}/actions/runs
 
 ---
 
-## 2. リードタイム（Lead Time for Changes）
+## ⏱️ 2. リードタイム（Lead Time for Changes）
 
 **コードがコミットされてから本番環境にデプロイされるまでの時間**を計測します。
 
-### 定義
+### 📝 定義
 
 DORA公式: "committed to version control to deployed in production"
 
 コード変更（PR作成）から、本番デプロイまでの経過時間。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
-#### 優先: PR作成 → デプロイ
+#### ✅ 優先: PR作成 → デプロイ
 
 1. マージ済みPRを取得
 2. PR作成後の最初の成功デプロイメントを探す
@@ -116,17 +116,17 @@ leadTime = (mergedAt - prCreatedAt) / (1000 * 60 * 60); // 時間
 
 ---
 
-## 3. 変更障害率（Change Failure Rate）
+## ⚠️ 3. 変更障害率（Change Failure Rate）
 
 **本番環境でインシデントを引き起こしたデプロイの割合**を計測します。
 
-### 定義
+### 📝 定義
 
 デプロイ後に障害が発生し、修正・ロールバックが必要になった割合。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
-#### 優先: GitHub Deployments API
+#### ✅ 優先: GitHub Deployments API
 
 ```
 総デプロイ数 = status が取得できたデプロイメント数
@@ -135,7 +135,7 @@ leadTime = (mergedAt - prCreatedAt) / (1000 * 60 * 60); // 時間
 変更障害率 = (失敗デプロイ数 / 総デプロイ数) × 100
 ```
 
-#### フォールバック: GitHub Actions Workflow Runs
+#### 🔄 フォールバック: GitHub Actions Workflow Runs
 
 ```
 総デプロイ数 = "deploy" を含むワークフロー実行数
@@ -160,17 +160,17 @@ leadTime = (mergedAt - prCreatedAt) / (1000 * 60 * 60); // 時間
 
 ---
 
-## 4. 平均修復時間（Mean Time to Recovery, MTTR）
+## 🔧 4. 平均修復時間（Mean Time to Recovery, MTTR）
 
 **本番環境の障害から復旧するまでの時間**を計測します。
 
-### 定義
+### 📝 定義
 
 障害発生から、サービスが正常に復旧するまでの平均時間。
 
-### GitHubでの計算方法
+### 🔢 GitHubでの計算方法
 
-#### 優先（推奨）: GitHub Issues（Incident）
+#### ⭐ 優先（推奨）: GitHub Issues（Incident）
 
 DORA公式定義に最も近い計測方法として、"incident"ラベルのIssueを使用：
 
@@ -188,7 +188,7 @@ MTTR = Issue close日時 - Issue作成日時
 
 **デフォルト設定**: DevSyncGASはIncident Issueを優先的に使用します。
 
-#### フォールバック1: GitHub Deployments API
+#### 🔄 フォールバック1: GitHub Deployments API
 
 Incident Issueが存在しない場合、デプロイメントの時系列を追跡し、失敗→成功のパターンを検出：
 
@@ -200,7 +200,7 @@ Incident Issueが存在しない場合、デプロイメントの時系列を追
 復旧時間 = 成功デプロイ日時 - 失敗デプロイ日時
 ```
 
-#### フォールバック2: GitHub Actions Workflow Runs
+#### 🔄 フォールバック2: GitHub Actions Workflow Runs
 
 デプロイメントデータもない場合、ワークフロー実行を使用：
 
@@ -229,9 +229,9 @@ Incident Issueが存在しない場合、デプロイメントの時系列を追
 
 ---
 
-## 使い方
+## 🚀 使い方
 
-### 基本
+### 📋 基本
 
 ```javascript
 // DORA指標を同期（デフォルト: 過去30日）
@@ -244,7 +244,7 @@ syncDevOpsMetrics(90);
 syncAllProjects();
 ```
 
-### API モード切替
+### ⚙️ API モード切替
 
 ```javascript
 // GraphQL API を使用（デフォルト、API呼び出し回数削減）
@@ -259,9 +259,9 @@ showApiMode();
 
 ---
 
-## 出力されるシート
+## 📊 出力されるシート
 
-### 「Dashboard」シート
+### 📈 「Dashboard」シート
 
 全リポジトリ × 全指標を俯瞰：
 
@@ -269,7 +269,7 @@ showApiMode();
 |-----------|------------|-------------------|-----------|------------|---------|-----------|
 | owner/repo-a | daily | 12.5 | 5.0% | 1.2 | 2024-01-31 | ✓ |
 
-### 「Dashboard - Trend」シート
+### 📉 「Dashboard - Trend」シート
 
 週次トレンド：
 
@@ -277,7 +277,7 @@ showApiMode();
 |----|-----------|------------|------------|-----------|------|
 | 2024-W01 | owner/repo-a | daily | 10.5 | 4.0% | 1.0 |
 
-### 「DevOps Summary」シート
+### 📋 「DevOps Summary」シート
 
 リポジトリ比較サマリー：
 
@@ -294,9 +294,9 @@ showApiMode();
 
 ---
 
-## 設定
+## ⚙️ 設定
 
-### Production環境名の設定
+### 🏭 Production環境名の設定
 
 ```javascript
 // デフォルト: "production"（部分一致）

@@ -21,7 +21,7 @@ export interface GitHubPullRequest {
   id: number;
   number: number;
   title: string;
-  state: "open" | "closed";
+  state: 'open' | 'closed';
   createdAt: string;
   mergedAt: string | null;
   closedAt: string | null;
@@ -50,7 +50,15 @@ export interface GitHubDeployment {
   environment: string;
   createdAt: string;
   updatedAt: string;
-  status: "success" | "failure" | "error" | "inactive" | "in_progress" | "queued" | "pending" | null;
+  status:
+    | 'success'
+    | 'failure'
+    | 'error'
+    | 'inactive'
+    | 'in_progress'
+    | 'queued'
+    | 'pending'
+    | null;
   repository: string;
 }
 
@@ -75,7 +83,7 @@ export interface GitHubIncident {
   id: number;
   number: number;
   title: string;
-  state: "open" | "closed";
+  state: 'open' | 'closed';
   createdAt: string;
   closedAt: string | null;
   /** インシデントに付与されたラベル一覧 */
@@ -91,7 +99,7 @@ export interface GitHubIssue {
   id: number;
   number: number;
   title: string;
-  state: "open" | "closed";
+  state: 'open' | 'closed';
   createdAt: string;
   closedAt: string | null;
   /** Issueに付与されたラベル一覧 */

@@ -8,16 +8,29 @@
  * REST APIにフォールバック可能（setGitHubApiMode('rest')）
  */
 
-import { getConfig, getGitHubToken, getProjects, getGitHubApiMode } from "../config/settings";
+import { getConfig, getGitHubToken, getProjects, getGitHubApiMode } from '../config/settings';
 import {
   getAllRepositoriesData,
   getAllRepositoriesDataGraphQL,
   type DateRange,
-} from "../services/github";
-import { writeMetricsToSheet, createSummarySheet, clearOldData } from "../services/spreadsheet";
-import { calculateMetricsForRepository } from "../utils/metrics";
-import { ensureContainerInitialized } from "./helpers";
-import type { DevOpsMetrics, GitHubRepository } from "../types";
+} from '../services/github';
+import { writeMetricsToSheet, createSummarySheet, clearOldData } from '../services/spreadsheet';
+import { calculateMetricsForRepository } from '../utils/metrics';
+import { ensureContainerInitialized } from './helpers';
+import type {
+  DevOpsMetrics,
+  GitHubRepository,
+  GitHubPullRequest,
+  GitHubWorkflowRun,
+  GitHubDeployment,
+} from '../types';
+
+/** データ取得関数の戻り値型 */
+interface RepositoriesData {
+  pullRequests: GitHubPullRequest[];
+  workflowRuns: GitHubWorkflowRun[];
+  deployments: GitHubDeployment[];
+}
 
 /**
  * APIモードに応じたデータ取得関数を選択
@@ -26,14 +39,14 @@ function fetchRepositoriesData(
   repositories: GitHubRepository[],
   token: string,
   options: { dateRange?: DateRange } = {}
-) {
+): RepositoriesData {
   const apiMode = getGitHubApiMode();
 
-  if (apiMode === "graphql") {
-    Logger.log("🚀 Using GraphQL API (efficient mode)");
+  if (apiMode === 'graphql') {
+    Logger.log('🚀 Using GraphQL API (efficient mode)');
     return getAllRepositoriesDataGraphQL(repositories, token, options);
   } else {
-    Logger.log("📡 Using REST API (legacy mode)");
+    Logger.log('📡 Using REST API (legacy mode)');
     return getAllRepositoriesData(repositories, token, options);
   }
 }
@@ -72,21 +85,12 @@ export function syncDevOpsMetrics(dateRange?: DateRange): void {
   );
 
   const metrics: DevOpsMetrics[] = config.github.repositories.map((repo) =>
-    calculateMetricsForRepository(
-      repo.fullName,
-      pullRequests,
-      workflowRuns,
-      deployments
-    )
+    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
   );
 
   Logger.log(`📈 Calculated ${metrics.length} metrics`);
 
-  writeMetricsToSheet(
-    config.spreadsheet.id,
-    config.spreadsheet.sheetName,
-    metrics
-  );
+  writeMetricsToSheet(config.spreadsheet.id, config.spreadsheet.sheetName, metrics);
 
   Logger.log(`✅ Synced metrics for ${metrics.length} repositories`);
 }
@@ -100,9 +104,7 @@ export function syncAllProjects(dateRange?: DateRange): void {
   const projects = config.projects ?? [];
 
   if (projects.length === 0) {
-    Logger.log(
-      "⚠️ No projects configured. Using legacy single spreadsheet mode."
-    );
+    Logger.log('⚠️ No projects configured. Using legacy single spreadsheet mode.');
     syncDevOpsMetrics(dateRange);
     return;
   }
@@ -136,12 +138,7 @@ export function syncAllProjects(dateRange?: DateRange): void {
     );
 
     const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
-      calculateMetricsForRepository(
-        repo.fullName,
-        pullRequests,
-        workflowRuns,
-        deployments
-      )
+      calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
     );
 
     writeMetricsToSheet(project.spreadsheetId, project.sheetName, metrics);
@@ -182,12 +179,7 @@ export function syncProject(projectName: string, dateRange?: DateRange): void {
   );
 
   const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
-    calculateMetricsForRepository(
-      repo.fullName,
-      pullRequests,
-      workflowRuns,
-      deployments
-    )
+    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
   );
 
   writeMetricsToSheet(project.spreadsheetId, project.sheetName, metrics);
@@ -256,7 +248,7 @@ export function generateSummary(): void {
   ensureContainerInitialized();
   const config = getConfig();
   createSummarySheet(config.spreadsheet.id, config.spreadsheet.sheetName);
-  Logger.log("✅ Summary sheet created");
+  Logger.log('✅ Summary sheet created');
 }
 
 /** 全プロジェクトのサマリーシートを生成 */
@@ -265,9 +257,7 @@ export function generateAllProjectSummaries(): void {
   const projects = getProjects();
 
   if (projects.length === 0) {
-    Logger.log(
-      "⚠️ No projects configured. Using legacy single spreadsheet mode."
-    );
+    Logger.log('⚠️ No projects configured. Using legacy single spreadsheet mode.');
     generateSummary();
     return;
   }

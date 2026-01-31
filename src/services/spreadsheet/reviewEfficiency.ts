@@ -5,59 +5,59 @@
  * スプレッドシートに書き出す機能を提供。
  */
 
-import type { ReviewEfficiencyMetrics } from "../../types";
-import { getContainer } from "../../container";
+import type { ReviewEfficiencyMetrics } from '../../types';
+import { getContainer } from '../../container';
 import {
   getOrCreateSheet,
   autoResizeColumns,
   openSpreadsheet,
   formatDecimalColumns,
-} from "./helpers";
+} from './helpers';
 
-const SHEET_NAME = "レビュー効率";
+const SHEET_NAME = 'レビュー効率';
 
 /**
  * サマリーシートのヘッダー定義
  * PRの各ステータス間の時間を計測
  */
 const SUMMARY_HEADERS = [
-  "期間",                            // 計測期間
-  "PR数",                            // 分析対象のPR数
-  "レビュー待ち時間 (平均)",         // Ready for Review → First Review
-  "レビュー待ち時間 (中央値)",       // 外れ値の影響を受けにくい
-  "レビュー待ち時間 (最小)",         // 最も早くレビューされたPR
-  "レビュー待ち時間 (最大)",         // 最も待たされたPR
-  "レビュー時間 (平均)",             // First Review → Approved
-  "レビュー時間 (中央値)",           // コード理解・修正にかかる時間
-  "レビュー時間 (最小)",             // 最も早く承認されたPR
-  "レビュー時間 (最大)",             // 最も時間がかかったPR
-  "マージ待ち時間 (平均)",           // Approved → Merged
-  "マージ待ち時間 (中央値)",         // 承認後のプロセス時間
-  "マージ待ち時間 (最小)",           // 最も早くマージされたPR
-  "マージ待ち時間 (最大)",           // 最も待たされたPR
-  "全体時間 (平均)",                 // Ready for Review → Merged
-  "全体時間 (中央値)",               // PR完了までの総時間
-  "全体時間 (最小)",                 // 最も早く完了したPR
-  "全体時間 (最大)",                 // 最も時間がかかったPR
-  "記録日時",                        // データ記録時刻
+  '期間', // 計測期間
+  'PR数', // 分析対象のPR数
+  'レビュー待ち時間 (平均)', // Ready for Review → First Review
+  'レビュー待ち時間 (中央値)', // 外れ値の影響を受けにくい
+  'レビュー待ち時間 (最小)', // 最も早くレビューされたPR
+  'レビュー待ち時間 (最大)', // 最も待たされたPR
+  'レビュー時間 (平均)', // First Review → Approved
+  'レビュー時間 (中央値)', // コード理解・修正にかかる時間
+  'レビュー時間 (最小)', // 最も早く承認されたPR
+  'レビュー時間 (最大)', // 最も時間がかかったPR
+  'マージ待ち時間 (平均)', // Approved → Merged
+  'マージ待ち時間 (中央値)', // 承認後のプロセス時間
+  'マージ待ち時間 (最小)', // 最も早くマージされたPR
+  'マージ待ち時間 (最大)', // 最も待たされたPR
+  '全体時間 (平均)', // Ready for Review → Merged
+  '全体時間 (中央値)', // PR完了までの総時間
+  '全体時間 (最小)', // 最も早く完了したPR
+  '全体時間 (最大)', // 最も時間がかかったPR
+  '記録日時', // データ記録時刻
 ];
 
 /**
  * 詳細シートのヘッダー定義
  */
 const DETAIL_HEADERS = [
-  "PR番号",                          // GitHubのPR番号
-  "タイトル",                        // PRタイトル
-  "リポジトリ",                      // 対象リポジトリ
-  "作成日時",                        // PR作成日時
-  "レビュー準備完了日時",            // Ready for Review になった日時
-  "初回レビュー日時",                // 最初のレビューを受けた日時
-  "承認日時",                        // Approvedになった日時
-  "マージ日時",                      // マージされた日時
-  "レビュー待ち時間 (時間)",         // Ready → First Review
-  "レビュー時間 (時間)",             // First Review → Approved
-  "マージ待ち時間 (時間)",           // Approved → Merged
-  "全体時間 (時間)",                 // Ready → Merged
+  'PR番号', // GitHubのPR番号
+  'タイトル', // PRタイトル
+  'リポジトリ', // 対象リポジトリ
+  '作成日時', // PR作成日時
+  'レビュー準備完了日時', // Ready for Review になった日時
+  '初回レビュー日時', // 最初のレビューを受けた日時
+  '承認日時', // Approvedになった日時
+  'マージ日時', // マージされた日時
+  'レビュー待ち時間 (時間)', // Ready → First Review
+  'レビュー時間 (時間)', // First Review → Approved
+  'マージ待ち時間 (時間)', // Approved → Merged
+  '全体時間 (時間)', // Ready → Merged
 ];
 
 /**
@@ -92,22 +92,22 @@ function writeSummarySheet(
   const row = [
     metrics.period,
     metrics.prCount,
-    metrics.timeToFirstReview.avgHours ?? "N/A",
-    metrics.timeToFirstReview.medianHours ?? "N/A",
-    metrics.timeToFirstReview.minHours ?? "N/A",
-    metrics.timeToFirstReview.maxHours ?? "N/A",
-    metrics.reviewDuration.avgHours ?? "N/A",
-    metrics.reviewDuration.medianHours ?? "N/A",
-    metrics.reviewDuration.minHours ?? "N/A",
-    metrics.reviewDuration.maxHours ?? "N/A",
-    metrics.timeToMerge.avgHours ?? "N/A",
-    metrics.timeToMerge.medianHours ?? "N/A",
-    metrics.timeToMerge.minHours ?? "N/A",
-    metrics.timeToMerge.maxHours ?? "N/A",
-    metrics.totalTime.avgHours ?? "N/A",
-    metrics.totalTime.medianHours ?? "N/A",
-    metrics.totalTime.minHours ?? "N/A",
-    metrics.totalTime.maxHours ?? "N/A",
+    metrics.timeToFirstReview.avgHours ?? 'N/A',
+    metrics.timeToFirstReview.medianHours ?? 'N/A',
+    metrics.timeToFirstReview.minHours ?? 'N/A',
+    metrics.timeToFirstReview.maxHours ?? 'N/A',
+    metrics.reviewDuration.avgHours ?? 'N/A',
+    metrics.reviewDuration.medianHours ?? 'N/A',
+    metrics.reviewDuration.minHours ?? 'N/A',
+    metrics.reviewDuration.maxHours ?? 'N/A',
+    metrics.timeToMerge.avgHours ?? 'N/A',
+    metrics.timeToMerge.medianHours ?? 'N/A',
+    metrics.timeToMerge.minHours ?? 'N/A',
+    metrics.timeToMerge.maxHours ?? 'N/A',
+    metrics.totalTime.avgHours ?? 'N/A',
+    metrics.totalTime.medianHours ?? 'N/A',
+    metrics.totalTime.minHours ?? 'N/A',
+    metrics.totalTime.maxHours ?? 'N/A',
     new Date().toISOString(),
   ];
 
@@ -126,7 +126,9 @@ function writeDetailSheet(
   spreadsheet: ReturnType<typeof openSpreadsheet>,
   metrics: ReviewEfficiencyMetrics
 ): void {
-  if (metrics.prDetails.length === 0) return;
+  if (metrics.prDetails.length === 0) {
+    return;
+  }
 
   const detailSheetName = `${SHEET_NAME} - Details`;
   const sheet = getOrCreateSheet(spreadsheet, detailSheetName, DETAIL_HEADERS);
@@ -137,13 +139,13 @@ function writeDetailSheet(
     pr.repository,
     pr.createdAt,
     pr.readyForReviewAt,
-    pr.firstReviewAt ?? "N/A",
-    pr.approvedAt ?? "N/A",
-    pr.mergedAt ?? "Not merged",
-    pr.timeToFirstReviewHours ?? "N/A",
-    pr.reviewDurationHours ?? "N/A",
-    pr.timeToMergeHours ?? "N/A",
-    pr.totalTimeHours ?? "N/A",
+    pr.firstReviewAt ?? 'N/A',
+    pr.approvedAt ?? 'N/A',
+    pr.mergedAt ?? 'Not merged',
+    pr.timeToFirstReviewHours ?? 'N/A',
+    pr.reviewDurationHours ?? 'N/A',
+    pr.timeToMergeHours ?? 'N/A',
+    pr.totalTimeHours ?? 'N/A',
   ]);
 
   const lastRow = sheet.getLastRow();

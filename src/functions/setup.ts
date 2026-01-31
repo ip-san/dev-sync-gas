@@ -19,9 +19,9 @@ import {
   removeRepositoryFromProject,
   diagnoseConfig,
   formatDiagnosticResult,
-} from "../config/settings";
-import { getContainer } from "../container";
-import { ensureContainerInitialized } from "./helpers";
+} from '../config/settings';
+import { getContainer } from '../container';
+import { ensureContainerInitialized } from './helpers';
 
 // =============================================================================
 // 初期セットアップ
@@ -34,11 +34,9 @@ export function setup(githubToken: string, spreadsheetId: string): void {
   ensureContainerInitialized();
   setConfig({
     github: { token: githubToken, repositories: [] },
-    spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
+    spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
   });
-  Logger.log(
-    "✅ Configuration saved (PAT auth). Add repositories with addRepo()"
-  );
+  Logger.log('✅ Configuration saved (PAT auth). Add repositories with addRepo()');
 }
 
 /**
@@ -56,11 +54,9 @@ export function setupWithGitHubApp(
       appConfig: { appId, privateKey, installationId },
       repositories: [],
     },
-    spreadsheet: { id: spreadsheetId, sheetName: "DevOps Metrics" },
+    spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
   });
-  Logger.log(
-    "✅ Configuration saved (GitHub App auth). Add repositories with addRepo()"
-  );
+  Logger.log('✅ Configuration saved (GitHub App auth). Add repositories with addRepo()');
 }
 
 /** 現在の認証モードを表示 */
@@ -68,12 +64,12 @@ export function showAuthMode(): void {
   ensureContainerInitialized();
   const mode = getGitHubAuthMode();
 
-  if (mode === "app") {
-    Logger.log("🔐 Current auth mode: GitHub App");
-  } else if (mode === "pat") {
-    Logger.log("🔐 Current auth mode: Personal Access Token (PAT)");
+  if (mode === 'app') {
+    Logger.log('🔐 Current auth mode: GitHub App');
+  } else if (mode === 'pat') {
+    Logger.log('🔐 Current auth mode: Personal Access Token (PAT)');
   } else {
-    Logger.log("⚠️ GitHub authentication is not configured");
+    Logger.log('⚠️ GitHub authentication is not configured');
   }
 }
 
@@ -99,7 +95,7 @@ export function removeRepo(fullName: string): void {
 export function listRepos(): void {
   ensureContainerInitialized();
   const config = getConfig();
-  Logger.log("Registered repositories:");
+  Logger.log('Registered repositories:');
   config.github.repositories.forEach((repo, i) => {
     Logger.log(`  ${i + 1}. ${repo.fullName}`);
   });
@@ -117,19 +113,15 @@ export function createDailyTrigger(): void {
   // 既存のトリガーを削除
   const triggers = triggerClient.getProjectTriggers();
   for (const trigger of triggers) {
-    if (trigger.getHandlerFunction() === "syncDevOpsMetrics") {
+    if (trigger.getHandlerFunction() === 'syncDevOpsMetrics') {
       triggerClient.deleteTrigger(trigger);
     }
   }
 
   // 毎日午前9時に実行
-  triggerClient.newTrigger("syncDevOpsMetrics")
-    .timeBased()
-    .everyDays(1)
-    .atHour(9)
-    .create();
+  triggerClient.newTrigger('syncDevOpsMetrics').timeBased().everyDays(1).atHour(9).create();
 
-  logger.log("✅ Daily trigger created for 9:00 AM");
+  logger.log('✅ Daily trigger created for 9:00 AM');
 }
 
 // =============================================================================
@@ -142,7 +134,7 @@ export function createDailyTrigger(): void {
 export function createProject(
   name: string,
   spreadsheetId: string,
-  sheetName = "DevOps Metrics"
+  sheetName = 'DevOps Metrics'
 ): void {
   ensureContainerInitialized();
   addProject({ name, spreadsheetId, sheetName, repositories: [] });
@@ -164,8 +156,8 @@ export function listProjects(): void {
   const projects = getProjects();
 
   if (projects.length === 0) {
-    Logger.log("📋 No projects configured");
-    Logger.log("   Use createProject(name, spreadsheetId) to create one");
+    Logger.log('📋 No projects configured');
+    Logger.log('   Use createProject(name, spreadsheetId) to create one');
     return;
   }
 
@@ -182,46 +174,43 @@ export function listProjects(): void {
 }
 
 /** プロジェクトにリポジトリを追加 */
-export function addRepoToProject(
-  projectName: string,
-  owner: string,
-  repoName: string
-): void {
+export function addRepoToProject(projectName: string, owner: string, repoName: string): void {
   ensureContainerInitialized();
   addRepositoryToProject(projectName, owner, repoName);
   Logger.log(`✅ Repository "${owner}/${repoName}" added to project "${projectName}"`);
 }
 
 /** プロジェクトからリポジトリを削除 */
-export function removeRepoFromProject(
-  projectName: string,
-  fullName: string
-): void {
+export function removeRepoFromProject(projectName: string, fullName: string): void {
   ensureContainerInitialized();
   removeRepositoryFromProject(projectName, fullName);
   Logger.log(`✅ Repository "${fullName}" removed from project "${projectName}"`);
 }
 
 /** プロジェクトのスプレッドシートIDまたはシート名を更新 */
-export function modifyProject(
-  name: string,
-  spreadsheetId?: string,
-  sheetName?: string
-): void {
+export function modifyProject(name: string, spreadsheetId?: string, sheetName?: string): void {
   ensureContainerInitialized();
   const updates: { spreadsheetId?: string; sheetName?: string } = {};
-  if (spreadsheetId) updates.spreadsheetId = spreadsheetId;
-  if (sheetName) updates.sheetName = sheetName;
+  if (spreadsheetId) {
+    updates.spreadsheetId = spreadsheetId;
+  }
+  if (sheetName) {
+    updates.sheetName = sheetName;
+  }
 
   if (Object.keys(updates).length === 0) {
-    Logger.log("⚠️ No updates specified. Provide spreadsheetId and/or sheetName.");
+    Logger.log('⚠️ No updates specified. Provide spreadsheetId and/or sheetName.');
     return;
   }
 
   updateProject(name, updates);
   Logger.log(`✅ Project "${name}" updated`);
-  if (spreadsheetId) Logger.log(`   Spreadsheet: ${spreadsheetId}`);
-  if (sheetName) Logger.log(`   Sheet: ${sheetName}`);
+  if (spreadsheetId) {
+    Logger.log(`   Spreadsheet: ${spreadsheetId}`);
+  }
+  if (sheetName) {
+    Logger.log(`   Sheet: ${sheetName}`);
+  }
 }
 
 // =============================================================================
@@ -243,7 +232,7 @@ export function checkConfig(): void {
  */
 export function testPermissions(): void {
   // 外部リクエスト権限のテスト
-  const response = UrlFetchApp.fetch("https://api.github.com", {
+  const response = UrlFetchApp.fetch('https://api.github.com', {
     muteHttpExceptions: true,
   });
   Logger.log(`GitHub API status: ${response.getResponseCode()}`);
@@ -253,5 +242,5 @@ export function testPermissions(): void {
   const spreadsheet = SpreadsheetApp.openById(config.spreadsheet.id);
   Logger.log(`Spreadsheet name: ${spreadsheet.getName()}`);
 
-  Logger.log("✅ All permissions granted!");
+  Logger.log('✅ All permissions granted!');
 }

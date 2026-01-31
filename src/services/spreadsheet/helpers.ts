@@ -4,8 +4,8 @@
  * シート操作の共通パターンを抽象化したユーティリティ関数群。
  */
 
-import type { Sheet, Spreadsheet } from "../../interfaces";
-import { getContainer } from "../../container";
+import type { Sheet, Spreadsheet } from '../../interfaces';
+import { getContainer } from '../../container';
 
 /**
  * シートを取得または作成し、ヘッダーを設定する
@@ -25,7 +25,7 @@ export function getOrCreateSheet(
   if (!sheet) {
     sheet = spreadsheet.insertSheet(sheetName);
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
   }
 
@@ -62,14 +62,10 @@ export function openSpreadsheet(spreadsheetId: string): Spreadsheet {
  * @param startColumn - 開始列（1-indexed）
  * @param columnCount - 列数
  */
-export function formatDecimalColumns(
-  sheet: Sheet,
-  startColumn: number,
-  columnCount: number
-): void {
+export function formatDecimalColumns(sheet: Sheet, startColumn: number, columnCount: number): void {
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) {
-    sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat("#,##0.0");
+    sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat('#,##0.0');
   }
 }
 
@@ -80,13 +76,9 @@ export function formatDecimalColumns(
  * @param startColumn - 開始列（1-indexed）
  * @param columnCount - 列数
  */
-export function formatIntegerColumns(
-  sheet: Sheet,
-  startColumn: number,
-  columnCount: number
-): void {
+export function formatIntegerColumns(sheet: Sheet, startColumn: number, columnCount: number): void {
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) {
-    sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat("#,##0");
+    sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat('#,##0');
   }
 }

@@ -7,17 +7,12 @@
  * GraphQL API（デフォルト）を使用してAPI呼び出し回数を削減。
  */
 
-import {
-  getConfig,
-  getGitHubToken,
-  getGitHubAuthMode,
-  getGitHubApiMode,
-} from "../config/settings";
+import { getConfig, getGitHubToken, getGitHubAuthMode, getGitHubApiMode } from '../config/settings';
 import {
   getProductionBranchPattern,
   getCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
-} from "../config/settings";
+} from '../config/settings';
 import {
   // REST API版
   getPullRequests,
@@ -33,28 +28,28 @@ import {
   getReworkDataForPRsGraphQL,
   getReviewEfficiencyDataForPRsGraphQL,
   getPRSizeDataForPRsGraphQL,
-} from "../services/github";
+} from '../services/github';
 import {
   writeCycleTimeToSheet,
   writeCodingTimeToSheet,
   writeReworkRateToSheet,
   writeReviewEfficiencyToSheet,
   writePRSizeToSheet,
-} from "../services/spreadsheet";
+} from '../services/spreadsheet';
 import {
   calculateCycleTime,
   calculateCodingTime,
   calculateReworkRate,
   calculateReviewEfficiency,
   calculatePRSize,
-} from "../utils/metrics";
+} from '../utils/metrics';
 import {
   ensureContainerInitialized,
   createDateRange,
   checkAuthConfigured,
   checkRepositoriesConfigured,
-} from "./helpers";
-import type { GitHubPullRequest } from "../types";
+} from './helpers';
+import type { GitHubPullRequest } from '../types';
 
 // =============================================================================
 // サイクルタイム
@@ -69,8 +64,12 @@ export function syncCycleTime(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!checkAuthConfigured(getGitHubAuthMode())) return;
-  if (!checkRepositoriesConfigured(config.github.repositories.length)) return;
+  if (!checkAuthConfigured(getGitHubAuthMode())) {
+    return;
+  }
+  if (!checkRepositoriesConfigured(config.github.repositories.length)) {
+    return;
+  }
 
   const token = getGitHubToken();
   const { startDateStr, endDateStr, period } = createDateRange(days);
@@ -81,15 +80,13 @@ export function syncCycleTime(days = 30): void {
   Logger.log(`   Period: ${period}`);
   Logger.log(`   Production branch pattern: "${productionPattern}"`);
   Logger.log(
-    labels.length > 0
-      ? `   Issue labels: ${labels.join(", ")}`
-      : `   Issue labels: (all issues)`
+    labels.length > 0 ? `   Issue labels: ${labels.join(', ')}` : `   Issue labels: (all issues)`
   );
 
   const apiMode = getGitHubApiMode();
-  const getCycleTime = apiMode === "graphql" ? getCycleTimeDataGraphQL : getCycleTimeData;
+  const getCycleTime = apiMode === 'graphql' ? getCycleTimeDataGraphQL : getCycleTimeData;
 
-  Logger.log(`🚀 Using ${apiMode === "graphql" ? "GraphQL" : "REST"} API`);
+  Logger.log(`🚀 Using ${apiMode === 'graphql' ? 'GraphQL' : 'REST'} API`);
 
   const result = getCycleTime(config.github.repositories, token, {
     dateRange: { start: startDateStr, end: endDateStr },
@@ -115,7 +112,7 @@ export function syncCycleTime(days = 30): void {
   }
 
   writeCycleTimeToSheet(config.spreadsheet.id, metrics);
-  Logger.log("✅ Cycle Time metrics synced");
+  Logger.log('✅ Cycle Time metrics synced');
 }
 
 // =============================================================================
@@ -131,8 +128,12 @@ export function syncCodingTime(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!checkAuthConfigured(getGitHubAuthMode())) return;
-  if (!checkRepositoriesConfigured(config.github.repositories.length)) return;
+  if (!checkAuthConfigured(getGitHubAuthMode())) {
+    return;
+  }
+  if (!checkRepositoriesConfigured(config.github.repositories.length)) {
+    return;
+  }
 
   const token = getGitHubToken();
   const { startDateStr, endDateStr, period } = createDateRange(days);
@@ -141,15 +142,13 @@ export function syncCodingTime(days = 30): void {
   Logger.log(`⌨️ Calculating Coding Time for ${days} days`);
   Logger.log(`   Period: ${period}`);
   Logger.log(
-    labels.length > 0
-      ? `   Issue labels: ${labels.join(", ")}`
-      : `   Issue labels: (all issues)`
+    labels.length > 0 ? `   Issue labels: ${labels.join(', ')}` : `   Issue labels: (all issues)`
   );
 
   const apiMode = getGitHubApiMode();
-  const getCodingTime = apiMode === "graphql" ? getCodingTimeDataGraphQL : getCodingTimeData;
+  const getCodingTime = apiMode === 'graphql' ? getCodingTimeDataGraphQL : getCodingTimeData;
 
-  Logger.log(`🚀 Using ${apiMode === "graphql" ? "GraphQL" : "REST"} API`);
+  Logger.log(`🚀 Using ${apiMode === 'graphql' ? 'GraphQL' : 'REST'} API`);
 
   const result = getCodingTime(config.github.repositories, token, {
     dateRange: { start: startDateStr, end: endDateStr },
@@ -174,7 +173,7 @@ export function syncCodingTime(days = 30): void {
   }
 
   writeCodingTimeToSheet(config.spreadsheet.id, metrics);
-  Logger.log("✅ Coding Time metrics synced");
+  Logger.log('✅ Coding Time metrics synced');
 }
 
 // =============================================================================
@@ -187,21 +186,25 @@ export function syncCodingTime(days = 30): void {
 function fetchMergedPRs(days: number): GitHubPullRequest[] | null {
   const config = getConfig();
 
-  if (!checkAuthConfigured(getGitHubAuthMode())) return null;
-  if (!checkRepositoriesConfigured(config.github.repositories.length)) return null;
+  if (!checkAuthConfigured(getGitHubAuthMode())) {
+    return null;
+  }
+  if (!checkRepositoriesConfigured(config.github.repositories.length)) {
+    return null;
+  }
 
   const token = getGitHubToken();
   const { startDate, endDate } = createDateRange(days);
   const apiMode = getGitHubApiMode();
 
-  Logger.log(`🚀 Using ${apiMode === "graphql" ? "GraphQL" : "REST"} API`);
+  Logger.log(`🚀 Using ${apiMode === 'graphql' ? 'GraphQL' : 'REST'} API`);
 
   const allPRs: GitHubPullRequest[] = [];
-  const getPRs = apiMode === "graphql" ? getPullRequestsGraphQL : getPullRequests;
+  const getPRs = apiMode === 'graphql' ? getPullRequestsGraphQL : getPullRequests;
 
   for (const repo of config.github.repositories) {
     Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
-    const result = getPRs(repo, token, "all", {
+    const result = getPRs(repo, token, 'all', {
       since: startDate,
       until: endDate,
     });
@@ -216,7 +219,7 @@ function fetchMergedPRs(days: number): GitHubPullRequest[] | null {
   }
 
   if (allPRs.length === 0) {
-    Logger.log("⚠️ No merged PRs found in the period");
+    Logger.log('⚠️ No merged PRs found in the period');
     return null;
   }
 
@@ -240,12 +243,14 @@ export function syncReworkRate(days = 30): void {
   Logger.log(`   Period: ${period}`);
 
   const allPRs = fetchMergedPRs(days);
-  if (!allPRs) return;
+  if (!allPRs) {
+    return;
+  }
 
   Logger.log(`📊 Fetching rework data for ${allPRs.length} PRs...`);
   const token = getGitHubToken();
   const apiMode = getGitHubApiMode();
-  const getReworkData = apiMode === "graphql" ? getReworkDataForPRsGraphQL : getReworkDataForPRs;
+  const getReworkData = apiMode === 'graphql' ? getReworkDataForPRsGraphQL : getReworkDataForPRs;
   const reworkData = getReworkData(allPRs, token);
 
   const metrics = calculateReworkRate(reworkData, period);
@@ -261,7 +266,7 @@ export function syncReworkRate(days = 30): void {
 
   const config = getConfig();
   writeReworkRateToSheet(config.spreadsheet.id, metrics);
-  Logger.log("✅ Rework Rate metrics synced");
+  Logger.log('✅ Rework Rate metrics synced');
 }
 
 // =============================================================================
@@ -281,27 +286,28 @@ export function syncReviewEfficiency(days = 30): void {
   Logger.log(`   Period: ${period}`);
 
   const allPRs = fetchMergedPRs(days);
-  if (!allPRs) return;
+  if (!allPRs) {
+    return;
+  }
 
   Logger.log(`📊 Fetching review data for ${allPRs.length} PRs...`);
   const token = getGitHubToken();
   const apiMode = getGitHubApiMode();
-  const getReviewData = apiMode === "graphql" ? getReviewEfficiencyDataForPRsGraphQL : getReviewEfficiencyDataForPRs;
+  const getReviewData =
+    apiMode === 'graphql' ? getReviewEfficiencyDataForPRsGraphQL : getReviewEfficiencyDataForPRs;
   const reviewData = getReviewData(allPRs, token);
 
   const metrics = calculateReviewEfficiency(reviewData, period);
 
   Logger.log(`📊 Review Efficiency Results:`);
   Logger.log(`   PRs analyzed: ${metrics.prCount}`);
-  Logger.log(
-    `   Time to First Review: avg=${metrics.timeToFirstReview.avgHours}h`
-  );
+  Logger.log(`   Time to First Review: avg=${metrics.timeToFirstReview.avgHours}h`);
   Logger.log(`   Review Duration: avg=${metrics.reviewDuration.avgHours}h`);
   Logger.log(`   Total Time: avg=${metrics.totalTime.avgHours}h`);
 
   const config = getConfig();
   writeReviewEfficiencyToSheet(config.spreadsheet.id, metrics);
-  Logger.log("✅ Review Efficiency metrics synced");
+  Logger.log('✅ Review Efficiency metrics synced');
 }
 
 // =============================================================================
@@ -321,12 +327,14 @@ export function syncPRSize(days = 30): void {
   Logger.log(`   Period: ${period}`);
 
   const allPRs = fetchMergedPRs(days);
-  if (!allPRs) return;
+  if (!allPRs) {
+    return;
+  }
 
   Logger.log(`📊 Fetching PR size data for ${allPRs.length} PRs...`);
   const token = getGitHubToken();
   const apiMode = getGitHubApiMode();
-  const getSizeData = apiMode === "graphql" ? getPRSizeDataForPRsGraphQL : getPRSizeDataForPRs;
+  const getSizeData = apiMode === 'graphql' ? getPRSizeDataForPRsGraphQL : getPRSizeDataForPRs;
   const sizeData = getSizeData(allPRs, token);
 
   const metrics = calculatePRSize(sizeData, period);
@@ -342,5 +350,5 @@ export function syncPRSize(days = 30): void {
 
   const config = getConfig();
   writePRSizeToSheet(config.spreadsheet.id, metrics);
-  Logger.log("✅ PR Size metrics synced");
+  Logger.log('✅ PR Size metrics synced');
 }

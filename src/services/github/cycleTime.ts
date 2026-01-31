@@ -11,11 +11,11 @@ import type {
   PRChainItem,
   IssueCycleTime,
   IssueCodingTime,
-} from "../../types";
-import { getContainer } from "../../container";
-import { type IssueDateRange } from "./api";
-import { getIssues, getLinkedPRsForIssue } from "./issues";
-import { getPullRequestWithBranches, findPRContainingCommit } from "./pullRequests";
+} from '../../types';
+import { getContainer } from '../../container';
+import { type IssueDateRange } from './api';
+import { getIssues, getLinkedPRsForIssue } from './issues';
+import { getPullRequestWithBranches, findPRContainingCommit } from './pullRequests';
 
 // =============================================================================
 // PRチェーン追跡
@@ -31,7 +31,7 @@ export function trackToProductionMerge(
   repo: string,
   initialPRNumber: number,
   token: string,
-  productionPattern: string = "production"
+  productionPattern: string = 'production'
 ): ApiResponse<{
   productionMergedAt: string | null;
   prChain: PRChainItem[];
@@ -43,12 +43,7 @@ export function trackToProductionMerge(
   let productionMergedAt: string | null = null;
 
   for (let depth = 0; depth < maxDepth; depth++) {
-    const prResult = getPullRequestWithBranches(
-      owner,
-      repo,
-      currentPRNumber,
-      token
-    );
+    const prResult = getPullRequestWithBranches(owner, repo, currentPRNumber, token);
 
     if (!prResult.success || !prResult.data) {
       logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
@@ -58,16 +53,13 @@ export function trackToProductionMerge(
     const pr = prResult.data;
     prChain.push({
       prNumber: pr.number,
-      baseBranch: pr.baseBranch ?? "unknown",
-      headBranch: pr.headBranch ?? "unknown",
+      baseBranch: pr.baseBranch ?? 'unknown',
+      headBranch: pr.headBranch ?? 'unknown',
       mergedAt: pr.mergedAt,
     });
 
     // productionブランチへのマージを検出
-    if (
-      pr.baseBranch &&
-      pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())
-    ) {
+    if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
       if (pr.mergedAt) {
         productionMergedAt = pr.mergedAt;
         logger.log(
@@ -78,20 +70,21 @@ export function trackToProductionMerge(
     }
 
     // マージされていない場合は追跡終了
-    if (!pr.mergedAt || !pr.mergeCommitSha) break;
+    if (!pr.mergedAt || !pr.mergeCommitSha) {
+      break;
+    }
 
     // マージコミットSHAから次のPRを検索
-    const nextPRResult = findPRContainingCommit(
-      owner,
-      repo,
-      pr.mergeCommitSha,
-      token
-    );
+    const nextPRResult = findPRContainingCommit(owner, repo, pr.mergeCommitSha, token);
 
-    if (!nextPRResult.success || !nextPRResult.data) break;
+    if (!nextPRResult.success || !nextPRResult.data) {
+      break;
+    }
 
     // 同じPRの場合は無限ループを防止
-    if (nextPRResult.data.number === currentPRNumber) break;
+    if (nextPRResult.data.number === currentPRNumber) {
+      break;
+    }
 
     currentPRNumber = nextPRResult.data.number;
   }
@@ -118,7 +111,7 @@ export function getCycleTimeData(
   } = {}
 ): ApiResponse<IssueCycleTime[]> {
   const { logger } = getContainer();
-  const productionPattern = options.productionBranchPattern ?? "production";
+  const productionPattern = options.productionBranchPattern ?? 'production';
   const allCycleTimeData: IssueCycleTime[] = [];
 
   for (const repo of repositories) {
@@ -142,18 +135,9 @@ export function getCycleTimeData(
     for (const issue of issues) {
       logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
 
-      const linkedPRsResult = getLinkedPRsForIssue(
-        repo.owner,
-        repo.name,
-        issue.number,
-        token
-      );
+      const linkedPRsResult = getLinkedPRsForIssue(repo.owner, repo.name, issue.number, token);
 
-      if (
-        !linkedPRsResult.success ||
-        !linkedPRsResult.data ||
-        linkedPRsResult.data.length === 0
-      ) {
+      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
         logger.log(`    ⏭️ No linked PRs found`);
         allCycleTimeData.push({
           issueNumber: issue.number,
@@ -168,7 +152,7 @@ export function getCycleTimeData(
       }
 
       logger.log(
-        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.join(", ")}`
+        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.join(', ')}`
       );
 
       // 最初のリンクPRからproductionマージを追跡
@@ -189,8 +173,7 @@ export function getCycleTimeData(
         if (trackResult.success && trackResult.data) {
           if (trackResult.data.productionMergedAt) {
             if (
-              !bestResult ||
-              !bestResult.productionMergedAt ||
+              !bestResult?.productionMergedAt ||
               new Date(trackResult.data.productionMergedAt) <
                 new Date(bestResult.productionMergedAt)
             ) {
@@ -210,8 +193,7 @@ export function getCycleTimeData(
       if (productionMergedAt) {
         const startTime = new Date(issue.createdAt).getTime();
         const endTime = new Date(productionMergedAt).getTime();
-        cycleTimeHours =
-          Math.round(((endTime - startTime) / (1000 * 60 * 60)) * 10) / 10;
+        cycleTimeHours = Math.round(((endTime - startTime) / (1000 * 60 * 60)) * 10) / 10;
       }
 
       allCycleTimeData.push({
@@ -271,18 +253,9 @@ export function getCodingTimeData(
     for (const issue of issues) {
       logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
 
-      const linkedPRsResult = getLinkedPRsForIssue(
-        repo.owner,
-        repo.name,
-        issue.number,
-        token
-      );
+      const linkedPRsResult = getLinkedPRsForIssue(repo.owner, repo.name, issue.number, token);
 
-      if (
-        !linkedPRsResult.success ||
-        !linkedPRsResult.data ||
-        linkedPRsResult.data.length === 0
-      ) {
+      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
         logger.log(`    ⏭️ No linked PRs found`);
         allCodingTimeData.push({
           issueNumber: issue.number,
@@ -297,26 +270,18 @@ export function getCodingTimeData(
       }
 
       logger.log(
-        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.join(", ")}`
+        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.join(', ')}`
       );
 
       // 最も早く作成されたPRを使用
       let earliestPR: { prNumber: number; createdAt: string } | null = null;
 
       for (const prNumber of linkedPRsResult.data) {
-        const prResult = getPullRequestWithBranches(
-          repo.owner,
-          repo.name,
-          prNumber,
-          token
-        );
+        const prResult = getPullRequestWithBranches(repo.owner, repo.name, prNumber, token);
 
         if (prResult.success && prResult.data) {
           const pr = prResult.data;
-          if (
-            !earliestPR ||
-            new Date(pr.createdAt) < new Date(earliestPR.createdAt)
-          ) {
+          if (!earliestPR || new Date(pr.createdAt) < new Date(earliestPR.createdAt)) {
             earliestPR = { prNumber: pr.number, createdAt: pr.createdAt };
           }
         }
@@ -340,13 +305,9 @@ export function getCodingTimeData(
       const issueCreatedTime = new Date(issue.createdAt).getTime();
       const prCreatedTime = new Date(earliestPR.createdAt).getTime();
       const codingTimeHours =
-        Math.round(
-          ((prCreatedTime - issueCreatedTime) / (1000 * 60 * 60)) * 10
-        ) / 10;
+        Math.round(((prCreatedTime - issueCreatedTime) / (1000 * 60 * 60)) * 10) / 10;
 
-      logger.log(
-        `    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.prNumber})`
-      );
+      logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.prNumber})`);
 
       allCodingTimeData.push({
         issueNumber: issue.number,
@@ -360,8 +321,6 @@ export function getCodingTimeData(
     }
   }
 
-  logger.log(
-    `✅ Total: ${allCodingTimeData.length} issues processed for coding time`
-  );
+  logger.log(`✅ Total: ${allCodingTimeData.length} issues processed for coding time`);
   return { success: true, data: allCodingTimeData };
 }

@@ -16,13 +16,14 @@ import type {
   Trigger,
   TriggerBuilder,
   TimeTriggerBuilder,
-} from "../../interfaces";
+  ServiceContainer,
+} from '../../interfaces';
 
 // HTTP Client
 export class GasHttpClient implements HttpClient {
   fetch<T = unknown>(url: string, options: HttpRequestOptions = {}): HttpResponse<T> {
     const gasOptions: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
-      method: options.method ?? "get",
+      method: options.method ?? 'get',
       headers: options.headers,
       payload: options.payload,
       muteHttpExceptions: options.muteHttpExceptions ?? true,
@@ -55,7 +56,7 @@ class GasSheetRange implements SheetRange {
     this.range.setValues(values);
   }
 
-  setFontWeight(weight: "bold" | "normal" | null): void {
+  setFontWeight(weight: 'bold' | 'normal' | null): void {
     this.range.setFontWeight(weight);
   }
 
@@ -72,9 +73,10 @@ class GasSheet implements Sheet {
   }
 
   getRange(row: number, col: number, numRows?: number, numCols?: number): SheetRange {
-    const range = numRows && numCols
-      ? this.sheet.getRange(row, col, numRows, numCols)
-      : this.sheet.getRange(row, col);
+    const range =
+      numRows && numCols
+        ? this.sheet.getRange(row, col, numRows, numCols)
+        : this.sheet.getRange(row, col);
     return new GasSheetRange(range);
   }
 
@@ -211,7 +213,7 @@ export class GasTriggerClient implements TriggerClient {
 
   deleteTrigger(trigger: Trigger): void {
     if (!GasTrigger.isGasTrigger(trigger)) {
-      throw new Error("Cannot delete non-GAS trigger with GasTriggerClient");
+      throw new Error('Cannot delete non-GAS trigger with GasTriggerClient');
     }
     ScriptApp.deleteTrigger(trigger.getUnderlyingTrigger());
   }
@@ -222,7 +224,7 @@ export class GasTriggerClient implements TriggerClient {
 }
 
 // 全てのGASアダプターを作成するファクトリ関数
-export function createGasAdapters() {
+export function createGasAdapters(): ServiceContainer {
   return {
     httpClient: new GasHttpClient(),
     spreadsheetClient: new GasSpreadsheetClient(),

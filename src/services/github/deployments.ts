@@ -10,22 +10,25 @@ import type {
   GitHubDeployment,
   GitHubRepository,
   ApiResponse,
-} from "../../types";
-import { getContainer } from "../../container";
+  GitHubWorkflowRunsResponse,
+  GitHubDeploymentResponse,
+  GitHubDeploymentStatusResponse,
+} from '../../types';
+import { getContainer } from '../../container';
 import {
   fetchGitHub,
   DEFAULT_MAX_PAGES,
   PER_PAGE,
   STATUS_FETCH_WARNING_THRESHOLD,
   type DateRange,
-} from "./api";
+} from './api';
 
 // =============================================================================
 // 型定義
 // =============================================================================
 
 /** 環境名のマッチングモード */
-export type EnvironmentMatchMode = "exact" | "partial";
+export type EnvironmentMatchMode = 'exact' | 'partial';
 
 /** デプロイメント取得オプション */
 interface GetDeploymentsOptions {
@@ -68,21 +71,20 @@ export function getWorkflowRuns(
 
     // GitHub Actions APIは created パラメータで日付フィルタ可能
     if (dateRange?.since) {
-      const sinceStr = dateRange.since.toISOString().split("T")[0];
-      endpoint += `&created=${encodeURIComponent(">=" + sinceStr)}`;
+      const sinceStr = dateRange.since.toISOString().split('T')[0];
+      endpoint += `&created=${encodeURIComponent('>=' + sinceStr)}`;
     }
 
-    const response = fetchGitHub<{ workflow_runs: any[] }>(endpoint, token);
+    const response = fetchGitHub<GitHubWorkflowRunsResponse>(endpoint, token);
 
     if (!response.success || !response.data) {
-      if (page === 1) return { success: false, error: response.error };
+      if (page === 1) {
+        return { success: false, error: response.error };
+      }
       break;
     }
 
-    if (
-      !response.data.workflow_runs ||
-      response.data.workflow_runs.length === 0
-    ) {
+    if (!response.data.workflow_runs || response.data.workflow_runs.length === 0) {
       break;
     }
 
@@ -90,8 +92,12 @@ export function getWorkflowRuns(
       const createdAt = new Date(run.created_at);
 
       // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) continue;
-      if (dateRange?.since && createdAt < dateRange.since) continue;
+      if (dateRange?.until && createdAt > dateRange.until) {
+        continue;
+      }
+      if (dateRange?.since && createdAt < dateRange.since) {
+        continue;
+      }
 
       allRuns.push({
         id: run.id,
@@ -124,7 +130,7 @@ export function getDeployments(
 ): ApiResponse<GitHubDeployment[]> {
   const {
     environment,
-    environmentMatchMode = "exact",
+    environmentMatchMode = 'exact',
     dateRange,
     maxPages = DEFAULT_MAX_PAGES,
     skipStatusFetch = false,
@@ -134,7 +140,7 @@ export function getDeployments(
   let page = 1;
 
   // 部分一致の場合はAPIフィルタを使用せず、クライアント側でフィルタする
-  const useApiFilter = environment && environmentMatchMode === "exact";
+  const useApiFilter = environment && environmentMatchMode === 'exact';
 
   // Phase 1: デプロイメント一覧を取得
   while (page <= maxPages) {
@@ -143,27 +149,37 @@ export function getDeployments(
       endpoint += `&environment=${encodeURIComponent(environment)}`;
     }
 
-    const response = fetchGitHub<any[]>(endpoint, token);
+    const response = fetchGitHub<GitHubDeploymentResponse[]>(endpoint, token);
 
     if (!response.success || !response.data) {
-      if (page === 1) return response as ApiResponse<GitHubDeployment[]>;
+      if (page === 1) {
+        return { success: false, error: response.error };
+      }
       break;
     }
 
-    if (response.data.length === 0) break;
+    if (response.data.length === 0) {
+      break;
+    }
 
     for (const deployment of response.data) {
       const createdAt = new Date(deployment.created_at);
 
       // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) continue;
-      if (dateRange?.since && createdAt < dateRange.since) continue;
+      if (dateRange?.until && createdAt > dateRange.until) {
+        continue;
+      }
+      if (dateRange?.since && createdAt < dateRange.since) {
+        continue;
+      }
 
       // 部分一致モードの場合、クライアント側で環境名をフィルタ
-      if (environment && environmentMatchMode === "partial") {
-        const envLower = deployment.environment?.toLowerCase() ?? "";
+      if (environment && environmentMatchMode === 'partial') {
+        const envLower = deployment.environment?.toLowerCase() ?? '';
         const filterLower = environment.toLowerCase();
-        if (!envLower.includes(filterLower)) continue;
+        if (!envLower.includes(filterLower)) {
+          continue;
+        }
       }
 
       allDeployments.push({
@@ -184,18 +200,16 @@ export function getDeployments(
   if (!skipStatusFetch && allDeployments.length > 0) {
     const { logger } = getContainer();
     if (allDeployments.length > STATUS_FETCH_WARNING_THRESHOLD) {
-      logger.log(
-        `  ⚠️ Fetching status for ${allDeployments.length} deployments (may be slow)`
-      );
+      logger.log(`  ⚠️ Fetching status for ${allDeployments.length} deployments (may be slow)`);
     }
 
     for (const deployment of allDeployments) {
-      const statusResponse = fetchGitHub<any[]>(
+      const statusResponse = fetchGitHub<GitHubDeploymentStatusResponse[]>(
         `/repos/${repo.fullName}/deployments/${deployment.id}/statuses?per_page=1`,
         token
       );
       if (statusResponse.success && statusResponse.data?.[0]) {
-        deployment.status = statusResponse.data[0].state;
+        deployment.status = statusResponse.data[0].state as typeof deployment.status;
       }
     }
   }

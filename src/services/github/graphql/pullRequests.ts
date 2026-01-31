@@ -15,21 +15,17 @@ import type {
   PRReworkData,
   PRReviewData,
   PRSizeData,
-} from "../../../types";
-import { getContainer } from "../../../container";
-import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from "./client";
-import {
-  PULL_REQUESTS_QUERY,
-  PULL_REQUEST_DETAIL_QUERY,
-  buildBatchPRDetailQuery,
-} from "./queries";
+} from '../../../types';
+import { getContainer } from '../../../container';
+import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
+import { PULL_REQUESTS_QUERY, PULL_REQUEST_DETAIL_QUERY, buildBatchPRDetailQuery } from './queries';
 import type {
   PullRequestsQueryResponse,
   PullRequestDetailQueryResponse,
   GraphQLPullRequest,
   GraphQLPullRequestDetail,
-} from "./types";
-import type { DateRange } from "../api";
+} from './types';
+import type { DateRange } from '../api';
 
 // =============================================================================
 // PR一覧取得
@@ -45,7 +41,7 @@ import type { DateRange } from "../api";
 export function getPullRequestsGraphQL(
   repo: GitHubRepository,
   token: string,
-  state: "open" | "closed" | "all" = "all",
+  state: 'open' | 'closed' | 'all' = 'all',
   dateRange?: DateRange,
   maxPages: number = 5
 ): ApiResponse<GitHubPullRequest[]> {
@@ -56,11 +52,11 @@ export function getPullRequestsGraphQL(
 
   // GraphQL用のstate変換
   const states =
-    state === "all"
-      ? ["MERGED", "OPEN", "CLOSED"]
-      : state === "open"
-        ? ["OPEN"]
-        : ["MERGED", "CLOSED"];
+    state === 'all'
+      ? ['MERGED', 'OPEN', 'CLOSED']
+      : state === 'open'
+        ? ['OPEN']
+        : ['MERGED', 'CLOSED'];
 
   while (page < maxPages) {
     const queryResult: ApiResponse<PullRequestsQueryResponse> =
@@ -91,13 +87,19 @@ export function getPullRequestsGraphQL(
       const createdAt = new Date(pr.createdAt);
 
       // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) continue;
-      if (dateRange?.since && createdAt < dateRange.since) continue;
+      if (dateRange?.until && createdAt > dateRange.until) {
+        continue;
+      }
+      if (dateRange?.since && createdAt < dateRange.since) {
+        continue;
+      }
 
       allPRs.push(convertToPullRequest(pr, repo.fullName));
     }
 
-    if (!pageInfo.hasNextPage) break;
+    if (!pageInfo.hasNextPage) {
+      break;
+    }
     cursor = pageInfo.endCursor;
     page++;
   }
@@ -109,23 +111,19 @@ export function getPullRequestsGraphQL(
 /**
  * GraphQL PRノードを内部型に変換
  */
-function convertToPullRequest(
-  pr: GraphQLPullRequest,
-  repository: string
-): GitHubPullRequest {
+function convertToPullRequest(pr: GraphQLPullRequest, repository: string): GitHubPullRequest {
   // GraphQLのstateはOPEN/MERGED/CLOSEDだが、GitHubPullRequestの型は"open"|"closed"
   // MERGEDはclosedとして扱う（REST APIとの互換性維持）
-  const state: "open" | "closed" =
-    pr.state === "OPEN" ? "open" : "closed";
+  const state: 'open' | 'closed' = pr.state === 'OPEN' ? 'open' : 'closed';
   return {
-    id: parseInt(pr.id.replace(/\D/g, ""), 10) || 0,
+    id: parseInt(pr.id.replace(/\D/g, ''), 10) || 0,
     number: pr.number,
     title: pr.title,
     state,
     createdAt: pr.createdAt,
     mergedAt: pr.mergedAt,
     closedAt: pr.closedAt,
-    author: pr.author?.login ?? "unknown",
+    author: pr.author?.login ?? 'unknown',
     repository,
     baseBranch: pr.baseRefName,
     headBranch: pr.headRefName,
@@ -231,8 +229,10 @@ export function getReworkDataForPRsGraphQL(
   }
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const [owner, repo] = repoFullName.split("/");
-    if (!owner || !repo) continue;
+    const [owner, repo] = repoFullName.split('/');
+    if (!owner || !repo) {
+      continue;
+    }
 
     // 10件ずつバッチ処理
     const batchSize = 10;
@@ -297,7 +297,7 @@ export function getReworkDataForPRsGraphQL(
 
         // Force Push回数を計算
         const forcePushCount = timeline.filter(
-          (event) => event.__typename === "HeadRefForcePushedEvent"
+          (event) => event.__typename === 'HeadRefForcePushedEvent'
         ).length;
 
         reworkData.push({
@@ -343,8 +343,10 @@ export function getPRSizeDataForPRsGraphQL(
   }
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const [owner, repo] = repoFullName.split("/");
-    if (!owner || !repo) continue;
+    const [owner, repo] = repoFullName.split('/');
+    if (!owner || !repo) {
+      continue;
+    }
 
     // 10件ずつバッチ処理
     const batchSize = 10;
@@ -370,7 +372,7 @@ export function getPRSizeDataForPRsGraphQL(
               }
             `
               )
-              .join("\n")}
+              .join('\n')}
           }
         }
       `;
@@ -398,7 +400,9 @@ export function getPRSizeDataForPRsGraphQL(
       for (let j = 0; j < batch.length; j++) {
         const prData = result.data.repository[`pr${j}`];
 
-        if (!prData) continue;
+        if (!prData) {
+          continue;
+        }
 
         sizeData.push({
           prNumber: prData.number,
@@ -445,8 +449,10 @@ export function getReviewEfficiencyDataForPRsGraphQL(
   }
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const [owner, repo] = repoFullName.split("/");
-    if (!owner || !repo) continue;
+    const [owner, repo] = repoFullName.split('/');
+    if (!owner || !repo) {
+      continue;
+    }
 
     // 10件ずつバッチ処理
     const batchSize = 10;
@@ -460,9 +466,7 @@ export function getReviewEfficiencyDataForPRsGraphQL(
       }>(query, { owner, name: repo }, token);
 
       if (!result.success || !result.data?.repository) {
-        logger.log(
-          `  ⚠️ Failed to fetch batch PR reviews: ${result.error}`
-        );
+        logger.log(`  ⚠️ Failed to fetch batch PR reviews: ${result.error}`);
         continue;
       }
 
@@ -493,25 +497,18 @@ export function getReviewEfficiencyDataForPRsGraphQL(
 
         // Ready for Review時刻を取得
         let readyForReviewAt = prData.createdAt;
-        const readyEvent = timeline.find(
-          (e) => e.__typename === "ReadyForReviewEvent"
-        );
+        const readyEvent = timeline.find((e) => e.__typename === 'ReadyForReviewEvent');
         if (readyEvent?.createdAt) {
           readyForReviewAt = readyEvent.createdAt;
         }
 
         // レビュー情報を処理
         const validReviews = reviews
-          .filter((r) => r.state !== "PENDING" && r.submittedAt)
-          .sort(
-            (a, b) =>
-              new Date(a.submittedAt!).getTime() -
-              new Date(b.submittedAt!).getTime()
-          );
+          .filter((r) => r.state !== 'PENDING' && r.submittedAt)
+          .sort((a, b) => new Date(a.submittedAt!).getTime() - new Date(b.submittedAt!).getTime());
 
-        const firstReviewAt =
-          validReviews.length > 0 ? validReviews[0].submittedAt : null;
-        const approvedReview = validReviews.find((r) => r.state === "APPROVED");
+        const firstReviewAt = validReviews.length > 0 ? validReviews[0].submittedAt : null;
+        const approvedReview = validReviews.find((r) => r.state === 'APPROVED');
         const approvedAt = approvedReview?.submittedAt ?? null;
 
         // 各時間を計算
@@ -523,17 +520,13 @@ export function getReviewEfficiencyDataForPRsGraphQL(
 
         if (firstReviewAt) {
           timeToFirstReviewHours =
-            Math.round(
-              ((new Date(firstReviewAt).getTime() - readyAt) / msToHours) * 10
-            ) / 10;
+            Math.round(((new Date(firstReviewAt).getTime() - readyAt) / msToHours) * 10) / 10;
         }
 
         if (firstReviewAt && approvedAt) {
           reviewDurationHours =
             Math.round(
-              ((new Date(approvedAt).getTime() -
-                new Date(firstReviewAt).getTime()) /
-                msToHours) *
+              ((new Date(approvedAt).getTime() - new Date(firstReviewAt).getTime()) / msToHours) *
                 10
             ) / 10;
         }
@@ -541,18 +534,14 @@ export function getReviewEfficiencyDataForPRsGraphQL(
         if (approvedAt && prData.mergedAt) {
           timeToMergeHours =
             Math.round(
-              ((new Date(prData.mergedAt).getTime() -
-                new Date(approvedAt).getTime()) /
-                msToHours) *
+              ((new Date(prData.mergedAt).getTime() - new Date(approvedAt).getTime()) / msToHours) *
                 10
             ) / 10;
         }
 
         if (prData.mergedAt) {
           totalTimeHours =
-            Math.round(
-              ((new Date(prData.mergedAt).getTime() - readyAt) / msToHours) * 10
-            ) / 10;
+            Math.round(((new Date(prData.mergedAt).getTime() - readyAt) / msToHours) * 10) / 10;
         }
 
         reviewData.push({

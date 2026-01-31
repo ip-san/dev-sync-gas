@@ -1,8 +1,8 @@
-import { KJUR } from "jsrsasign";
-import type { GitHubAppConfig } from "../types";
-import { getContainer } from "../container";
+import { KJUR } from 'jsrsasign';
+import type { GitHubAppConfig } from '../types';
+import { getContainer } from '../container';
 
-const GITHUB_API_BASE = "https://api.github.com";
+const GITHUB_API_BASE = 'https://api.github.com';
 
 /** Installation Access Tokenのキャッシュ（有効期限付き） */
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -18,8 +18,8 @@ export function generateJWT(appId: string, privateKey: string): string {
   const now = Math.floor(Date.now() / 1000);
 
   const header = {
-    alg: "RS256",
-    typ: "JWT",
+    alg: 'RS256',
+    typ: 'JWT',
   };
 
   const payload = {
@@ -31,7 +31,7 @@ export function generateJWT(appId: string, privateKey: string): string {
   const sHeader = JSON.stringify(header);
   const sPayload = JSON.stringify(payload);
 
-  const jwt = KJUR.jws.JWS.sign("RS256", sHeader, sPayload, privateKey);
+  const jwt = KJUR.jws.JWS.sign('RS256', sHeader, sPayload, privateKey);
   return jwt;
 }
 
@@ -43,21 +43,21 @@ export function generateJWT(appId: string, privateKey: string): string {
  */
 function validatePrivateKey(privateKey: string): void {
   if (!privateKey) {
-    throw new Error("GitHub App Private Key is empty");
+    throw new Error('GitHub App Private Key is empty');
   }
 
   // RSA PRIVATE KEY または PRIVATE KEY のいずれかを許可
   const hasValidHeader =
-    privateKey.includes("-----BEGIN RSA PRIVATE KEY-----") ||
-    privateKey.includes("-----BEGIN PRIVATE KEY-----");
+    privateKey.includes('-----BEGIN RSA PRIVATE KEY-----') ||
+    privateKey.includes('-----BEGIN PRIVATE KEY-----');
   const hasValidFooter =
-    privateKey.includes("-----END RSA PRIVATE KEY-----") ||
-    privateKey.includes("-----END PRIVATE KEY-----");
+    privateKey.includes('-----END RSA PRIVATE KEY-----') ||
+    privateKey.includes('-----END PRIVATE KEY-----');
 
   if (!hasValidHeader || !hasValidFooter) {
     throw new Error(
-      "Invalid Private Key format. Expected PEM format with BEGIN/END markers. " +
-      "Make sure to replace newlines with \\n when setting the key."
+      'Invalid Private Key format. Expected PEM format with BEGIN/END markers. ' +
+        'Make sure to replace newlines with \\n when setting the key.'
     );
   }
 }
@@ -77,7 +77,7 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
     return cachedToken.token;
   }
 
-  logger.log("🔑 Fetching new GitHub App Installation Token...");
+  logger.log('🔑 Fetching new GitHub App Installation Token...');
 
   // Private Keyの形式を検証
   validatePrivateKey(appConfig.privateKey);
@@ -93,11 +93,11 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
       token: string;
       expires_at: string;
     }>(url, {
-      method: "post",
+      method: 'post',
       headers: {
         Authorization: `Bearer ${jwt}`,
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "DevSyncGAS",
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'DevSyncGAS',
       },
       muteHttpExceptions: true,
     });
@@ -108,22 +108,28 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
         token: response.data.token,
         expiresAt,
       };
-      logger.log("✅ GitHub App Installation Token obtained successfully");
+      logger.log('✅ GitHub App Installation Token obtained successfully');
       return response.data.token;
     }
 
     // よくあるエラーの原因をヒントとして追加
-    let hint = "";
+    let hint = '';
     if (response.statusCode === 401) {
-      hint = " Hint: Check if the App ID and Private Key are correct.";
+      hint = ' Hint: Check if the App ID and Private Key are correct.';
     } else if (response.statusCode === 404) {
-      hint = " Hint: Check if the Installation ID is correct and the App is installed on the repository.";
+      hint =
+        ' Hint: Check if the Installation ID is correct and the App is installed on the repository.';
     } else if (response.statusCode === 403) {
-      hint = " Hint: Check if the App has the required permissions (Pull requests, Actions, Metadata).";
+      hint =
+        ' Hint: Check if the App has the required permissions (Pull requests, Actions, Metadata).';
     }
-    throw new Error(`Failed to get installation token: ${response.statusCode} - ${response.content}${hint}`);
+    throw new Error(
+      `Failed to get installation token: ${response.statusCode} - ${response.content}${hint}`
+    );
   } catch (error) {
-    throw new Error(`GitHub App authentication failed: ${error}`);
+    throw new Error(
+      `GitHub App authentication failed: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -143,10 +149,7 @@ export function clearTokenCache(): void {
  * @param appConfig - GitHub App設定（オプション）
  * @returns 使用するトークン
  */
-export function resolveGitHubToken(
-  token?: string,
-  appConfig?: GitHubAppConfig
-): string {
+export function resolveGitHubToken(token?: string, appConfig?: GitHubAppConfig): string {
   if (appConfig) {
     return getInstallationToken(appConfig);
   }
@@ -155,5 +158,7 @@ export function resolveGitHubToken(
     return token;
   }
 
-  throw new Error("GitHub authentication not configured. Set either GITHUB_TOKEN or GitHub App credentials.");
+  throw new Error(
+    'GitHub authentication not configured. Set either GITHUB_TOKEN or GitHub App credentials.'
+  );
 }

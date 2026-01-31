@@ -18,8 +18,8 @@
  */
 
 // API基盤
-export { fetchGitHub, GITHUB_API_BASE, DEFAULT_MAX_PAGES, PER_PAGE } from "./api";
-export type { DateRange, IssueDateRange } from "./api";
+export { fetchGitHub, GITHUB_API_BASE, DEFAULT_MAX_PAGES, PER_PAGE } from './api';
+export type { DateRange, IssueDateRange } from './api';
 
 // Pull Request関連
 export {
@@ -30,21 +30,17 @@ export {
   getPRSizeDataForPRs,
   getReviewEfficiencyDataForPRs,
   findPRContainingCommit,
-} from "./pullRequests";
+} from './pullRequests';
 
 // Deployment・Workflow関連
-export { getWorkflowRuns, getDeployments } from "./deployments";
-export type { EnvironmentMatchMode } from "./deployments";
+export { getWorkflowRuns, getDeployments } from './deployments';
+export type { EnvironmentMatchMode } from './deployments';
 
 // Issue・Incident関連
-export { getIncidents, getIssues, getLinkedPRsForIssue } from "./issues";
+export { getIncidents, getIssues, getLinkedPRsForIssue } from './issues';
 
 // Cycle Time・Coding Time関連
-export {
-  trackToProductionMerge,
-  getCycleTimeData,
-  getCodingTimeData,
-} from "./cycleTime";
+export { trackToProductionMerge, getCycleTimeData, getCodingTimeData } from './cycleTime';
 
 // =============================================================================
 // GraphQL API版（効率的なデータ取得）
@@ -74,14 +70,9 @@ export {
   getCodingTimeDataGraphQL,
   // 複合機能
   getAllRepositoriesDataGraphQL,
-} from "./graphql";
+} from './graphql';
 
-export type {
-  GraphQLError,
-  GraphQLResponse,
-  PageInfo,
-  RateLimitInfo,
-} from "./graphql";
+export type { GraphQLError, GraphQLResponse, PageInfo, RateLimitInfo } from './graphql';
 
 // =============================================================================
 // 複合機能（REST API版）
@@ -92,12 +83,12 @@ import type {
   GitHubWorkflowRun,
   GitHubDeployment,
   GitHubRepository,
-} from "../../types";
-import { getContainer } from "../../container";
-import { getPullRequests } from "./pullRequests";
-import { getWorkflowRuns, getDeployments } from "./deployments";
-import type { DateRange } from "./api";
-import type { EnvironmentMatchMode } from "./deployments";
+} from '../../types';
+import { getContainer } from '../../container';
+import { getPullRequests } from './pullRequests';
+import { getWorkflowRuns, getDeployments } from './deployments';
+import type { DateRange } from './api';
+import type { EnvironmentMatchMode } from './deployments';
 
 /**
  * 複数リポジトリからデータを一括取得する際のオプション
@@ -127,8 +118,8 @@ export function getAllRepositoriesData(
 } {
   const {
     dateRange,
-    deploymentEnvironment = "production",
-    deploymentEnvironmentMatchMode = "exact",
+    deploymentEnvironment = 'production',
+    deploymentEnvironmentMatchMode = 'exact',
   } = options;
   const { logger } = getContainer();
 
@@ -140,7 +131,7 @@ export function getAllRepositoriesData(
     logger.log(`📡 Fetching data for ${repo.fullName}...`);
 
     // PRを取得
-    const prsResult = getPullRequests(repo, token, "all", dateRange);
+    const prsResult = getPullRequests(repo, token, 'all', dateRange);
     if (prsResult.success && prsResult.data) {
       allPRs.push(...prsResult.data);
       logger.log(`  PRs: ${prsResult.data.length}`);

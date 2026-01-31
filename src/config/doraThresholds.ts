@@ -10,7 +10,7 @@
 /**
  * パフォーマンスレベル
  */
-export type PerformanceLevel = "elite" | "high" | "medium" | "low";
+export type PerformanceLevel = 'elite' | 'high' | 'medium' | 'low';
 
 /**
  * Deployment Frequency の閾値（1日あたりのデプロイ数）
@@ -102,20 +102,32 @@ export const MTTR_THRESHOLDS = {
  * Deployment Frequency からパフォーマンスレベルを判定
  */
 export function getDeploymentFrequencyLevel(deploysPerDay: number): PerformanceLevel {
-  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.elite) return "elite";
-  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.high) return "high";
-  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.medium) return "medium";
-  return "low";
+  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.elite) {
+    return 'elite';
+  }
+  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.high) {
+    return 'high';
+  }
+  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.medium) {
+    return 'medium';
+  }
+  return 'low';
 }
 
 /**
  * Lead Time からパフォーマンスレベルを判定
  */
 export function getLeadTimeLevel(hours: number): PerformanceLevel {
-  if (hours < LEAD_TIME_THRESHOLDS.elite) return "elite";
-  if (hours < LEAD_TIME_THRESHOLDS.high) return "high";
-  if (hours < LEAD_TIME_THRESHOLDS.medium) return "medium";
-  return "low";
+  if (hours < LEAD_TIME_THRESHOLDS.elite) {
+    return 'elite';
+  }
+  if (hours < LEAD_TIME_THRESHOLDS.high) {
+    return 'high';
+  }
+  if (hours < LEAD_TIME_THRESHOLDS.medium) {
+    return 'medium';
+  }
+  return 'low';
 }
 
 /**
@@ -125,33 +137,49 @@ export function getLeadTimeLevel(hours: number): PerformanceLevel {
  * 他の指標と合わせて総合的に判断してください。
  */
 export function getChangeFailureRateLevel(rate: number): PerformanceLevel {
-  if (rate <= CHANGE_FAILURE_RATE_THRESHOLDS.eliteHigh) return "high"; // elite/highは区別不可
-  if (rate <= CHANGE_FAILURE_RATE_THRESHOLDS.medium) return "medium";
-  return "low";
+  if (rate <= CHANGE_FAILURE_RATE_THRESHOLDS.eliteHigh) {
+    return 'high';
+  } // elite/highは区別不可
+  if (rate <= CHANGE_FAILURE_RATE_THRESHOLDS.medium) {
+    return 'medium';
+  }
+  return 'low';
 }
 
 /**
  * MTTR からパフォーマンスレベルを判定
  */
 export function getMTTRLevel(hours: number): PerformanceLevel {
-  if (hours < MTTR_THRESHOLDS.elite) return "elite";
-  if (hours < MTTR_THRESHOLDS.high) return "high";
-  if (hours < MTTR_THRESHOLDS.medium) return "medium";
-  return "low";
+  if (hours < MTTR_THRESHOLDS.elite) {
+    return 'elite';
+  }
+  if (hours < MTTR_THRESHOLDS.high) {
+    return 'high';
+  }
+  if (hours < MTTR_THRESHOLDS.medium) {
+    return 'medium';
+  }
+  return 'low';
 }
 
 /**
  * 頻度カテゴリ（daily/weekly/monthly/yearly）
  * これはパフォーマンスレベルとは別の分類です
  */
-export type FrequencyCategory = "daily" | "weekly" | "monthly" | "yearly";
+export type FrequencyCategory = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 /**
  * Deployment Frequency から頻度カテゴリを判定
  */
 export function getFrequencyCategory(deploysPerDay: number): FrequencyCategory {
-  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.elite) return "daily";
-  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.high) return "weekly";
-  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.medium) return "monthly";
-  return "yearly";
+  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.elite) {
+    return 'daily';
+  }
+  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.high) {
+    return 'weekly';
+  }
+  if (deploysPerDay >= DEPLOYMENT_FREQUENCY_THRESHOLDS.medium) {
+    return 'monthly';
+  }
+  return 'yearly';
 }

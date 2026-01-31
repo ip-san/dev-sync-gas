@@ -3,7 +3,7 @@
  * 本番環境ではGAS実装、テスト環境ではモック実装を注入する
  */
 
-import type { ServiceContainer } from "./interfaces";
+import type { ServiceContainer } from './interfaces';
 
 let container: ServiceContainer | null = null;
 
@@ -21,9 +21,7 @@ export function initializeContainer(services: ServiceContainer): void {
  */
 export function getContainer(): ServiceContainer {
   if (!container) {
-    throw new Error(
-      "Service container not initialized. Call initializeContainer() first."
-    );
+    throw new Error('Service container not initialized. Call initializeContainer() first.');
   }
   return container;
 }

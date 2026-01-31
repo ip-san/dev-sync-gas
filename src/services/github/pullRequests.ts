@@ -12,15 +12,19 @@ import type {
   PRReworkData,
   PRReviewData,
   PRSizeData,
-} from "../../types";
-import { getContainer } from "../../container";
+  GitHubPRResponse,
+  GitHubCommitResponse,
+  GitHubTimelineEventResponse,
+  GitHubReviewResponse,
+} from '../../types';
+import { getContainer } from '../../container';
 import {
   fetchGitHub,
   DEFAULT_MAX_PAGES,
   PER_PAGE,
   STATUS_FETCH_WARNING_THRESHOLD,
   type DateRange,
-} from "./api";
+} from './api';
 
 // =============================================================================
 // PR一覧取得
@@ -38,7 +42,7 @@ import {
 export function getPullRequests(
   repo: GitHubRepository,
   token: string,
-  state: "open" | "closed" | "all" = "all",
+  state: 'open' | 'closed' | 'all' = 'all',
   dateRange?: DateRange,
   maxPages = DEFAULT_MAX_PAGES
 ): ApiResponse<GitHubPullRequest[]> {
@@ -47,31 +51,39 @@ export function getPullRequests(
 
   while (page <= maxPages) {
     const endpoint = `/repos/${repo.fullName}/pulls?state=${state}&per_page=${PER_PAGE}&page=${page}&sort=updated&direction=desc`;
-    const response = fetchGitHub<any[]>(endpoint, token);
+    const response = fetchGitHub<GitHubPRResponse[]>(endpoint, token);
 
     if (!response.success || !response.data) {
-      if (page === 1) return response as ApiResponse<GitHubPullRequest[]>;
+      if (page === 1) {
+        return { success: false, error: response.error };
+      }
       break;
     }
 
-    if (response.data.length === 0) break;
+    if (response.data.length === 0) {
+      break;
+    }
 
     for (const pr of response.data) {
       const createdAt = new Date(pr.created_at);
 
       // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) continue;
-      if (dateRange?.since && createdAt < dateRange.since) continue;
+      if (dateRange?.until && createdAt > dateRange.until) {
+        continue;
+      }
+      if (dateRange?.since && createdAt < dateRange.since) {
+        continue;
+      }
 
       allPRs.push({
         id: pr.id,
         number: pr.number,
         title: pr.title,
-        state: pr.state,
+        state: pr.state as 'open' | 'closed',
         createdAt: pr.created_at,
         mergedAt: pr.merged_at,
         closedAt: pr.closed_at,
-        author: pr.user?.login ?? "unknown",
+        author: pr.user?.login ?? 'unknown',
         repository: repo.fullName,
       });
     }
@@ -96,14 +108,10 @@ export function getPRDetails(
   token: string
 ): ApiResponse<{ additions: number; deletions: number; changedFiles: number }> {
   const endpoint = `/repos/${owner}/${repo}/pulls/${prNumber}`;
-  const response = fetchGitHub<any>(endpoint, token);
+  const response = fetchGitHub<GitHubPRResponse>(endpoint, token);
 
   if (!response.success || !response.data) {
-    return response as ApiResponse<{
-      additions: number;
-      deletions: number;
-      changedFiles: number;
-    }>;
+    return { success: false, error: response.error };
   }
 
   return {
@@ -126,10 +134,10 @@ export function getPullRequestWithBranches(
   token: string
 ): ApiResponse<GitHubPullRequest> {
   const endpoint = `/repos/${owner}/${repo}/pulls/${prNumber}`;
-  const response = fetchGitHub<any>(endpoint, token);
+  const response = fetchGitHub<GitHubPRResponse>(endpoint, token);
 
   if (!response.success || !response.data) {
-    return response as ApiResponse<GitHubPullRequest>;
+    return { success: false, error: response.error };
   }
 
   const pr = response.data;
@@ -139,12 +147,12 @@ export function getPullRequestWithBranches(
       id: pr.id,
       number: pr.number,
       title: pr.title,
-      state: pr.state,
+      state: pr.state as 'open' | 'closed',
       createdAt: pr.created_at,
       closedAt: pr.closed_at,
       mergedAt: pr.merged_at,
       repository: `${owner}/${repo}`,
-      author: pr.user?.login ?? "unknown",
+      author: pr.user?.login ?? 'unknown',
       baseBranch: pr.base?.ref,
       headBranch: pr.head?.ref,
       mergeCommitSha: pr.merge_commit_sha,
@@ -170,22 +178,23 @@ function getPRCommits(
 
   while (page <= DEFAULT_MAX_PAGES) {
     const endpoint = `/repos/${owner}/${repo}/pulls/${prNumber}/commits?per_page=${PER_PAGE}&page=${page}`;
-    const response = fetchGitHub<any[]>(endpoint, token);
+    const response = fetchGitHub<GitHubCommitResponse[]>(endpoint, token);
 
     if (!response.success || !response.data) {
       if (page === 1) {
-        return response as ApiResponse<{ sha: string; date: string }[]>;
+        return { success: false, error: response.error };
       }
       break;
     }
 
-    if (response.data.length === 0) break;
+    if (response.data.length === 0) {
+      break;
+    }
 
     for (const commit of response.data) {
       allCommits.push({
         sha: commit.sha,
-        date:
-          commit.commit?.author?.date ?? commit.commit?.committer?.date ?? "",
+        date: commit.commit?.author?.date ?? commit.commit?.committer?.date ?? '',
       });
     }
 
@@ -209,17 +218,21 @@ function getPRForcePushCount(
 
   while (page <= DEFAULT_MAX_PAGES) {
     const endpoint = `/repos/${owner}/${repo}/issues/${prNumber}/timeline?per_page=${PER_PAGE}&page=${page}`;
-    const response = fetchGitHub<any[]>(endpoint, token);
+    const response = fetchGitHub<GitHubTimelineEventResponse[]>(endpoint, token);
 
     if (!response.success || !response.data) {
-      if (page === 1) return { success: false, error: response.error };
+      if (page === 1) {
+        return { success: false, error: response.error };
+      }
       break;
     }
 
-    if (response.data.length === 0) break;
+    if (response.data.length === 0) {
+      break;
+    }
 
     for (const event of response.data) {
-      if (event.event === "head_ref_force_pushed") {
+      if (event.event === 'head_ref_force_pushed') {
         forcePushCount++;
       }
     }
@@ -245,7 +258,7 @@ export function getReworkDataForPRs(
   const reworkData: PRReworkData[] = [];
 
   for (const pr of pullRequests) {
-    const [owner, repo] = pr.repository.split("/");
+    const [owner, repo] = pr.repository.split('/');
     if (!owner || !repo) {
       logger.log(`  ⚠️ Invalid repository format: ${pr.repository}`);
       continue;
@@ -267,9 +280,7 @@ export function getReworkDataForPRs(
         }
       }
     } else {
-      logger.log(
-        `  ⚠️ Failed to fetch commits for PR #${pr.number}: ${commitsResult.error}`
-      );
+      logger.log(`  ⚠️ Failed to fetch commits for PR #${pr.number}: ${commitsResult.error}`);
     }
 
     // Force Push回数を取得
@@ -314,15 +325,13 @@ export function getPRSizeDataForPRs(
   const sizeData: PRSizeData[] = [];
 
   if (pullRequests.length > STATUS_FETCH_WARNING_THRESHOLD) {
-    logger.log(
-      `  ⚠️ Fetching size data for ${pullRequests.length} PRs. This may take a while.`
-    );
+    logger.log(`  ⚠️ Fetching size data for ${pullRequests.length} PRs. This may take a while.`);
   }
 
   let skippedCount = 0;
 
   for (const pr of pullRequests) {
-    const [owner, repo] = pr.repository.split("/");
+    const [owner, repo] = pr.repository.split('/');
     if (!owner || !repo) {
       logger.log(`  ⚠️ Invalid repository format: ${pr.repository}`);
       skippedCount++;
@@ -332,9 +341,7 @@ export function getPRSizeDataForPRs(
     const detailsResult = getPRDetails(owner, repo, pr.number, token);
 
     if (!detailsResult.success || !detailsResult.data) {
-      logger.log(
-        `  ⚠️ Failed to fetch details for PR #${pr.number}: ${detailsResult.error}`
-      );
+      logger.log(`  ⚠️ Failed to fetch details for PR #${pr.number}: ${detailsResult.error}`);
       skippedCount++;
       continue;
     }
@@ -366,12 +373,7 @@ export function getPRSizeDataForPRs(
 // =============================================================================
 
 /** GitHub Reviewの状態 */
-type ReviewState =
-  | "APPROVED"
-  | "CHANGES_REQUESTED"
-  | "COMMENTED"
-  | "PENDING"
-  | "DISMISSED";
+type ReviewState = 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'PENDING' | 'DISMISSED';
 
 /**
  * PRのレビュー一覧を取得
@@ -382,32 +384,33 @@ function getPRReviews(
   prNumber: number,
   token: string
 ): ApiResponse<{ state: ReviewState; submittedAt: string; user: string }[]> {
-  const allReviews: { state: ReviewState; submittedAt: string; user: string }[] =
-    [];
+  const allReviews: { state: ReviewState; submittedAt: string; user: string }[] = [];
   let page = 1;
 
   while (page <= DEFAULT_MAX_PAGES) {
     const endpoint = `/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=${PER_PAGE}&page=${page}`;
-    const response = fetchGitHub<any[]>(endpoint, token);
+    const response = fetchGitHub<GitHubReviewResponse[]>(endpoint, token);
 
     if (!response.success || !response.data) {
       if (page === 1) {
-        return response as ApiResponse<
-          { state: ReviewState; submittedAt: string; user: string }[]
-        >;
+        return { success: false, error: response.error };
       }
       break;
     }
 
-    if (response.data.length === 0) break;
+    if (response.data.length === 0) {
+      break;
+    }
 
     for (const review of response.data) {
-      if (review.state === "PENDING") continue; // 未提出はスキップ
+      if (review.state === 'PENDING') {
+        continue;
+      } // 未提出はスキップ
 
       allReviews.push({
         state: review.state,
         submittedAt: review.submitted_at,
-        user: review.user?.login ?? "unknown",
+        user: review.user?.login ?? 'unknown',
       });
     }
 
@@ -430,17 +433,21 @@ function getPRReadyForReviewAt(
 
   while (page <= DEFAULT_MAX_PAGES) {
     const endpoint = `/repos/${owner}/${repo}/issues/${prNumber}/timeline?per_page=${PER_PAGE}&page=${page}`;
-    const response = fetchGitHub<any[]>(endpoint, token);
+    const response = fetchGitHub<GitHubTimelineEventResponse[]>(endpoint, token);
 
     if (!response.success || !response.data) {
-      if (page === 1) return { success: false, error: response.error };
+      if (page === 1) {
+        return { success: false, error: response.error };
+      }
       break;
     }
 
-    if (response.data.length === 0) break;
+    if (response.data.length === 0) {
+      break;
+    }
 
     for (const event of response.data) {
-      if (event.event === "ready_for_review") {
+      if (event.event === 'ready_for_review' && event.created_at) {
         return { success: true, data: event.created_at };
       }
     }
@@ -464,7 +471,7 @@ export function getReviewEfficiencyDataForPRs(
   const msToHours = 1000 * 60 * 60;
 
   for (const pr of pullRequests) {
-    const [owner, repo] = pr.repository.split("/");
+    const [owner, repo] = pr.repository.split('/');
     if (!owner || !repo) {
       logger.log(`  ⚠️ Invalid repository format: ${pr.repository}`);
       continue;
@@ -477,9 +484,7 @@ export function getReviewEfficiencyDataForPRs(
     if (readyResult.success && readyResult.data) {
       readyForReviewAt = readyResult.data;
     } else if (!readyResult.success) {
-      logger.log(
-        `  ⚠️ Failed to fetch timeline for PR #${pr.number}: ${readyResult.error}`
-      );
+      logger.log(`  ⚠️ Failed to fetch timeline for PR #${pr.number}: ${readyResult.error}`);
     }
 
     // レビュー一覧を取得
@@ -489,22 +494,19 @@ export function getReviewEfficiencyDataForPRs(
 
     if (reviewsResult.success && reviewsResult.data) {
       const sortedReviews = [...reviewsResult.data].sort(
-        (a, b) =>
-          new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
+        (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
       );
 
       if (sortedReviews.length > 0) {
         firstReviewAt = sortedReviews[0].submittedAt;
       }
 
-      const approvalReview = sortedReviews.find((r) => r.state === "APPROVED");
+      const approvalReview = sortedReviews.find((r) => r.state === 'APPROVED');
       if (approvalReview) {
         approvedAt = approvalReview.submittedAt;
       }
     } else {
-      logger.log(
-        `  ⚠️ Failed to fetch reviews for PR #${pr.number}: ${reviewsResult.error}`
-      );
+      logger.log(`  ⚠️ Failed to fetch reviews for PR #${pr.number}: ${reviewsResult.error}`);
     }
 
     // 各時間を計算
@@ -517,19 +519,14 @@ export function getReviewEfficiencyDataForPRs(
 
     if (firstReviewAt) {
       const hours =
-        Math.round(
-          ((new Date(firstReviewAt).getTime() - readyAt) / msToHours) * 10
-        ) / 10;
+        Math.round(((new Date(firstReviewAt).getTime() - readyAt) / msToHours) * 10) / 10;
       timeToFirstReviewHours = hours;
     }
 
     if (firstReviewAt && approvedAt) {
       const hours =
         Math.round(
-          ((new Date(approvedAt).getTime() -
-            new Date(firstReviewAt).getTime()) /
-            msToHours) *
-            10
+          ((new Date(approvedAt).getTime() - new Date(firstReviewAt).getTime()) / msToHours) * 10
         ) / 10;
       reviewDurationHours = hours;
     }
@@ -537,18 +534,13 @@ export function getReviewEfficiencyDataForPRs(
     if (approvedAt && pr.mergedAt) {
       const hours =
         Math.round(
-          ((new Date(pr.mergedAt).getTime() - new Date(approvedAt).getTime()) /
-            msToHours) *
-            10
+          ((new Date(pr.mergedAt).getTime() - new Date(approvedAt).getTime()) / msToHours) * 10
         ) / 10;
       timeToMergeHours = hours;
     }
 
     if (pr.mergedAt) {
-      const hours =
-        Math.round(
-          ((new Date(pr.mergedAt).getTime() - readyAt) / msToHours) * 10
-        ) / 10;
+      const hours = Math.round(((new Date(pr.mergedAt).getTime() - readyAt) / msToHours) * 10) / 10;
       totalTimeHours = hours;
     }
 
@@ -581,10 +573,10 @@ export function findPRContainingCommit(
   token: string
 ): ApiResponse<GitHubPullRequest | null> {
   const endpoint = `/repos/${owner}/${repo}/commits/${commitSha}/pulls`;
-  const response = fetchGitHub<any[]>(endpoint, token);
+  const response = fetchGitHub<GitHubPRResponse[]>(endpoint, token);
 
   if (!response.success) {
-    if (response.error?.includes("404")) {
+    if (response.error?.includes('404')) {
       return { success: true, data: null };
     }
     return { success: false, error: response.error };
@@ -595,8 +587,8 @@ export function findPRContainingCommit(
   }
 
   // マージ済みのPRを優先
-  const mergedPR = response.data.find((pr: any) => pr.merged_at !== null);
-  const targetPR = mergedPR || response.data[0];
+  const mergedPR = response.data.find((pr) => pr.merged_at !== null);
+  const targetPR = mergedPR ?? response.data[0];
 
   return {
     success: true,
@@ -604,12 +596,12 @@ export function findPRContainingCommit(
       id: targetPR.id,
       number: targetPR.number,
       title: targetPR.title,
-      state: targetPR.state,
+      state: targetPR.state as 'open' | 'closed',
       createdAt: targetPR.created_at,
       closedAt: targetPR.closed_at,
       mergedAt: targetPR.merged_at,
       repository: `${owner}/${repo}`,
-      author: targetPR.user?.login ?? "unknown",
+      author: targetPR.user?.login ?? 'unknown',
       baseBranch: targetPR.base?.ref,
       headBranch: targetPR.head?.ref,
       mergeCommitSha: targetPR.merge_commit_sha,

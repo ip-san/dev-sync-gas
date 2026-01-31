@@ -5,7 +5,7 @@
 
 // HTTP通信の抽象化
 export interface HttpRequestOptions {
-  method?: "get" | "post" | "put" | "patch" | "delete";
+  method?: 'get' | 'post' | 'put' | 'patch' | 'delete';
   headers?: Record<string, string>;
   payload?: string;
   muteHttpExceptions?: boolean;
@@ -25,7 +25,7 @@ export interface HttpClient {
 export interface SheetRange {
   getValues(): unknown[][];
   setValues(values: unknown[][]): void;
-  setFontWeight(weight: "bold" | "normal" | null): void;
+  setFontWeight(weight: 'bold' | 'normal' | null): void;
   setNumberFormat(format: string): void;
 }
 

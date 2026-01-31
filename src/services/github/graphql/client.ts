@@ -7,15 +7,15 @@
  * - ネストしたデータを1回のリクエストで取得可能
  */
 
-import type { ApiResponse } from "../../../types";
-import { getContainer } from "../../../container";
+import type { ApiResponse } from '../../../types';
+import { getContainer } from '../../../container';
 
 // =============================================================================
 // 定数
 // =============================================================================
 
 /** GitHub GraphQL API エンドポイント */
-export const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
+export const GITHUB_GRAPHQL_ENDPOINT = 'https://api.github.com/graphql';
 
 /** デフォルトのページサイズ（GraphQL推奨値） */
 export const DEFAULT_PAGE_SIZE = 100;
@@ -88,19 +88,16 @@ export function executeGraphQL<T>(
   const { httpClient, logger } = getContainer();
 
   try {
-    const response = httpClient.fetch<GraphQLResponse<T>>(
-      GITHUB_GRAPHQL_ENDPOINT,
-      {
-        method: "post",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          "User-Agent": "DevSyncGAS",
-        },
-        payload: JSON.stringify({ query, variables }),
-        muteHttpExceptions: true,
-      }
-    );
+    const response = httpClient.fetch<GraphQLResponse<T>>(GITHUB_GRAPHQL_ENDPOINT, {
+      method: 'post',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'DevSyncGAS',
+      },
+      payload: JSON.stringify({ query, variables }),
+      muteHttpExceptions: true,
+    });
 
     if (response.statusCode !== 200) {
       return {
@@ -114,20 +111,16 @@ export function executeGraphQL<T>(
     if (!result) {
       return {
         success: false,
-        error: "Empty response from GraphQL API",
+        error: 'Empty response from GraphQL API',
       };
     }
 
     // GraphQL エラーをチェック
     if (result.errors && result.errors.length > 0) {
-      const errorMessages = result.errors
-        .map((e) => e.message)
-        .join("; ");
+      const errorMessages = result.errors.map((e) => e.message).join('; ');
 
       // RATE_LIMITED エラーの場合は特別処理
-      const rateLimitError = result.errors.find(
-        (e) => e.type === "RATE_LIMITED"
-      );
+      const rateLimitError = result.errors.find((e) => e.type === 'RATE_LIMITED');
       if (rateLimitError) {
         return {
           success: false,
@@ -150,7 +143,7 @@ export function executeGraphQL<T>(
     if (!result.data) {
       return {
         success: false,
-        error: "No data in GraphQL response",
+        error: 'No data in GraphQL response',
       };
     }
 
@@ -158,7 +151,7 @@ export function executeGraphQL<T>(
   } catch (error) {
     return {
       success: false,
-      error: `GraphQL request failed: ${error}`,
+      error: `GraphQL request failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -179,7 +172,7 @@ export function executeGraphQLWithRetry<T>(
   maxRetries: number = MAX_RETRIES
 ): ApiResponse<T> {
   const { logger } = getContainer();
-  let lastError = "";
+  let lastError = '';
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
@@ -194,19 +187,19 @@ export function executeGraphQLWithRetry<T>(
       return result;
     }
 
-    lastError = result.error ?? "Unknown error";
+    lastError = result.error ?? 'Unknown error';
 
     // レート制限エラーの場合は長めに待つ
-    if (lastError.includes("Rate limited")) {
-      logger.log("  ⏳ Rate limited, waiting longer...");
+    if (lastError.includes('Rate limited')) {
+      logger.log('  ⏳ Rate limited, waiting longer...');
       Utilities.sleep(RETRY_DELAY_MS * 10);
     }
 
     // リトライ不可能なエラーの場合は即座に終了
     if (
-      lastError.includes("NOT_FOUND") ||
-      lastError.includes("FORBIDDEN") ||
-      lastError.includes("401")
+      lastError.includes('NOT_FOUND') ||
+      lastError.includes('FORBIDDEN') ||
+      lastError.includes('401')
     ) {
       return result;
     }

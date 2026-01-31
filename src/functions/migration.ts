@@ -5,9 +5,9 @@
  * マイグレーションに関するGASエントリーポイント関数を提供。
  */
 
-import { getConfig } from "../config/settings";
-import { getContainer } from "../container";
-import { ALL_SCHEMAS, findSchemaBySheetName } from "../schemas";
+import { getConfig } from '../config/settings';
+import { getContainer } from '../container';
+import { ALL_SCHEMAS, findSchemaBySheetName } from '../schemas';
 import {
   getMigrationPreview,
   migrateSheetSchema,
@@ -16,8 +16,8 @@ import {
   logMigrationResult,
   logMigrationSummary,
   logBackupCleanupInstructions,
-} from "../services/migration";
-import { ensureContainerInitialized } from "./helpers";
+} from '../services/migration';
+import { ensureContainerInitialized } from './helpers';
 
 /**
  * 全シートのマイグレーションをプレビュー（ドライラン）
@@ -28,15 +28,15 @@ export function previewMigration(): void {
   const { spreadsheetClient, logger } = getContainer();
   const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
 
-  logger.log("=== Schema Migration Preview ===");
-  logger.log("This is a dry run. No changes will be made.\n");
+  logger.log('=== Schema Migration Preview ===');
+  logger.log('This is a dry run. No changes will be made.\n');
 
   for (const schema of ALL_SCHEMAS) {
     const preview = getMigrationPreview(spreadsheet, schema);
     logMigrationPreview(preview);
   }
 
-  logger.log("\nTo apply migrations, run: migrateAllSchemas()");
+  logger.log('\nTo apply migrations, run: migrateAllSchemas()');
 }
 
 /**
@@ -48,7 +48,7 @@ export function migrateAllSchemas(): void {
   const { spreadsheetClient, logger } = getContainer();
   const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
 
-  logger.log("=== Starting Schema Migration ===\n");
+  logger.log('=== Starting Schema Migration ===\n');
 
   const results = ALL_SCHEMAS.map((schema) => {
     logger.log(`Migrating: ${schema.sheetName}...`);
@@ -71,7 +71,7 @@ export function migrateSheet(sheetName: string): void {
   const schema = findSchemaBySheetName(sheetName);
   if (!schema) {
     logger.log(`❌ Error: Unknown sheet name: ${sheetName}`);
-    logger.log("Available sheets:");
+    logger.log('Available sheets:');
     ALL_SCHEMAS.forEach((s) => logger.log(`  - ${s.sheetName}`));
     return;
   }
@@ -90,7 +90,7 @@ export function updateHeadersOnly(): void {
   const { spreadsheetClient, logger } = getContainer();
   const spreadsheet = spreadsheetClient.openById(config.spreadsheet.id);
 
-  logger.log("=== Updating Headers Only ===\n");
+  logger.log('=== Updating Headers Only ===\n');
 
   const results = ALL_SCHEMAS.map((schema) => {
     logger.log(`Updating headers: ${schema.sheetName}...`);

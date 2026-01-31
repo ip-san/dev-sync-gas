@@ -26,13 +26,8 @@ export {
   GITHUB_GRAPHQL_ENDPOINT,
   DEFAULT_PAGE_SIZE,
   MAX_RETRIES,
-} from "./client";
-export type {
-  GraphQLError,
-  GraphQLResponse,
-  PageInfo,
-  RateLimitInfo,
-} from "./client";
+} from './client';
+export type { GraphQLError, GraphQLResponse, PageInfo, RateLimitInfo } from './client';
 
 // Pull Request 操作
 export {
@@ -42,14 +37,11 @@ export {
   getReworkDataForPRsGraphQL,
   getPRSizeDataForPRsGraphQL,
   getReviewEfficiencyDataForPRsGraphQL,
-} from "./pullRequests";
+} from './pullRequests';
 
 // Deployment 操作
-export { getDeploymentsGraphQL } from "./deployments";
-export type {
-  EnvironmentMatchMode,
-  GetDeploymentsOptions,
-} from "./deployments";
+export { getDeploymentsGraphQL } from './deployments';
+export type { EnvironmentMatchMode, GetDeploymentsOptions } from './deployments';
 
 // Issue 操作
 export {
@@ -59,7 +51,7 @@ export {
   trackToProductionMergeGraphQL,
   getCycleTimeDataGraphQL,
   getCodingTimeDataGraphQL,
-} from "./issues";
+} from './issues';
 
 // 型定義
 export type {
@@ -81,7 +73,7 @@ export type {
   GraphQLIssue,
   CrossReferencedEvent,
   GraphQLIssueWithLinkedPRs,
-} from "./types";
+} from './types';
 
 // =============================================================================
 // 複合機能（REST API互換）
@@ -92,13 +84,13 @@ import type {
   GitHubWorkflowRun,
   GitHubDeployment,
   GitHubRepository,
-} from "../../../types";
-import { getContainer } from "../../../container";
-import { getPullRequestsGraphQL } from "./pullRequests";
-import { getDeploymentsGraphQL } from "./deployments";
-import { getWorkflowRuns } from "../deployments"; // ワークフローはREST APIを継続使用
-import type { DateRange } from "../api";
-import type { EnvironmentMatchMode } from "./deployments";
+} from '../../../types';
+import { getContainer } from '../../../container';
+import { getPullRequestsGraphQL } from './pullRequests';
+import { getDeploymentsGraphQL } from './deployments';
+import { getWorkflowRuns } from '../deployments'; // ワークフローはREST APIを継続使用
+import type { DateRange } from '../api';
+import type { EnvironmentMatchMode } from './deployments';
 
 /**
  * 複数リポジトリからデータを一括取得する際のオプション
@@ -129,8 +121,8 @@ export function getAllRepositoriesDataGraphQL(
 } {
   const {
     dateRange,
-    deploymentEnvironment = "production",
-    deploymentEnvironmentMatchMode = "exact",
+    deploymentEnvironment = 'production',
+    deploymentEnvironmentMatchMode = 'exact',
   } = options;
   const { logger } = getContainer();
 
@@ -142,7 +134,7 @@ export function getAllRepositoriesDataGraphQL(
     logger.log(`📡 Fetching data for ${repo.fullName} (GraphQL)...`);
 
     // PRを取得（GraphQL）
-    const prsResult = getPullRequestsGraphQL(repo, token, "all", dateRange);
+    const prsResult = getPullRequestsGraphQL(repo, token, 'all', dateRange);
     if (prsResult.success && prsResult.data) {
       allPRs.push(...prsResult.data);
       logger.log(`  PRs: ${prsResult.data.length}`);

@@ -4,12 +4,12 @@
  * 各指標の詳細データをログ出力するデバッグ用関数を提供。
  */
 
-import { getConfig, getGitHubToken, getGitHubAuthMode } from "../config/settings";
+import { getConfig, getGitHubToken, getGitHubAuthMode } from '../config/settings';
 import {
   getProductionBranchPattern,
   getCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
-} from "../config/settings";
+} from '../config/settings';
 import {
   getPullRequests,
   getCycleTimeData,
@@ -17,21 +17,21 @@ import {
   getReworkDataForPRs,
   getReviewEfficiencyDataForPRs,
   getPRSizeDataForPRs,
-} from "../services/github";
+} from '../services/github';
 import {
   calculateCycleTime,
   calculateCodingTime,
   calculateReworkRate,
   calculateReviewEfficiency,
   calculatePRSize,
-} from "../utils/metrics";
+} from '../utils/metrics';
 import {
   ensureContainerInitialized,
   createDateRange,
   checkAuthConfigured,
   checkRepositoriesConfigured,
-} from "./helpers";
-import type { GitHubPullRequest } from "../types";
+} from './helpers';
+import type { GitHubPullRequest } from '../types';
 
 // =============================================================================
 // サイクルタイム詳細
@@ -42,8 +42,12 @@ export function showCycleTimeDetails(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!checkAuthConfigured(getGitHubAuthMode())) return;
-  if (!checkRepositoriesConfigured(config.github.repositories.length)) return;
+  if (!checkAuthConfigured(getGitHubAuthMode())) {
+    return;
+  }
+  if (!checkRepositoriesConfigured(config.github.repositories.length)) {
+    return;
+  }
 
   const token = getGitHubToken();
   const { startDateStr, endDateStr, period } = createDateRange(days);
@@ -63,9 +67,7 @@ export function showCycleTimeDetails(days = 30): void {
 
   const metrics = calculateCycleTime(result.data, period);
 
-  Logger.log(
-    `\n📋 Issue Details (${metrics.completedTaskCount} issues with production merge):\n`
-  );
+  Logger.log(`\n📋 Issue Details (${metrics.completedTaskCount} issues with production merge):\n`);
 
   metrics.issueDetails.forEach((issue, i) => {
     const daysValue = (issue.cycleTimeHours / 24).toFixed(1);
@@ -87,8 +89,12 @@ export function showCodingTimeDetails(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
 
-  if (!checkAuthConfigured(getGitHubAuthMode())) return;
-  if (!checkRepositoriesConfigured(config.github.repositories.length)) return;
+  if (!checkAuthConfigured(getGitHubAuthMode())) {
+    return;
+  }
+  if (!checkRepositoriesConfigured(config.github.repositories.length)) {
+    return;
+  }
 
   const token = getGitHubToken();
   const { startDateStr, endDateStr, period } = createDateRange(days);
@@ -106,9 +112,7 @@ export function showCodingTimeDetails(days = 30): void {
 
   const metrics = calculateCodingTime(result.data, period);
 
-  Logger.log(
-    `\n📋 Coding Time Details (${metrics.issueCount} issues with linked PRs):\n`
-  );
+  Logger.log(`\n📋 Coding Time Details (${metrics.issueCount} issues with linked PRs):\n`);
 
   metrics.issueDetails.forEach((issue, i) => {
     const daysValue = (issue.codingTimeHours / 24).toFixed(1);
@@ -127,8 +131,12 @@ export function showCodingTimeDetails(days = 30): void {
 function fetchMergedPRsForDebug(days: number): GitHubPullRequest[] | null {
   const config = getConfig();
 
-  if (!checkAuthConfigured(getGitHubAuthMode())) return null;
-  if (!checkRepositoriesConfigured(config.github.repositories.length)) return null;
+  if (!checkAuthConfigured(getGitHubAuthMode())) {
+    return null;
+  }
+  if (!checkRepositoriesConfigured(config.github.repositories.length)) {
+    return null;
+  }
 
   const token = getGitHubToken();
   const { startDate, endDate } = createDateRange(days);
@@ -136,7 +144,7 @@ function fetchMergedPRsForDebug(days: number): GitHubPullRequest[] | null {
   const allPRs: GitHubPullRequest[] = [];
 
   for (const repo of config.github.repositories) {
-    const result = getPullRequests(repo, token, "all", {
+    const result = getPullRequests(repo, token, 'all', {
       since: startDate,
       until: endDate,
     });
@@ -159,7 +167,9 @@ export function showReworkRateDetails(days = 30): void {
   ensureContainerInitialized();
 
   const allPRs = fetchMergedPRsForDebug(days);
-  if (!allPRs || allPRs.length === 0) return;
+  if (!allPRs || allPRs.length === 0) {
+    return;
+  }
 
   const token = getGitHubToken();
   const reworkData = getReworkDataForPRs(allPRs, token);
@@ -185,7 +195,9 @@ export function showReviewEfficiencyDetails(days = 30): void {
   ensureContainerInitialized();
 
   const allPRs = fetchMergedPRsForDebug(days);
-  if (!allPRs || allPRs.length === 0) return;
+  if (!allPRs || allPRs.length === 0) {
+    return;
+  }
 
   const token = getGitHubToken();
   const reviewData = getReviewEfficiencyDataForPRs(allPRs, token);
@@ -198,13 +210,13 @@ export function showReviewEfficiencyDetails(days = 30): void {
     Logger.log(`${i + 1}. PR #${pr.prNumber}: ${pr.title}`);
     Logger.log(`   Repository: ${pr.repository}`);
     Logger.log(`   Ready for Review: ${pr.readyForReviewAt}`);
-    Logger.log(`   First Review: ${pr.firstReviewAt ?? "N/A"}`);
-    Logger.log(`   Approved: ${pr.approvedAt ?? "N/A"}`);
-    Logger.log(`   Merged: ${pr.mergedAt ?? "Not merged"}`);
-    Logger.log(`   Time to First Review: ${pr.timeToFirstReviewHours ?? "N/A"}h`);
-    Logger.log(`   Review Duration: ${pr.reviewDurationHours ?? "N/A"}h`);
-    Logger.log(`   Time to Merge: ${pr.timeToMergeHours ?? "N/A"}h`);
-    Logger.log(`   Total Time: ${pr.totalTimeHours ?? "N/A"}h\n`);
+    Logger.log(`   First Review: ${pr.firstReviewAt ?? 'N/A'}`);
+    Logger.log(`   Approved: ${pr.approvedAt ?? 'N/A'}`);
+    Logger.log(`   Merged: ${pr.mergedAt ?? 'Not merged'}`);
+    Logger.log(`   Time to First Review: ${pr.timeToFirstReviewHours ?? 'N/A'}h`);
+    Logger.log(`   Review Duration: ${pr.reviewDurationHours ?? 'N/A'}h`);
+    Logger.log(`   Time to Merge: ${pr.timeToMergeHours ?? 'N/A'}h`);
+    Logger.log(`   Total Time: ${pr.totalTimeHours ?? 'N/A'}h\n`);
   });
 }
 
@@ -217,7 +229,9 @@ export function showPRSizeDetails(days = 30): void {
   ensureContainerInitialized();
 
   const allPRs = fetchMergedPRsForDebug(days);
-  if (!allPRs || allPRs.length === 0) return;
+  if (!allPRs || allPRs.length === 0) {
+    return;
+  }
 
   const token = getGitHubToken();
   const sizeData = getPRSizeDataForPRs(allPRs, token);
@@ -231,6 +245,6 @@ export function showPRSizeDetails(days = 30): void {
     Logger.log(`   Repository: ${pr.repository}`);
     Logger.log(`   Lines of Code: ${pr.linesOfCode} (+${pr.additions}/-${pr.deletions})`);
     Logger.log(`   Files Changed: ${pr.filesChanged}`);
-    Logger.log(`   Merged: ${pr.mergedAt ?? "Not merged"}\n`);
+    Logger.log(`   Merged: ${pr.mergedAt ?? 'Not merged'}\n`);
   });
 }

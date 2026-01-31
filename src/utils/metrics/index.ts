@@ -20,7 +20,7 @@ export {
   calculateMetricsForRepository,
   type LeadTimeResult,
   type IncidentMetricsResult,
-} from "./dora";
+} from './dora';
 
 // 拡張指標
 export {
@@ -29,11 +29,11 @@ export {
   calculateReworkRate,
   calculateReviewEfficiency,
   calculatePRSize,
-} from "./extended";
+} from './extended';
 
 // 複数リポジトリ横断集計
 export {
   aggregateMultiRepoMetrics,
   type RepositorySummary,
   type AggregatedSummary,
-} from "./aggregate";
+} from './aggregate';

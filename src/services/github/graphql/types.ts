@@ -4,7 +4,7 @@
  * GraphQLクエリのレスポンスをTypeScriptの型として定義。
  */
 
-import type { PageInfo } from "./client";
+import type { PageInfo } from './client';
 
 // =============================================================================
 // 共通型
@@ -39,17 +39,12 @@ export interface Actor {
 /**
  * Pull Request状態
  */
-export type PullRequestState = "OPEN" | "CLOSED" | "MERGED";
+export type PullRequestState = 'OPEN' | 'CLOSED' | 'MERGED';
 
 /**
  * レビュー状態
  */
-export type ReviewState =
-  | "APPROVED"
-  | "CHANGES_REQUESTED"
-  | "COMMENTED"
-  | "PENDING"
-  | "DISMISSED";
+export type ReviewState = 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'PENDING' | 'DISMISSED';
 
 /**
  * GraphQL Pull Requestノード
@@ -133,30 +128,30 @@ export interface PullRequestDetailQueryResponse {
  * デプロイメント状態
  */
 export type DeploymentState =
-  | "ABANDONED"
-  | "ACTIVE"
-  | "DESTROYED"
-  | "ERROR"
-  | "FAILURE"
-  | "INACTIVE"
-  | "IN_PROGRESS"
-  | "PENDING"
-  | "QUEUED"
-  | "SUCCESS"
-  | "WAITING";
+  | 'ABANDONED'
+  | 'ACTIVE'
+  | 'DESTROYED'
+  | 'ERROR'
+  | 'FAILURE'
+  | 'INACTIVE'
+  | 'IN_PROGRESS'
+  | 'PENDING'
+  | 'QUEUED'
+  | 'SUCCESS'
+  | 'WAITING';
 
 /**
  * デプロイメントステータス状態
  */
 export type DeploymentStatusState =
-  | "ERROR"
-  | "FAILURE"
-  | "IN_PROGRESS"
-  | "INACTIVE"
-  | "PENDING"
-  | "QUEUED"
-  | "SUCCESS"
-  | "WAITING";
+  | 'ERROR'
+  | 'FAILURE'
+  | 'IN_PROGRESS'
+  | 'INACTIVE'
+  | 'PENDING'
+  | 'QUEUED'
+  | 'SUCCESS'
+  | 'WAITING';
 
 /**
  * GraphQL Deploymentノード
@@ -189,7 +184,7 @@ export interface DeploymentsQueryResponse {
 /**
  * Issue状態
  */
-export type IssueState = "OPEN" | "CLOSED";
+export type IssueState = 'OPEN' | 'CLOSED';
 
 /**
  * ラベルノード

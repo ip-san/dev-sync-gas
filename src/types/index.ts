@@ -21,7 +21,7 @@ export type {
   PRChainItem,
   IssueCycleTime,
   IssueCodingTime,
-} from "./github";
+} from './github';
 
 // DevOps指標の型
 export type {
@@ -44,15 +44,25 @@ export type {
   DevOpsMetrics,
   AggregatedMetrics,
   MetricsSummary,
-} from "./metrics";
+} from './metrics';
 
 // 設定関連の型
-export type {
-  GitHubAppConfig,
-  GitHubAuthConfig,
-  ProjectGroup,
-  Config,
-} from "./config";
+export type { GitHubAppConfig, GitHubAuthConfig, ProjectGroup, Config } from './config';
 
 // API関連の型
-export type { ApiResponse } from "./api";
+export type { ApiResponse } from './api';
+
+// GitHub API レスポンス型
+export type {
+  GitHubPRResponse,
+  GitHubCommitResponse,
+  GitHubTimelineEventResponse,
+  GitHubReviewResponse,
+  GitHubIssueResponse,
+  GitHubDeploymentResponse,
+  GitHubDeploymentStatusResponse,
+  GitHubWorkflowRunResponse,
+  GitHubWorkflowRunsResponse,
+  GitHubEventResponse,
+  GitHubTimelineCrossReferenceEvent,
+} from './github-api';

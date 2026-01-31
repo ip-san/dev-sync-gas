@@ -1,13 +1,13 @@
-import type { Config, GitHubRepository, GitHubAppConfig, ProjectGroup } from "../types";
-import { getContainer } from "../container";
-import { resolveGitHubToken } from "../services/githubAuth";
+import type { Config, GitHubRepository, GitHubAppConfig, ProjectGroup } from '../types';
+import { getContainer } from '../container';
+import { resolveGitHubToken } from '../services/githubAuth';
 
 // =============================================================================
 // API モード設定
 // =============================================================================
 
 /** GitHub APIモード */
-export type GitHubApiMode = "rest" | "graphql";
+export type GitHubApiMode = 'rest' | 'graphql';
 
 /**
  * GitHub APIモードを取得
@@ -15,8 +15,8 @@ export type GitHubApiMode = "rest" | "graphql";
  */
 export function getGitHubApiMode(): GitHubApiMode {
   const { storageClient } = getContainer();
-  const mode = storageClient.getProperty("GITHUB_API_MODE");
-  return mode === "rest" ? "rest" : "graphql";
+  const mode = storageClient.getProperty('GITHUB_API_MODE');
+  return mode === 'rest' ? 'rest' : 'graphql';
 }
 
 /**
@@ -25,7 +25,7 @@ export function getGitHubApiMode(): GitHubApiMode {
  */
 export function setGitHubApiMode(mode: GitHubApiMode): void {
   const { storageClient } = getContainer();
-  storageClient.setProperty("GITHUB_API_MODE", mode);
+  storageClient.setProperty('GITHUB_API_MODE', mode);
 }
 
 /**
@@ -33,107 +33,115 @@ export function setGitHubApiMode(mode: GitHubApiMode): void {
  */
 export function resetGitHubApiMode(): void {
   const { storageClient } = getContainer();
-  storageClient.deleteProperty("GITHUB_API_MODE");
+  storageClient.deleteProperty('GITHUB_API_MODE');
 }
 
 /**
  * GitHub認証モードを判定
  * @returns "app" | "pat" | "none"
  */
-export function getGitHubAuthMode(): "app" | "pat" | "none" {
+export function getGitHubAuthMode(): 'app' | 'pat' | 'none' {
   const { storageClient } = getContainer();
 
-  const appId = storageClient.getProperty("GITHUB_APP_ID");
-  const privateKey = storageClient.getProperty("GITHUB_APP_PRIVATE_KEY");
-  const installationId = storageClient.getProperty("GITHUB_APP_INSTALLATION_ID");
+  const appId = storageClient.getProperty('GITHUB_APP_ID');
+  const privateKey = storageClient.getProperty('GITHUB_APP_PRIVATE_KEY');
+  const installationId = storageClient.getProperty('GITHUB_APP_INSTALLATION_ID');
 
   if (appId && privateKey && installationId) {
-    return "app";
+    return 'app';
   }
 
-  const token = storageClient.getProperty("GITHUB_TOKEN");
+  const token = storageClient.getProperty('GITHUB_TOKEN');
   if (token) {
-    return "pat";
+    return 'pat';
   }
 
-  return "none";
+  return 'none';
 }
 
 export function getConfig(): Config {
   const { storageClient } = getContainer();
 
-  const spreadsheetId = storageClient.getProperty("SPREADSHEET_ID");
-  const sheetName = storageClient.getProperty("SHEET_NAME") ?? "DevOps Metrics";
-  const repositoriesJson = storageClient.getProperty("GITHUB_REPOSITORIES");
-  const projectsJson = storageClient.getProperty("PROJECTS");
+  const spreadsheetId = storageClient.getProperty('SPREADSHEET_ID');
+  const sheetName = storageClient.getProperty('SHEET_NAME') ?? 'DevOps Metrics';
+  const repositoriesJson = storageClient.getProperty('GITHUB_REPOSITORIES');
+  const projectsJson = storageClient.getProperty('PROJECTS');
 
   // projectsが設定されている場合はそちらを使用、なければ従来の単一スプレッドシート設定
-  const projects: ProjectGroup[] = projectsJson ? JSON.parse(projectsJson) : [];
+  const projects: ProjectGroup[] = projectsJson ? (JSON.parse(projectsJson) as ProjectGroup[]) : [];
 
   // projectsがない場合は従来の設定が必須
   if (projects.length === 0 && !spreadsheetId) {
     throw new Error(
-      "SPREADSHEET_ID is not set\n" +
-      "→ setup('GITHUB_TOKEN', 'SPREADSHEET_ID') または setupWithGitHubApp() で設定してください\n" +
-      "→ 複数スプレッドシートを使う場合は createProject() でプロジェクトを作成してください\n" +
-      "→ 設定状況を確認するには checkConfig() を実行してください"
+      'SPREADSHEET_ID is not set\n' +
+        "→ setup('GITHUB_TOKEN', 'SPREADSHEET_ID') または setupWithGitHubApp() で設定してください\n" +
+        '→ 複数スプレッドシートを使う場合は createProject() でプロジェクトを作成してください\n' +
+        '→ 設定状況を確認するには checkConfig() を実行してください'
     );
   }
 
   const repositories: GitHubRepository[] = repositoriesJson
-    ? JSON.parse(repositoriesJson)
+    ? (JSON.parse(repositoriesJson) as GitHubRepository[])
     : [];
 
   const authMode = getGitHubAuthMode();
 
-  if (authMode === "none") {
+  if (authMode === 'none') {
     // 部分的に設定されているか確認して、より詳細なエラーを出す
-    const appId = storageClient.getProperty("GITHUB_APP_ID");
-    const privateKey = storageClient.getProperty("GITHUB_APP_PRIVATE_KEY");
-    const installationId = storageClient.getProperty("GITHUB_APP_INSTALLATION_ID");
+    const appId = storageClient.getProperty('GITHUB_APP_ID');
+    const privateKey = storageClient.getProperty('GITHUB_APP_PRIVATE_KEY');
+    const installationId = storageClient.getProperty('GITHUB_APP_INSTALLATION_ID');
 
-    if (appId || privateKey || installationId) {
+    // 部分的に設定されているかチェック（||はブール値コンテキストなので適切）
+    const hasPartialConfig = appId !== null || privateKey !== null || installationId !== null;
+    if (hasPartialConfig) {
       const missing: string[] = [];
-      if (!appId) missing.push("App ID");
-      if (!privateKey) missing.push("Private Key");
-      if (!installationId) missing.push("Installation ID");
+      if (!appId) {
+        missing.push('App ID');
+      }
+      if (!privateKey) {
+        missing.push('Private Key');
+      }
+      if (!installationId) {
+        missing.push('Installation ID');
+      }
 
       throw new Error(
-        `GitHub Apps設定が不完全です（${missing.join(", ")} が未設定）\n` +
-        "→ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください\n" +
-        "→ 設定状況を確認するには checkConfig() を実行してください"
+        `GitHub Apps設定が不完全です（${missing.join(', ')} が未設定）\n` +
+          '→ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください\n' +
+          '→ 設定状況を確認するには checkConfig() を実行してください'
       );
     }
 
     throw new Error(
-      "GitHub認証が設定されていません\n" +
-      "→ PAT認証: setup('GITHUB_TOKEN', 'SPREADSHEET_ID')\n" +
-      "→ GitHub Apps認証: setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId)\n" +
-      "→ 設定状況を確認するには checkConfig() を実行してください"
+      'GitHub認証が設定されていません\n' +
+        "→ PAT認証: setup('GITHUB_TOKEN', 'SPREADSHEET_ID')\n" +
+        '→ GitHub Apps認証: setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId)\n' +
+        '→ 設定状況を確認するには checkConfig() を実行してください'
     );
   }
 
   // GitHub Apps認証
-  if (authMode === "app") {
+  if (authMode === 'app') {
     const appConfig: GitHubAppConfig = {
-      appId: storageClient.getProperty("GITHUB_APP_ID")!,
-      privateKey: storageClient.getProperty("GITHUB_APP_PRIVATE_KEY")!,
-      installationId: storageClient.getProperty("GITHUB_APP_INSTALLATION_ID")!,
+      appId: storageClient.getProperty('GITHUB_APP_ID')!,
+      privateKey: storageClient.getProperty('GITHUB_APP_PRIVATE_KEY')!,
+      installationId: storageClient.getProperty('GITHUB_APP_INSTALLATION_ID')!,
     };
 
     return {
       github: { appConfig, repositories },
-      spreadsheet: { id: spreadsheetId ?? "", sheetName },
+      spreadsheet: { id: spreadsheetId ?? '', sheetName },
       projects: projects.length > 0 ? projects : undefined,
     };
   }
 
   // PAT認証
-  const githubToken = storageClient.getProperty("GITHUB_TOKEN")!;
+  const githubToken = storageClient.getProperty('GITHUB_TOKEN')!;
 
   return {
     github: { token: githubToken, repositories },
-    spreadsheet: { id: spreadsheetId ?? "", sheetName },
+    spreadsheet: { id: spreadsheetId ?? '', sheetName },
     projects: projects.length > 0 ? projects : undefined,
   };
 }
@@ -142,24 +150,24 @@ export function setConfig(config: Partial<Config>): void {
   const { storageClient } = getContainer();
 
   if (config.github?.token) {
-    storageClient.setProperty("GITHUB_TOKEN", config.github.token);
+    storageClient.setProperty('GITHUB_TOKEN', config.github.token);
   }
   if (config.github?.appConfig) {
-    storageClient.setProperty("GITHUB_APP_ID", config.github.appConfig.appId);
-    storageClient.setProperty("GITHUB_APP_PRIVATE_KEY", config.github.appConfig.privateKey);
-    storageClient.setProperty("GITHUB_APP_INSTALLATION_ID", config.github.appConfig.installationId);
+    storageClient.setProperty('GITHUB_APP_ID', config.github.appConfig.appId);
+    storageClient.setProperty('GITHUB_APP_PRIVATE_KEY', config.github.appConfig.privateKey);
+    storageClient.setProperty('GITHUB_APP_INSTALLATION_ID', config.github.appConfig.installationId);
   }
   if (config.github?.repositories) {
-    storageClient.setProperty("GITHUB_REPOSITORIES", JSON.stringify(config.github.repositories));
+    storageClient.setProperty('GITHUB_REPOSITORIES', JSON.stringify(config.github.repositories));
   }
   if (config.spreadsheet?.id) {
-    storageClient.setProperty("SPREADSHEET_ID", config.spreadsheet.id);
+    storageClient.setProperty('SPREADSHEET_ID', config.spreadsheet.id);
   }
   if (config.spreadsheet?.sheetName) {
-    storageClient.setProperty("SHEET_NAME", config.spreadsheet.sheetName);
+    storageClient.setProperty('SHEET_NAME', config.spreadsheet.sheetName);
   }
   if (config.projects) {
-    storageClient.setProperty("PROJECTS", JSON.stringify(config.projects));
+    storageClient.setProperty('PROJECTS', JSON.stringify(config.projects));
   }
 }
 
@@ -190,7 +198,7 @@ export function addProject(project: ProjectGroup): void {
 /**
  * プロジェクトグループを更新
  */
-export function updateProject(name: string, updates: Partial<Omit<ProjectGroup, "name">>): void {
+export function updateProject(name: string, updates: Partial<Omit<ProjectGroup, 'name'>>): void {
   const config = getConfig();
   const projects = config.projects ?? [];
 
@@ -254,9 +262,9 @@ export function removeRepositoryFromProject(projectName: string, fullName: strin
  */
 export function clearGitHubAppConfig(): void {
   const { storageClient } = getContainer();
-  storageClient.deleteProperty("GITHUB_APP_ID");
-  storageClient.deleteProperty("GITHUB_APP_PRIVATE_KEY");
-  storageClient.deleteProperty("GITHUB_APP_INSTALLATION_ID");
+  storageClient.deleteProperty('GITHUB_APP_ID');
+  storageClient.deleteProperty('GITHUB_APP_PRIVATE_KEY');
+  storageClient.deleteProperty('GITHUB_APP_INSTALLATION_ID');
 }
 
 /**
@@ -275,7 +283,7 @@ export function addRepository(owner: string, name: string): void {
   const config = getConfig();
   const newRepo: GitHubRepository = { owner, name, fullName: `${owner}/${name}` };
   const exists = config.github.repositories.some((r) => r.fullName === newRepo.fullName);
-  
+
   if (!exists) {
     config.github.repositories.push(newRepo);
     setConfig({ github: config.github });
@@ -293,7 +301,7 @@ export function removeRepository(fullName: string): void {
 // ============================================================
 
 /** デフォルトのproductionブランチパターン */
-const DEFAULT_PRODUCTION_BRANCH_PATTERN = "production";
+const DEFAULT_PRODUCTION_BRANCH_PATTERN = 'production';
 
 /**
  * productionブランチパターンを取得
@@ -303,7 +311,9 @@ const DEFAULT_PRODUCTION_BRANCH_PATTERN = "production";
  */
 export function getProductionBranchPattern(): string {
   const { storageClient } = getContainer();
-  return storageClient.getProperty("PRODUCTION_BRANCH_PATTERN") ?? DEFAULT_PRODUCTION_BRANCH_PATTERN;
+  return (
+    storageClient.getProperty('PRODUCTION_BRANCH_PATTERN') ?? DEFAULT_PRODUCTION_BRANCH_PATTERN
+  );
 }
 
 /**
@@ -318,7 +328,7 @@ export function getProductionBranchPattern(): string {
  */
 export function setProductionBranchPattern(pattern: string): void {
   const { storageClient } = getContainer();
-  storageClient.setProperty("PRODUCTION_BRANCH_PATTERN", pattern);
+  storageClient.setProperty('PRODUCTION_BRANCH_PATTERN', pattern);
 }
 
 /**
@@ -326,7 +336,7 @@ export function setProductionBranchPattern(pattern: string): void {
  */
 export function resetProductionBranchPattern(): void {
   const { storageClient } = getContainer();
-  storageClient.deleteProperty("PRODUCTION_BRANCH_PATTERN");
+  storageClient.deleteProperty('PRODUCTION_BRANCH_PATTERN');
 }
 
 /**
@@ -337,9 +347,11 @@ export function resetProductionBranchPattern(): void {
  */
 export function getCycleTimeIssueLabels(): string[] {
   const { storageClient } = getContainer();
-  const json = storageClient.getProperty("CYCLE_TIME_ISSUE_LABELS");
-  if (!json) return [];
-  return JSON.parse(json);
+  const json = storageClient.getProperty('CYCLE_TIME_ISSUE_LABELS');
+  if (!json) {
+    return [];
+  }
+  return JSON.parse(json) as string[];
 }
 
 /**
@@ -354,7 +366,7 @@ export function getCycleTimeIssueLabels(): string[] {
  */
 export function setCycleTimeIssueLabels(labels: string[]): void {
   const { storageClient } = getContainer();
-  storageClient.setProperty("CYCLE_TIME_ISSUE_LABELS", JSON.stringify(labels));
+  storageClient.setProperty('CYCLE_TIME_ISSUE_LABELS', JSON.stringify(labels));
 }
 
 /**
@@ -362,7 +374,7 @@ export function setCycleTimeIssueLabels(labels: string[]): void {
  */
 export function resetCycleTimeIssueLabels(): void {
   const { storageClient } = getContainer();
-  storageClient.deleteProperty("CYCLE_TIME_ISSUE_LABELS");
+  storageClient.deleteProperty('CYCLE_TIME_ISSUE_LABELS');
 }
 
 // ============================================================
@@ -377,9 +389,11 @@ export function resetCycleTimeIssueLabels(): void {
  */
 export function getCodingTimeIssueLabels(): string[] {
   const { storageClient } = getContainer();
-  const json = storageClient.getProperty("CODING_TIME_ISSUE_LABELS");
-  if (!json) return [];
-  return JSON.parse(json);
+  const json = storageClient.getProperty('CODING_TIME_ISSUE_LABELS');
+  if (!json) {
+    return [];
+  }
+  return JSON.parse(json) as string[];
 }
 
 /**
@@ -394,7 +408,7 @@ export function getCodingTimeIssueLabels(): string[] {
  */
 export function setCodingTimeIssueLabels(labels: string[]): void {
   const { storageClient } = getContainer();
-  storageClient.setProperty("CODING_TIME_ISSUE_LABELS", JSON.stringify(labels));
+  storageClient.setProperty('CODING_TIME_ISSUE_LABELS', JSON.stringify(labels));
 }
 
 /**
@@ -402,7 +416,7 @@ export function setCodingTimeIssueLabels(labels: string[]): void {
  */
 export function resetCodingTimeIssueLabels(): void {
   const { storageClient } = getContainer();
-  storageClient.deleteProperty("CODING_TIME_ISSUE_LABELS");
+  storageClient.deleteProperty('CODING_TIME_ISSUE_LABELS');
 }
 
 // ============================================================
@@ -414,7 +428,7 @@ export function resetCodingTimeIssueLabels(): void {
  */
 export interface ConfigDiagnosticItem {
   name: string;
-  status: "ok" | "warning" | "error";
+  status: 'ok' | 'warning' | 'error';
   message: string;
   hint?: string;
 }
@@ -439,88 +453,97 @@ export function diagnoseConfig(): ConfigDiagnosticResult {
   const items: ConfigDiagnosticItem[] = [];
 
   // 1. スプレッドシートID
-  const spreadsheetId = storageClient.getProperty("SPREADSHEET_ID");
+  const spreadsheetId = storageClient.getProperty('SPREADSHEET_ID');
   if (!spreadsheetId) {
     items.push({
-      name: "Spreadsheet ID",
-      status: "error",
-      message: "未設定です",
+      name: 'Spreadsheet ID',
+      status: 'error',
+      message: '未設定です',
       hint: "setup('GITHUB_TOKEN', 'SPREADSHEET_ID') または setupWithGitHubApp() で設定してください",
     });
   } else {
     items.push({
-      name: "Spreadsheet ID",
-      status: "ok",
+      name: 'Spreadsheet ID',
+      status: 'ok',
       message: `設定済み: ${spreadsheetId.substring(0, 10)}...`,
     });
   }
 
   // 2. GitHub認証
   const authMode = getGitHubAuthMode();
-  if (authMode === "none") {
-    const appId = storageClient.getProperty("GITHUB_APP_ID");
-    const privateKey = storageClient.getProperty("GITHUB_APP_PRIVATE_KEY");
-    const installationId = storageClient.getProperty("GITHUB_APP_INSTALLATION_ID");
-    const token = storageClient.getProperty("GITHUB_TOKEN");
+  if (authMode === 'none') {
+    const appId = storageClient.getProperty('GITHUB_APP_ID');
+    const privateKey = storageClient.getProperty('GITHUB_APP_PRIVATE_KEY');
+    const installationId = storageClient.getProperty('GITHUB_APP_INSTALLATION_ID');
+    const token = storageClient.getProperty('GITHUB_TOKEN');
 
     // 部分的に設定されている場合のヒント
-    if (appId || privateKey || installationId) {
+    const hasPartialAppConfig = appId !== null || privateKey !== null || installationId !== null;
+    if (hasPartialAppConfig) {
       const missing: string[] = [];
-      if (!appId) missing.push("App ID");
-      if (!privateKey) missing.push("Private Key");
-      if (!installationId) missing.push("Installation ID");
+      if (!appId) {
+        missing.push('App ID');
+      }
+      if (!privateKey) {
+        missing.push('Private Key');
+      }
+      if (!installationId) {
+        missing.push('Installation ID');
+      }
 
       items.push({
-        name: "GitHub認証",
-        status: "error",
-        message: `GitHub Apps設定が不完全です（${missing.join(", ")} が未設定）`,
-        hint: "setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください",
+        name: 'GitHub認証',
+        status: 'error',
+        message: `GitHub Apps設定が不完全です（${missing.join(', ')} が未設定）`,
+        hint: 'setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください',
       });
     } else if (!token) {
       items.push({
-        name: "GitHub認証",
-        status: "error",
-        message: "GitHub認証が設定されていません",
+        name: 'GitHub認証',
+        status: 'error',
+        message: 'GitHub認証が設定されていません',
         hint: "setup('GITHUB_TOKEN', 'SPREADSHEET_ID') でPAT認証、または setupWithGitHubApp() でGitHub Apps認証を設定してください",
       });
     }
-  } else if (authMode === "pat") {
-    const token = storageClient.getProperty("GITHUB_TOKEN");
+  } else if (authMode === 'pat') {
+    const token = storageClient.getProperty('GITHUB_TOKEN');
     // トークン形式の簡易チェック
-    if (token && !token.startsWith("ghp_") && !token.startsWith("github_pat_")) {
+    if (token && !token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
       items.push({
-        name: "GitHub認証",
-        status: "warning",
-        message: "PAT認証（トークン形式が通常と異なります）",
+        name: 'GitHub認証',
+        status: 'warning',
+        message: 'PAT認証（トークン形式が通常と異なります）',
         hint: "Fine-grained PATは 'github_pat_' で始まり、Classic PATは 'ghp_' で始まります。正しいトークンか確認してください",
       });
     } else {
       items.push({
-        name: "GitHub認証",
-        status: "ok",
-        message: "PAT認証 (Personal Access Token)",
+        name: 'GitHub認証',
+        status: 'ok',
+        message: 'PAT認証 (Personal Access Token)',
       });
     }
-  } else if (authMode === "app") {
+  } else if (authMode === 'app') {
     items.push({
-      name: "GitHub認証",
-      status: "ok",
-      message: "GitHub Apps認証",
+      name: 'GitHub認証',
+      status: 'ok',
+      message: 'GitHub Apps認証',
     });
 
     // Private Key形式の簡易チェック
-    const privateKey = storageClient.getProperty("GITHUB_APP_PRIVATE_KEY");
+    const privateKey = storageClient.getProperty('GITHUB_APP_PRIVATE_KEY');
     if (privateKey) {
-      const hasValidHeader = privateKey.includes("-----BEGIN RSA PRIVATE KEY-----") ||
-                            privateKey.includes("-----BEGIN PRIVATE KEY-----");
-      const hasValidFooter = privateKey.includes("-----END RSA PRIVATE KEY-----") ||
-                            privateKey.includes("-----END PRIVATE KEY-----");
+      const hasValidHeader =
+        privateKey.includes('-----BEGIN RSA PRIVATE KEY-----') ||
+        privateKey.includes('-----BEGIN PRIVATE KEY-----');
+      const hasValidFooter =
+        privateKey.includes('-----END RSA PRIVATE KEY-----') ||
+        privateKey.includes('-----END PRIVATE KEY-----');
 
       if (!hasValidHeader || !hasValidFooter) {
         items.push({
-          name: "Private Key形式",
-          status: "error",
-          message: "PEM形式ではありません",
+          name: 'Private Key形式',
+          status: 'error',
+          message: 'PEM形式ではありません',
           hint: "Private Keyは '-----BEGIN RSA PRIVATE KEY-----' で始まる必要があります。改行は \\n に置換してください",
         });
       }
@@ -528,17 +551,17 @@ export function diagnoseConfig(): ConfigDiagnosticResult {
   }
 
   // 3. リポジトリ設定
-  const repositoriesJson = storageClient.getProperty("GITHUB_REPOSITORIES");
-  let repositories: { owner: string; name: string; fullName: string }[] = [];
+  const repositoriesJson = storageClient.getProperty('GITHUB_REPOSITORIES');
+  let repositories: GitHubRepository[] = [];
   let jsonParseError = false;
   try {
-    repositories = repositoriesJson ? JSON.parse(repositoriesJson) : [];
+    repositories = repositoriesJson ? (JSON.parse(repositoriesJson) as GitHubRepository[]) : [];
   } catch {
     jsonParseError = true;
     items.push({
-      name: "リポジトリ設定",
-      status: "error",
-      message: "リポジトリ設定のJSON形式が不正です",
+      name: 'リポジトリ設定',
+      status: 'error',
+      message: 'リポジトリ設定のJSON形式が不正です',
       hint: "addRepo('owner', 'repo-name') で再設定してください",
     });
   }
@@ -546,23 +569,23 @@ export function diagnoseConfig(): ConfigDiagnosticResult {
   if (!jsonParseError) {
     if (repositories.length === 0) {
       items.push({
-        name: "リポジトリ",
-        status: "warning",
-        message: "リポジトリが登録されていません",
+        name: 'リポジトリ',
+        status: 'warning',
+        message: 'リポジトリが登録されていません',
         hint: "addRepo('owner', 'repo-name') でリポジトリを追加してください",
       });
     } else {
       items.push({
-        name: "リポジトリ",
-        status: "ok",
-        message: `${repositories.length}件登録済み: ${repositories.map(r => r.fullName).join(", ")}`,
+        name: 'リポジトリ',
+        status: 'ok',
+        message: `${repositories.length}件登録済み: ${repositories.map((r) => r.fullName).join(', ')}`,
       });
     }
   }
 
   // 結果のサマリー
-  const hasErrors = items.some((item) => item.status === "error");
-  const hasWarnings = items.some((item) => item.status === "warning");
+  const hasErrors = items.some((item) => item.status === 'error');
+  const hasWarnings = items.some((item) => item.status === 'warning');
 
   return { items, hasErrors, hasWarnings };
 }
@@ -572,25 +595,25 @@ export function diagnoseConfig(): ConfigDiagnosticResult {
  */
 export function formatDiagnosticResult(result: ConfigDiagnosticResult): string {
   const lines: string[] = [];
-  lines.push("=== DevSyncGAS 設定診断 ===\n");
+  lines.push('=== DevSyncGAS 設定診断 ===\n');
 
   for (const item of result.items) {
-    const icon = item.status === "ok" ? "✅" : item.status === "warning" ? "⚠️" : "❌";
+    const icon = item.status === 'ok' ? '✅' : item.status === 'warning' ? '⚠️' : '❌';
     lines.push(`${icon} ${item.name}: ${item.message}`);
     if (item.hint) {
       lines.push(`   → ${item.hint}`);
     }
   }
 
-  lines.push("");
+  lines.push('');
 
   if (result.hasErrors) {
-    lines.push("❌ エラーがあります。上記のヒントを参考に設定を修正してください。");
+    lines.push('❌ エラーがあります。上記のヒントを参考に設定を修正してください。');
   } else if (result.hasWarnings) {
-    lines.push("⚠️ 警告があります。必要に応じて設定を確認してください。");
+    lines.push('⚠️ 警告があります。必要に応じて設定を確認してください。');
   } else {
-    lines.push("✅ すべての設定が正常です。");
+    lines.push('✅ すべての設定が正常です。');
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

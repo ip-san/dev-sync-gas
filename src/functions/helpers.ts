@@ -4,8 +4,8 @@
  * コンテナ初期化、日付計算など、複数の関数から共通で使用するユーティリティ。
  */
 
-import { initializeContainer, isContainerInitialized } from "../container";
-import { createGasAdapters } from "../adapters/gas";
+import { initializeContainer, isContainerInitialized } from '../container';
+import { createGasAdapters } from '../adapters/gas';
 
 /**
  * GAS環境でコンテナを初期化
@@ -33,8 +33,8 @@ export function createDateRange(days: number): {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  const startDateStr = startDate.toISOString().split("T")[0];
-  const endDateStr = endDate.toISOString().split("T")[0];
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
   const period = `${startDateStr}〜${endDateStr}`;
 
   return { startDate, endDate, startDateStr, endDateStr, period };
@@ -45,9 +45,9 @@ export function createDateRange(days: number): {
  * @returns 認証が設定されている場合true
  */
 export function checkAuthConfigured(authMode: string): boolean {
-  if (authMode === "none") {
+  if (authMode === 'none') {
     Logger.log(
-      "⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App"
+      '⚠️ GitHub authentication is not configured. Set githubToken in setup() or configure GitHub App'
     );
     return false;
   }
@@ -60,9 +60,7 @@ export function checkAuthConfigured(authMode: string): boolean {
  */
 export function checkRepositoriesConfigured(count: number): boolean {
   if (count === 0) {
-    Logger.log(
-      "⚠️ No repositories configured. Add repositories with addRepo()"
-    );
+    Logger.log('⚠️ No repositories configured. Add repositories with addRepo()');
     return false;
   }
   return true;

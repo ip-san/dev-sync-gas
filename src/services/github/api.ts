@@ -5,15 +5,15 @@
  * 認証ヘッダーの付与、エラーハンドリング、ページネーションの基盤となる。
  */
 
-import type { ApiResponse } from "../../types";
-import { getContainer } from "../../container";
+import type { ApiResponse } from '../../types';
+import { getContainer } from '../../container';
 
 // =============================================================================
 // 定数
 // =============================================================================
 
 /** GitHub API のベースURL */
-export const GITHUB_API_BASE = "https://api.github.com";
+export const GITHUB_API_BASE = 'https://api.github.com';
 
 /** ページネーションのデフォルト最大ページ数 */
 export const DEFAULT_MAX_PAGES = 5;
@@ -67,8 +67,8 @@ export function fetchGitHub<T>(endpoint: string, token: string): ApiResponse<T> 
     const response = httpClient.fetch<T>(url, {
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "DevSyncGAS",
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'DevSyncGAS',
       },
       muteHttpExceptions: true,
     });
@@ -81,6 +81,9 @@ export function fetchGitHub<T>(endpoint: string, token: string): ApiResponse<T> 
       error: `GitHub API error: ${response.statusCode} - ${response.content}`,
     };
   } catch (error) {
-    return { success: false, error: `Request failed: ${error}` };
+    return {
+      success: false,
+      error: `Request failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }

@@ -151,7 +151,8 @@ export const PULL_REQUEST_DETAIL_QUERY = `
  * 動的にクエリを生成して複数PRの情報を1リクエストで取得
  */
 export function buildBatchPRDetailQuery(prNumbers: number[]): string {
-  const fragments = prNumbers.map((num, idx) => `
+  const fragments = prNumbers.map(
+    (num, idx) => `
     pr${idx}: pullRequest(number: ${num}) {
       number
       title
@@ -192,12 +193,13 @@ export function buildBatchPRDetailQuery(prNumbers: number[]): string {
         }
       }
     }
-  `);
+  `
+  );
 
   return `
     query GetBatchPRDetails($owner: String!, $name: String!) {
       repository(owner: $owner, name: $name) {
-        ${fragments.join("\n")}
+        ${fragments.join('\n')}
       }
     }
   `;

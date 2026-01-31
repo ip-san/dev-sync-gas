@@ -4,7 +4,7 @@
  * 複数リポジトリのDevOps指標を集計してサマリーを生成する。
  */
 
-import type { DevOpsMetrics } from "../../types";
+import type { DevOpsMetrics } from '../../types';
 
 // =============================================================================
 // 型定義
@@ -47,9 +47,7 @@ export interface AggregatedSummary {
  * @param metrics - 各リポジトリ・各日のDevOpsMetrics配列
  * @returns リポジトリごとのサマリーと全体サマリー
  */
-export function aggregateMultiRepoMetrics(
-  metrics: DevOpsMetrics[]
-): AggregatedSummary {
+export function aggregateMultiRepoMetrics(metrics: DevOpsMetrics[]): AggregatedSummary {
   if (metrics.length === 0) {
     return {
       repositorySummaries: [],
@@ -66,7 +64,7 @@ export function aggregateMultiRepoMetrics(
   // リポジトリごとにグループ化
   const byRepository = new Map<string, DevOpsMetrics[]>();
   for (const m of metrics) {
-    const existing = byRepository.get(m.repository) || [];
+    const existing = byRepository.get(m.repository) ?? [];
     existing.push(m);
     byRepository.set(m.repository, existing);
   }
@@ -81,13 +79,10 @@ export function aggregateMultiRepoMetrics(
       .map((m) => m.meanTimeToRecoveryHours)
       .filter((v): v is number => v !== null);
 
-    const avgDeployment =
-      deploymentCounts.reduce((a, b) => a + b, 0) / deploymentCounts.length;
-    const avgLeadTime =
-      leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length;
+    const avgDeployment = deploymentCounts.reduce((a, b) => a + b, 0) / deploymentCounts.length;
+    const avgLeadTime = leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length;
     const avgCfr = cfrs.reduce((a, b) => a + b, 0) / cfrs.length;
-    const avgMttr =
-      mttrs.length > 0 ? mttrs.reduce((a, b) => a + b, 0) / mttrs.length : null;
+    const avgMttr = mttrs.length > 0 ? mttrs.reduce((a, b) => a + b, 0) / mttrs.length : null;
 
     // 最終更新日を取得（最新の日付）
     const dates = repoMetrics.map((m) => m.date).sort();
@@ -112,15 +107,11 @@ export function aggregateMultiRepoMetrics(
     .map((s) => s.avgMttrHours)
     .filter((v): v is number => v !== null);
 
-  const overallAvgDeployment =
-    allDeployments.reduce((a, b) => a + b, 0) / allDeployments.length;
-  const overallAvgLeadTime =
-    allLeadTimes.reduce((a, b) => a + b, 0) / allLeadTimes.length;
+  const overallAvgDeployment = allDeployments.reduce((a, b) => a + b, 0) / allDeployments.length;
+  const overallAvgLeadTime = allLeadTimes.reduce((a, b) => a + b, 0) / allLeadTimes.length;
   const overallAvgCfr = allCfrs.reduce((a, b) => a + b, 0) / allCfrs.length;
   const overallAvgMttr =
-    allMttrs.length > 0
-      ? allMttrs.reduce((a, b) => a + b, 0) / allMttrs.length
-      : null;
+    allMttrs.length > 0 ? allMttrs.reduce((a, b) => a + b, 0) / allMttrs.length : null;
 
   return {
     repositorySummaries,
@@ -129,8 +120,7 @@ export function aggregateMultiRepoMetrics(
       avgDeploymentCount: Math.round(overallAvgDeployment * 10) / 10,
       avgLeadTimeHours: Math.round(overallAvgLeadTime * 10) / 10,
       avgChangeFailureRate: Math.round(overallAvgCfr * 10) / 10,
-      avgMttrHours:
-        overallAvgMttr !== null ? Math.round(overallAvgMttr * 10) / 10 : null,
+      avgMttrHours: overallAvgMttr !== null ? Math.round(overallAvgMttr * 10) / 10 : null,
     },
   };
 }

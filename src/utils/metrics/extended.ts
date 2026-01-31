@@ -17,7 +17,7 @@ import type {
   PRReviewData,
   PRSizeMetrics,
   PRSizeData,
-} from "../../types";
+} from '../../types';
 
 // =============================================================================
 // 統計計算ヘルパー
@@ -67,8 +67,7 @@ export function calculateCycleTime(
 ): CycleTimeMetrics {
   // productionマージが完了しているIssueのみ対象
   const validIssues = cycleTimeData.filter(
-    (issue) =>
-      issue.productionMergedAt !== null && issue.cycleTimeHours !== null
+    (issue) => issue.productionMergedAt !== null && issue.cycleTimeHours !== null
   );
 
   if (validIssues.length === 0) {
@@ -85,9 +84,7 @@ export function calculateCycleTime(
 
   const issueDetails: IssueCycleTimeDetail[] = validIssues.map((issue) => {
     // PRチェーンをサマリー文字列に変換（例: "#1→#2→#3"）
-    const prChainSummary = issue.prChain
-      .map((pr) => `#${pr.prNumber}`)
-      .join("→");
+    const prChainSummary = issue.prChain.map((pr) => `#${pr.prNumber}`).join('→');
 
     return {
       issueNumber: issue.issueNumber,
@@ -130,9 +127,7 @@ export function calculateCodingTime(
   // PRがリンクされているIssueのみ対象
   const validIssues = codingTimeData.filter(
     (issue) =>
-      issue.prCreatedAt !== null &&
-      issue.codingTimeHours !== null &&
-      issue.codingTimeHours >= 0
+      issue.prCreatedAt !== null && issue.codingTimeHours !== null && issue.codingTimeHours >= 0
   );
 
   if (validIssues.length === 0) {
@@ -180,10 +175,7 @@ export function calculateCodingTime(
  *
  * 定義: PR作成後の追加コミット数とForce Push回数を測定
  */
-export function calculateReworkRate(
-  reworkData: PRReworkData[],
-  period: string
-): ReworkRateMetrics {
+export function calculateReworkRate(reworkData: PRReworkData[], period: string): ReworkRateMetrics {
   if (reworkData.length === 0) {
     return {
       period,
@@ -207,21 +199,13 @@ export function calculateReworkRate(
   // 追加コミット統計
   const additionalCommitCounts = reworkData.map((pr) => pr.additionalCommits);
   const commitStats = calculateStats(additionalCommitCounts);
-  const totalAdditionalCommits = additionalCommitCounts.reduce(
-    (sum, count) => sum + count,
-    0
-  );
+  const totalAdditionalCommits = additionalCommitCounts.reduce((sum, count) => sum + count, 0);
   const avgAdditionalCommits = totalAdditionalCommits / reworkData.length;
 
   // Force Push統計
   const forcePushCounts = reworkData.map((pr) => pr.forcePushCount);
-  const totalForcePushes = forcePushCounts.reduce(
-    (sum, count) => sum + count,
-    0
-  );
-  const prsWithForcePush = reworkData.filter(
-    (pr) => pr.forcePushCount > 0
-  ).length;
+  const totalForcePushes = forcePushCounts.reduce((sum, count) => sum + count, 0);
+  const prsWithForcePush = reworkData.filter((pr) => pr.forcePushCount > 0).length;
   const avgForcePushes = totalForcePushes / reworkData.length;
   const forcePushRate = (prsWithForcePush / reworkData.length) * 100;
 
@@ -352,10 +336,7 @@ export function calculateReviewEfficiency(
  *
  * 定義: PRの変更行数と変更ファイル数を測定
  */
-export function calculatePRSize(
-  sizeData: PRSizeData[],
-  period: string
-): PRSizeMetrics {
+export function calculatePRSize(sizeData: PRSizeData[], period: string): PRSizeMetrics {
   if (sizeData.length === 0) {
     return {
       period,

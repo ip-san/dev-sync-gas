@@ -19,8 +19,8 @@ import {
   setGitHubApiMode,
   resetGitHubApiMode,
   type GitHubApiMode,
-} from "../config/settings";
-import { ensureContainerInitialized } from "./helpers";
+} from '../config/settings';
+import { ensureContainerInitialized } from './helpers';
 
 // =============================================================================
 // サイクルタイム設定
@@ -64,9 +64,9 @@ export function configureCycleTimeLabels(labels: string[]): void {
   ensureContainerInitialized();
   setCycleTimeIssueLabels(labels);
   if (labels.length > 0) {
-    Logger.log(`✅ Cycle time labels set to: ${labels.join(", ")}`);
+    Logger.log(`✅ Cycle time labels set to: ${labels.join(', ')}`);
   } else {
-    Logger.log("✅ Cycle time labels cleared (all issues will be tracked)");
+    Logger.log('✅ Cycle time labels cleared (all issues will be tracked)');
   }
 }
 
@@ -75,9 +75,9 @@ export function showCycleTimeLabels(): void {
   ensureContainerInitialized();
   const labels = getCycleTimeIssueLabels();
   if (labels.length > 0) {
-    Logger.log(`📋 Cycle time labels: ${labels.join(", ")}`);
+    Logger.log(`📋 Cycle time labels: ${labels.join(', ')}`);
   } else {
-    Logger.log("📋 Cycle time labels: (all issues)");
+    Logger.log('📋 Cycle time labels: (all issues)');
   }
 }
 
@@ -85,19 +85,19 @@ export function showCycleTimeLabels(): void {
 export function resetCycleTimeLabelsConfig(): void {
   ensureContainerInitialized();
   resetCycleTimeIssueLabels();
-  Logger.log("✅ Cycle time labels reset (all issues will be tracked)");
+  Logger.log('✅ Cycle time labels reset (all issues will be tracked)');
 }
 
 /** サイクルタイム設定を一覧表示 */
 export function showCycleTimeConfig(): void {
   ensureContainerInitialized();
-  Logger.log("📋 Cycle Time Configuration:");
+  Logger.log('📋 Cycle Time Configuration:');
   Logger.log(`   Production branch pattern: "${getProductionBranchPattern()}"`);
   const labels = getCycleTimeIssueLabels();
   if (labels.length > 0) {
-    Logger.log(`   Issue labels: ${labels.join(", ")}`);
+    Logger.log(`   Issue labels: ${labels.join(', ')}`);
   } else {
-    Logger.log("   Issue labels: (all issues)");
+    Logger.log('   Issue labels: (all issues)');
   }
 }
 
@@ -116,9 +116,9 @@ export function configureCodingTimeLabels(labels: string[]): void {
   ensureContainerInitialized();
   setCodingTimeIssueLabels(labels);
   if (labels.length > 0) {
-    Logger.log(`✅ Coding time labels set to: ${labels.join(", ")}`);
+    Logger.log(`✅ Coding time labels set to: ${labels.join(', ')}`);
   } else {
-    Logger.log("✅ Coding time labels cleared (all issues will be tracked)");
+    Logger.log('✅ Coding time labels cleared (all issues will be tracked)');
   }
 }
 
@@ -127,9 +127,9 @@ export function showCodingTimeLabels(): void {
   ensureContainerInitialized();
   const labels = getCodingTimeIssueLabels();
   if (labels.length > 0) {
-    Logger.log(`📋 Coding time labels: ${labels.join(", ")}`);
+    Logger.log(`📋 Coding time labels: ${labels.join(', ')}`);
   } else {
-    Logger.log("📋 Coding time labels: (all issues)");
+    Logger.log('📋 Coding time labels: (all issues)');
   }
 }
 
@@ -137,18 +137,18 @@ export function showCodingTimeLabels(): void {
 export function resetCodingTimeLabelsConfig(): void {
   ensureContainerInitialized();
   resetCodingTimeIssueLabels();
-  Logger.log("✅ Coding time labels reset (all issues will be tracked)");
+  Logger.log('✅ Coding time labels reset (all issues will be tracked)');
 }
 
 /** コーディングタイム設定を一覧表示 */
 export function showCodingTimeConfig(): void {
   ensureContainerInitialized();
-  Logger.log("📋 Coding Time Configuration:");
+  Logger.log('📋 Coding Time Configuration:');
   const labels = getCodingTimeIssueLabels();
   if (labels.length > 0) {
-    Logger.log(`   Issue labels: ${labels.join(", ")}`);
+    Logger.log(`   Issue labels: ${labels.join(', ')}`);
   } else {
-    Logger.log("   Issue labels: (all issues)");
+    Logger.log('   Issue labels: (all issues)');
   }
 }
 
@@ -165,15 +165,15 @@ export function showCodingTimeConfig(): void {
  * configureApiMode("graphql");  // GraphQL APIを使用（デフォルト、効率的）
  * configureApiMode("rest");     // REST APIを使用（従来互換）
  */
-export function configureApiMode(mode: "graphql" | "rest"): void {
+export function configureApiMode(mode: 'graphql' | 'rest'): void {
   ensureContainerInitialized();
   setGitHubApiMode(mode as GitHubApiMode);
-  if (mode === "graphql") {
-    Logger.log("✅ API mode set to: GraphQL (efficient mode)");
-    Logger.log("   Benefits: Reduced API calls, batch operations, better rate limit usage");
+  if (mode === 'graphql') {
+    Logger.log('✅ API mode set to: GraphQL (efficient mode)');
+    Logger.log('   Benefits: Reduced API calls, batch operations, better rate limit usage');
   } else {
-    Logger.log("✅ API mode set to: REST (legacy mode)");
-    Logger.log("   Note: This may result in more API calls. Use GraphQL for better performance.");
+    Logger.log('✅ API mode set to: REST (legacy mode)');
+    Logger.log('   Note: This may result in more API calls. Use GraphQL for better performance.');
   }
 }
 
@@ -181,10 +181,10 @@ export function configureApiMode(mode: "graphql" | "rest"): void {
 export function showApiMode(): void {
   ensureContainerInitialized();
   const mode = getGitHubApiMode();
-  if (mode === "graphql") {
-    Logger.log("📋 Current API mode: GraphQL (efficient mode)");
+  if (mode === 'graphql') {
+    Logger.log('📋 Current API mode: GraphQL (efficient mode)');
   } else {
-    Logger.log("📋 Current API mode: REST (legacy mode)");
+    Logger.log('📋 Current API mode: REST (legacy mode)');
   }
 }
 
@@ -192,5 +192,5 @@ export function showApiMode(): void {
 export function resetApiMode(): void {
   ensureContainerInitialized();
   resetGitHubApiMode();
-  Logger.log("✅ API mode reset to: GraphQL (default)");
+  Logger.log('✅ API mode reset to: GraphQL (default)');
 }

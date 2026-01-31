@@ -5,7 +5,7 @@
  * 各機能は src/functions/ 以下のモジュールで実装。
  */
 
-import "./init";
+import './init';
 import {
   // DORA指標同期
   syncDevOpsMetrics,
@@ -68,13 +68,13 @@ import {
   showReworkRateDetails,
   showReviewEfficiencyDetails,
   showPRSizeDetails,
-} from "./functions";
+} from './functions';
 
 // =============================================================================
 // GASグローバルスコープにエクスポート
 // =============================================================================
 
-declare const global: any;
+/// <reference path="./types/gas-global.d.ts" />
 
 // DORA指標同期
 global.syncDevOpsMetrics = syncDevOpsMetrics;

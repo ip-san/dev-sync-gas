@@ -8,11 +8,11 @@
  * 4. GASエディタで initConfig を実行
  */
 
-import { setConfig, addRepository } from "./config/settings";
-import { initializeContainer, isContainerInitialized } from "./container";
-import { createGasAdapters } from "./adapters/gas";
+import { setConfig, addRepository } from './config/settings';
+import { initializeContainer, isContainerInitialized } from './container';
+import { createGasAdapters } from './adapters/gas';
 
-declare const global: any;
+/// <reference path="./types/gas-global.d.ts" />
 
 function initConfig(): void {
   // コンテナ初期化
@@ -20,12 +20,12 @@ function initConfig(): void {
     initializeContainer(createGasAdapters());
   }
   // ===== ここを編集 =====
-  const GITHUB_TOKEN = "your_github_token_here";
-  const SPREADSHEET_ID = "your_spreadsheet_id_here";
+  const GITHUB_TOKEN = 'your_github_token_here';
+  const SPREADSHEET_ID = 'your_spreadsheet_id_here';
 
   // リポジトリ設定
   const REPOSITORIES = [
-    { owner: "owner1", name: "repo1" },
+    { owner: 'owner1', name: 'repo1' },
     // { owner: "owner2", name: "repo2" },
   ];
   // ======================
@@ -33,9 +33,9 @@ function initConfig(): void {
   // 設定を保存
   setConfig({
     github: { token: GITHUB_TOKEN, repositories: [] },
-    spreadsheet: { id: SPREADSHEET_ID, sheetName: "DevOps Metrics" },
+    spreadsheet: { id: SPREADSHEET_ID, sheetName: 'DevOps Metrics' },
   });
-  Logger.log("✅ Configuration saved");
+  Logger.log('✅ Configuration saved');
 
   // リポジトリを追加
   for (const repo of REPOSITORIES) {
@@ -43,7 +43,7 @@ function initConfig(): void {
     Logger.log(`✅ Added repository: ${repo.owner}/${repo.name}`);
   }
 
-  Logger.log("✅ 初期設定完了");
+  Logger.log('✅ 初期設定完了');
 }
 
 global.initConfig = initConfig;

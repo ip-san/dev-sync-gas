@@ -10,8 +10,8 @@ import type {
   GitHubDeployment,
   GitHubIncident,
   DevOpsMetrics,
-} from "../../types";
-import { getFrequencyCategory } from "../../config/doraThresholds";
+} from '../../types';
+import { getFrequencyCategory } from '../../config/doraThresholds';
 
 // =============================================================================
 // 定数
@@ -70,11 +70,8 @@ export function calculateLeadTimeDetailed(
   }
 
   const successfulDeployments = deployments
-    .filter((d) => d.status === "success")
-    .sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
+    .filter((d) => d.status === 'success')
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const leadTimes: number[] = [];
   let mergeToDeployCount = 0;
@@ -137,11 +134,9 @@ export function calculateDeploymentFrequency(
   deployments: GitHubDeployment[],
   runs: GitHubWorkflowRun[],
   periodDays: number
-): { count: number; frequency: DevOpsMetrics["deploymentFrequency"] } {
+): { count: number; frequency: DevOpsMetrics['deploymentFrequency'] } {
   // 優先: GitHub Deployments API のデータ（成功のみ）
-  const successfulDeploymentCount = deployments.filter(
-    (d) => d.status === "success"
-  ).length;
+  const successfulDeploymentCount = deployments.filter((d) => d.status === 'success').length;
 
   // フォールバック: ワークフロー実行（"deploy"を含む成功したもの）
   let count: number;
@@ -149,8 +144,7 @@ export function calculateDeploymentFrequency(
     count = successfulDeploymentCount;
   } else {
     count = runs.filter(
-      (run) =>
-        run.conclusion === "success" && run.name.toLowerCase().includes("deploy")
+      (run) => run.conclusion === 'success' && run.name.toLowerCase().includes('deploy')
     ).length;
   }
 
@@ -184,21 +178,17 @@ export function calculateChangeFailureRate(
   if (deploymentsWithStatus.length > 0) {
     const total = deploymentsWithStatus.length;
     const failed = deploymentsWithStatus.filter(
-      (d) => d.status === "failure" || d.status === "error"
+      (d) => d.status === 'failure' || d.status === 'error'
     ).length;
     const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
     return { total, failed, rate };
   }
 
   // フォールバック: ワークフロー実行
-  const deploymentRuns = runs.filter((run) =>
-    run.name.toLowerCase().includes("deploy")
-  );
+  const deploymentRuns = runs.filter((run) => run.name.toLowerCase().includes('deploy'));
 
   const total = deploymentRuns.length;
-  const failed = deploymentRuns.filter(
-    (run) => run.conclusion === "failure"
-  ).length;
+  const failed = deploymentRuns.filter((run) => run.conclusion === 'failure').length;
   const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
 
   return { total, failed, rate };
@@ -228,32 +218,28 @@ export function calculateMTTR(
 
   if (deploymentsWithStatus.length > 0) {
     const sortedDeployments = [...deploymentsWithStatus].sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
 
     return calculateRecoveryTime(
       sortedDeployments.map((d) => ({
         createdAt: d.createdAt,
-        isFailure: d.status === "failure" || d.status === "error",
-        isSuccess: d.status === "success",
+        isFailure: d.status === 'failure' || d.status === 'error',
+        isSuccess: d.status === 'success',
       }))
     );
   }
 
   // フォールバック: ワークフロー実行
   const deploymentRuns = runs
-    .filter((run) => run.name.toLowerCase().includes("deploy"))
-    .sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
+    .filter((run) => run.name.toLowerCase().includes('deploy'))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   return calculateRecoveryTime(
     deploymentRuns.map((run) => ({
       createdAt: run.createdAt,
-      isFailure: run.conclusion === "failure",
-      isSuccess: run.conclusion === "success",
+      isFailure: run.conclusion === 'failure',
+      isSuccess: run.conclusion === 'success',
     }))
   );
 }
@@ -279,7 +265,9 @@ function calculateRecoveryTime(
     }
   }
 
-  if (recoveryTimes.length === 0) return null;
+  if (recoveryTimes.length === 0) {
+    return null;
+  }
 
   const avgMTTR = recoveryTimes.reduce((a, b) => a + b, 0) / recoveryTimes.length;
   return Math.round(avgMTTR * 10) / 10;
@@ -300,11 +288,9 @@ export interface IncidentMetricsResult {
  *
  * 真のDORA定義に近いMTTR: Issue作成→Issue close
  */
-export function calculateIncidentMetrics(
-  incidents: GitHubIncident[]
-): IncidentMetricsResult {
+export function calculateIncidentMetrics(incidents: GitHubIncident[]): IncidentMetricsResult {
   const closedIncidents = incidents.filter((i) => i.closedAt !== null);
-  const openIncidents = incidents.filter((i) => i.state === "open");
+  const openIncidents = incidents.filter((i) => i.state === 'open');
 
   if (closedIncidents.length === 0) {
     return {
@@ -321,8 +307,7 @@ export function calculateIncidentMetrics(
   });
 
   const totalHours = recoveryTimes.reduce((sum, hours) => sum + hours, 0);
-  const mttrHours =
-    Math.round((totalHours / recoveryTimes.length) * 10) / 10;
+  const mttrHours = Math.round((totalHours / recoveryTimes.length) * 10) / 10;
 
   return {
     incidentCount: incidents.length,
@@ -351,19 +336,12 @@ export function calculateMetricsForRepository(
   const repoDeployments = deployments.filter((d) => d.repository === repository);
   const repoIncidents = incidents.filter((i) => i.repository === repository);
 
-  const { count, frequency } = calculateDeploymentFrequency(
-    repoDeployments,
-    repoRuns,
-    periodDays
-  );
-  const { total, failed, rate } = calculateChangeFailureRate(
-    repoDeployments,
-    repoRuns
-  );
+  const { count, frequency } = calculateDeploymentFrequency(repoDeployments, repoRuns, periodDays);
+  const { total, failed, rate } = calculateChangeFailureRate(repoDeployments, repoRuns);
   const leadTimeResult = calculateLeadTimeDetailed(repoPRs, repoDeployments);
 
   const metrics: DevOpsMetrics = {
-    date: new Date().toISOString().split("T")[0],
+    date: new Date().toISOString().split('T')[0],
     repository,
     deploymentCount: count,
     deploymentFrequency: frequency,

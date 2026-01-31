@@ -4,7 +4,7 @@
  * @see https://kjur.github.io/jsrsasign/
  */
 
-declare module "jsrsasign" {
+declare module 'jsrsasign' {
   namespace KJUR {
     namespace jws {
       namespace JWS {
@@ -17,12 +17,7 @@ declare module "jsrsasign" {
          * @param key - 秘密鍵（PEM形式）
          * @returns JWS文字列
          */
-        function sign(
-          alg: string,
-          sHeader: string,
-          sPayload: string,
-          key: string
-        ): string;
+        function sign(alg: string, sHeader: string, sPayload: string, key: string): string;
 
         /**
          * JWSを検証する

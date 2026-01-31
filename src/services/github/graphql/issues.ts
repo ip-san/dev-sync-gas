@@ -17,22 +17,18 @@ import type {
   PRChainItem,
   IssueCycleTime,
   IssueCodingTime,
-} from "../../../types";
-import { getContainer } from "../../../container";
-import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from "./client";
-import {
-  ISSUES_QUERY,
-  ISSUE_WITH_LINKED_PRS_QUERY,
-  COMMIT_ASSOCIATED_PRS_QUERY,
-} from "./queries";
+} from '../../../types';
+import { getContainer } from '../../../container';
+import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
+import { ISSUES_QUERY, ISSUE_WITH_LINKED_PRS_QUERY, COMMIT_ASSOCIATED_PRS_QUERY } from './queries';
 import type {
   IssuesQueryResponse,
   IssueWithLinkedPRsQueryResponse,
   GraphQLIssue,
   CommitAssociatedPRsQueryResponse,
-} from "./types";
-import type { IssueDateRange } from "../api";
-import { getPullRequestWithBranchesGraphQL } from "./pullRequests";
+} from './types';
+import type { IssueDateRange } from '../api';
+import { getPullRequestWithBranchesGraphQL } from './pullRequests';
 
 // =============================================================================
 // Issue一覧取得
@@ -71,7 +67,7 @@ export function getIssuesGraphQL(
           first: DEFAULT_PAGE_SIZE,
           after: cursor,
           labels: options?.labels?.length ? options.labels : null,
-          states: ["OPEN", "CLOSED"],
+          states: ['OPEN', 'CLOSED'],
         },
         token
       );
@@ -93,17 +89,23 @@ export function getIssuesGraphQL(
       // 日付範囲チェック
       if (options?.dateRange?.start) {
         const startDate = new Date(options.dateRange.start);
-        if (createdAt < startDate) continue;
+        if (createdAt < startDate) {
+          continue;
+        }
       }
       if (options?.dateRange?.end) {
         const endDate = new Date(options.dateRange.end);
-        if (createdAt > endDate) continue;
+        if (createdAt > endDate) {
+          continue;
+        }
       }
 
       allIssues.push(convertToIssue(issue, repo.fullName));
     }
 
-    if (!pageInfo.hasNextPage) break;
+    if (!pageInfo.hasNextPage) {
+      break;
+    }
     cursor = pageInfo.endCursor;
     page++;
   }
@@ -117,10 +119,10 @@ export function getIssuesGraphQL(
  */
 function convertToIssue(issue: GraphQLIssue, repository: string): GitHubIssue {
   return {
-    id: parseInt(issue.id.replace(/\D/g, ""), 10) || 0,
+    id: parseInt(issue.id.replace(/\D/g, ''), 10) || 0,
     number: issue.number,
     title: issue.title,
-    state: issue.state.toLowerCase() as "open" | "closed",
+    state: issue.state.toLowerCase() as 'open' | 'closed',
     createdAt: issue.createdAt,
     closedAt: issue.closedAt,
     labels: issue.labels.nodes.map((l) => l.name),
@@ -179,21 +181,27 @@ export function getLinkedPRsForIssueGraphQL(
 
   for (const event of timeline) {
     const source = event.source;
-    if (!source?.number) continue;
+    if (!source?.number) {
+      continue;
+    }
 
     // 同じリポジトリのPRのみ
     const sourceRepo = source.repository?.nameWithOwner;
-    if (sourceRepo && sourceRepo !== `${owner}/${repo}`) continue;
+    if (sourceRepo && sourceRepo !== `${owner}/${repo}`) {
+      continue;
+    }
 
     // 重複チェック
-    if (linkedPRs.some((pr) => pr.number === source.number)) continue;
+    if (linkedPRs.some((pr) => pr.number === source.number)) {
+      continue;
+    }
 
     linkedPRs.push({
       number: source.number,
-      createdAt: source.createdAt ?? "",
+      createdAt: source.createdAt ?? '',
       mergedAt: source.mergedAt ?? null,
-      baseRefName: source.baseRefName ?? "",
-      headRefName: source.headRefName ?? "",
+      baseRefName: source.baseRefName ?? '',
+      headRefName: source.headRefName ?? '',
       mergeCommitSha: source.mergeCommit?.oid ?? null,
     });
   }
@@ -231,7 +239,7 @@ export function findPRContainingCommitGraphQL(
   );
 
   if (!result.success) {
-    if (result.error?.includes("Could not resolve")) {
+    if (result.error?.includes('Could not resolve')) {
       // コミットが見つからない場合
       return { success: true, data: null };
     }
@@ -245,7 +253,7 @@ export function findPRContainingCommitGraphQL(
 
   // マージ済みのPRを優先
   const mergedPR = prs.find((pr) => pr.mergedAt !== null);
-  const targetPR = mergedPR || prs[0];
+  const targetPR = mergedPR ?? prs[0];
 
   return {
     success: true,
@@ -267,7 +275,7 @@ export function trackToProductionMergeGraphQL(
   repo: string,
   initialPRNumber: number,
   token: string,
-  productionPattern: string = "production"
+  productionPattern: string = 'production'
 ): ApiResponse<{
   productionMergedAt: string | null;
   prChain: PRChainItem[];
@@ -279,12 +287,7 @@ export function trackToProductionMergeGraphQL(
   let productionMergedAt: string | null = null;
 
   for (let depth = 0; depth < maxDepth; depth++) {
-    const prResult = getPullRequestWithBranchesGraphQL(
-      owner,
-      repo,
-      currentPRNumber,
-      token
-    );
+    const prResult = getPullRequestWithBranchesGraphQL(owner, repo, currentPRNumber, token);
 
     if (!prResult.success || !prResult.data) {
       logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
@@ -294,16 +297,13 @@ export function trackToProductionMergeGraphQL(
     const pr = prResult.data;
     prChain.push({
       prNumber: pr.number,
-      baseBranch: pr.baseBranch ?? "unknown",
-      headBranch: pr.headBranch ?? "unknown",
+      baseBranch: pr.baseBranch ?? 'unknown',
+      headBranch: pr.headBranch ?? 'unknown',
       mergedAt: pr.mergedAt,
     });
 
     // productionブランチへのマージを検出
-    if (
-      pr.baseBranch &&
-      pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())
-    ) {
+    if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
       if (pr.mergedAt) {
         productionMergedAt = pr.mergedAt;
         logger.log(
@@ -314,20 +314,21 @@ export function trackToProductionMergeGraphQL(
     }
 
     // マージされていない場合は追跡終了
-    if (!pr.mergedAt || !pr.mergeCommitSha) break;
+    if (!pr.mergedAt || !pr.mergeCommitSha) {
+      break;
+    }
 
     // マージコミットSHAから次のPRを検索
-    const nextPRResult = findPRContainingCommitGraphQL(
-      owner,
-      repo,
-      pr.mergeCommitSha,
-      token
-    );
+    const nextPRResult = findPRContainingCommitGraphQL(owner, repo, pr.mergeCommitSha, token);
 
-    if (!nextPRResult.success || !nextPRResult.data) break;
+    if (!nextPRResult.success || !nextPRResult.data) {
+      break;
+    }
 
     // 同じPRの場合は無限ループを防止
-    if (nextPRResult.data.number === currentPRNumber) break;
+    if (nextPRResult.data.number === currentPRNumber) {
+      break;
+    }
 
     currentPRNumber = nextPRResult.data.number;
   }
@@ -348,7 +349,7 @@ export function getCycleTimeDataGraphQL(
   } = {}
 ): ApiResponse<IssueCycleTime[]> {
   const { logger } = getContainer();
-  const productionPattern = options.productionBranchPattern ?? "production";
+  const productionPattern = options.productionBranchPattern ?? 'production';
   const allCycleTimeData: IssueCycleTime[] = [];
 
   for (const repo of repositories) {
@@ -379,11 +380,7 @@ export function getCycleTimeDataGraphQL(
         token
       );
 
-      if (
-        !linkedPRsResult.success ||
-        !linkedPRsResult.data ||
-        linkedPRsResult.data.length === 0
-      ) {
+      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
         logger.log(`    ⏭️ No linked PRs found`);
         allCycleTimeData.push({
           issueNumber: issue.number,
@@ -398,7 +395,7 @@ export function getCycleTimeDataGraphQL(
       }
 
       logger.log(
-        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.map((p) => p.number).join(", ")}`
+        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.map((p) => p.number).join(', ')}`
       );
 
       // 最初のリンクPRからproductionマージを追跡
@@ -419,8 +416,7 @@ export function getCycleTimeDataGraphQL(
         if (trackResult.success && trackResult.data) {
           if (trackResult.data.productionMergedAt) {
             if (
-              !bestResult ||
-              !bestResult.productionMergedAt ||
+              !bestResult?.productionMergedAt ||
               new Date(trackResult.data.productionMergedAt) <
                 new Date(bestResult.productionMergedAt)
             ) {
@@ -440,8 +436,7 @@ export function getCycleTimeDataGraphQL(
       if (productionMergedAt) {
         const startTime = new Date(issue.createdAt).getTime();
         const endTime = new Date(productionMergedAt).getTime();
-        cycleTimeHours =
-          Math.round(((endTime - startTime) / (1000 * 60 * 60)) * 10) / 10;
+        cycleTimeHours = Math.round(((endTime - startTime) / (1000 * 60 * 60)) * 10) / 10;
       }
 
       allCycleTimeData.push({
@@ -502,11 +497,7 @@ export function getCodingTimeDataGraphQL(
         token
       );
 
-      if (
-        !linkedPRsResult.success ||
-        !linkedPRsResult.data ||
-        linkedPRsResult.data.length === 0
-      ) {
+      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
         logger.log(`    ⏭️ No linked PRs found`);
         allCodingTimeData.push({
           issueNumber: issue.number,
@@ -520,14 +511,11 @@ export function getCodingTimeDataGraphQL(
         continue;
       }
 
-      logger.log(
-        `    🔗 Found ${linkedPRsResult.data.length} linked PRs`
-      );
+      logger.log(`    🔗 Found ${linkedPRsResult.data.length} linked PRs`);
 
       // 最も早く作成されたPRを使用
       const sortedPRs = [...linkedPRsResult.data].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
       const earliestPR = sortedPRs[0];
 
@@ -535,13 +523,9 @@ export function getCodingTimeDataGraphQL(
       const issueCreatedTime = new Date(issue.createdAt).getTime();
       const prCreatedTime = new Date(earliestPR.createdAt).getTime();
       const codingTimeHours =
-        Math.round(
-          ((prCreatedTime - issueCreatedTime) / (1000 * 60 * 60)) * 10
-        ) / 10;
+        Math.round(((prCreatedTime - issueCreatedTime) / (1000 * 60 * 60)) * 10) / 10;
 
-      logger.log(
-        `    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`
-      );
+      logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`);
 
       allCodingTimeData.push({
         issueNumber: issue.number,
@@ -555,8 +539,6 @@ export function getCodingTimeDataGraphQL(
     }
   }
 
-  logger.log(
-    `✅ Total: ${allCodingTimeData.length} issues processed for coding time`
-  );
+  logger.log(`✅ Total: ${allCodingTimeData.length} issues processed for coding time`);
   return { success: true, data: allCodingTimeData };
 }

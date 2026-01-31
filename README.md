@@ -22,74 +22,51 @@ DevSyncGASは、**感覚ではなくデータで判断する**ためのツール
 
 ## なぜDORA指標なのか？
 
-スプリントベロシティ（こなしたストーリーポイント数）は、AI時代には[虚栄の指標になりつつあります](https://www.scrum.org/resources/blog/velocity-agent-efficiency-evidence-based-management-ai-era)。AIが4秒でコードを生成しても、検証の複雑さは変わらないからです。
+スプリントベロシティは、AI時代には[虚栄の指標になりつつあります](https://www.scrum.org/resources/blog/velocity-agent-efficiency-evidence-based-management-ai-era)。AIが4秒でコードを生成しても、検証の複雑さは変わらないからです。
 
-代わりに注目されているのが、**DORA指標（DevOps Research and Assessment）**です。
+代わりに注目されているのが、**DORA指標（DevOps Research and Assessment）**。Google Cloudの研究チームが確立した、**本番リリースまでの実際の価値提供を測る4つの指標**です。
 
-Google Cloudの研究チームが7年以上の研究で確立した、**ソフトウェア開発チームのパフォーマンスを測る4つの指標**です。
+| DORA指標 | 何を測るか |
+|----------|-----------|
+| **デプロイ頻度** | どれだけ頻繁にリリースしているか |
+| **リードタイム** | PR作成から本番デプロイまでの時間 |
+| **変更障害率** | デプロイで不具合が起きる割合 |
+| **平均修復時間（MTTR）** | 障害発生から復旧までの時間 |
 
-| 指標 | 何を測るか | なぜ重要か |
-|------|-----------|-----------|
-| **デプロイ頻度** | どれだけ頻繁にリリースしているか | 価値提供のスピード |
-| **リードタイム** | PR作成から本番デプロイまでの時間 | 実装サイクルの速さ |
-| **変更障害率** | デプロイで不具合が起きる割合 | リリースの品質 |
-| **平均修復時間（MTTR）** | 障害発生から復旧までの時間 | 回復力の高さ |
+### AI時代の拡張指標
 
-これら4指標は、**「速く」かつ「安定して」価値を届けられているか**を客観的に評価します。
+DevSyncGASは、DORA指標に加えて、**AI活用の効果を評価する拡張指標**も自動計測します。
 
-**ベロシティとの違い:**
+- **サイクルタイム** - Issue作成 → Production（全体の流れ）
+- **コーディング時間** - Issue作成 → PR作成（実装速度）
+- **手戻り率** - 追加コミット・Force Push（品質）
+- **レビュー効率** - レビュー待ち・レビュー時間（ボトルネック発見）
+- **PRサイズ** - 変更行数・ファイル数（複雑さ）
 
-| 指標 | 測るもの | AI時代の適性 |
-|------|---------|-------------|
-| **ベロシティ** | こなしたストーリーポイント数 | AIがコード生成を高速化しても、検証の複雑さは変わらず[虚栄の指標化](https://www.scrum.org/resources/blog/velocity-agent-efficiency-evidence-based-management-ai-era) |
-| **DORA指標** | デプロイの速さと安定性 | 本番リリースまでの実際の価値提供を測定 |
+これらを組み合わせることで、「AIで速くなった」を定量的に証明できます。
 
-DevSyncGASは、この**DORA指標をGitHubから自動収集**し、Google スプレッドシートで可視化します。
-
-> 詳細：[DORA指標の詳しい解説](docs/DORA_METRICS.md)
+> 詳細：[DORA指標](docs/DORA_METRICS.md) / [計測思想](docs/MEASUREMENT_PHILOSOPHY.md)
 
 ---
 
-## DevSyncGASの特徴
+## 特徴
 
-### 1. GitHubのデータだけで完結
+### シンプル・セキュア・ゼロコスト
 
 ```
-GitHub  ──→  DevSyncGAS (GAS)  ──→  Google スプレッドシート
-  PR・Issue・Workflow情報から        →  DORA指標を自動計算
+GitHub  ──→  Google Apps Script  ──→  Google スプレッドシート
+         自動収集                    可視化
 ```
 
-外部ツールやエージェント不要。GitHub APIとGoogle Apps Scriptだけで動きます。
+- **外部ツール不要** - GitHub API + Google Apps Scriptだけで完結
+- **既存の認証基盤** - Google Workspaceをそのまま活用
+- **追加コストゼロ** - 新しいサービス契約不要
 
-**なぜGoogle スプレッドシートなのか？**
+### データでチーム改善
 
-- 既存の認証基盤（Google Workspace）をそのまま活用
-- [ISO/IEC 27001:2022](https://cloud.google.com/security/compliance/iso-27001)、[SOC 2 Type II](https://cloud.google.com/security/compliance/soc-2) 等の主要セキュリティ認証を取得済み
-- 追加コストゼロで導入可能
-
-> 詳細：[なぜスプレッドシートを選んだか](docs/MEASUREMENT_PHILOSOPHY.md#なぜgoogle-スプレッドシートなのか)
-
-### 2. DORA指標 + AI時代の拡張指標
-
-**コア（DORA指標）:**
-- デプロイ頻度、リードタイム、変更障害率、MTTR
-
-**拡張（AI活用の評価）:**
-- サイクルタイム（Issue → Production）
-- コーディング時間（Issue → PR作成）
-- 手戻り率（追加コミット・Force Push）
-- レビュー効率（レビュー待ち・レビュー時間）
-- PRサイズ（変更行数・ファイル数）
-
-AI活用で「速くなった」を定量評価できます。
-
-### 3. チームの改善サイクルを回す
-
-- 週次ダッシュボードでトレンド把握
-- 複数リポジトリの横断比較
-- リポジトリ別の詳細分析
-
-データを見ながら、継続的にチームを改善できます。
+- **週次ダッシュボード** - トレンド把握
+- **複数リポジトリ横断** - チーム全体を俯瞰
+- **リポジトリ別分析** - ボトルネックを特定
 
 ---
 
@@ -126,27 +103,11 @@ bun run push
 
 ## ドキュメント
 
-### 使い方
 - **[クイックスタート](docs/QUICK_START.md)** - 5分で始める
-- **[組織導入ガイド](docs/SETUP_AND_TROUBLESHOOTING.md)** - チームでの導入・トラブルシューティング
-
-### DORA指標を理解する
 - **[DORA指標の詳細](docs/DORA_METRICS.md)** - 4つの指標の定義と計測方法
 - **[計測思想](docs/MEASUREMENT_PHILOSOPHY.md)** - なぜこの指標を、この方法で測るのか
-- **[アーキテクチャ](docs/ARCHITECTURE.md)** - データの流れと設計原則
-
-### 拡張指標の詳細（AI活用評価）
-| 指標 | 概要 |
-|------|------|
-| [サイクルタイム](docs/CYCLE_TIME.md) | Issue作成 → Production マージ |
-| [コーディング時間](docs/CODING_TIME.md) | Issue作成 → PR作成 |
-| [手戻り率](docs/REWORK_RATE.md) | PR作成後の追加コミット・Force Push |
-| [レビュー効率](docs/REVIEW_EFFICIENCY.md) | レビュー待ち・レビュー中・マージ待ち |
-| [PRサイズ](docs/PR_SIZE.md) | 変更行数・ファイル数 |
-
-### 拡張・開発
-- **[新しい指標を追加する](docs/ADDING_METRICS.md)** - 独自指標の実装ガイド
-- **[ADR（設計判断の記録）](docs/adr/)** - なぜそうなっているか
+- **[拡張指標の詳細](docs/)** - サイクルタイム、手戻り率、レビュー効率など
+- **[組織導入ガイド](docs/SETUP_AND_TROUBLESHOOTING.md)** - チーム運用・トラブルシューティング
 
 ---
 

@@ -30,13 +30,16 @@ DevSyncGASのコアは、業界標準の**DORA指標（DevOps Research and Asses
 
 DORA指標に加えて、**AI時代の開発を評価する追加指標**を提供します。
 
+| ドキュメント | 内容 |
+|-------------|------|
+| **[拡張指標の詳細](EXTENDED_METRICS.md)** | 5つの拡張指標の定義とGitHubデータでの計算方法（サイクルタイム、コーディング時間、手戻り率、レビュー効率、PRサイズ） |
+
+### 個別ドキュメント
+
 | 指標 | 何を測るか | AI活用での見どころ |
 |------|-----------|-------------------|
 | [サイクルタイム](CYCLE_TIME.md) | Issue作成 → Productionマージ | 全体の開発サイクルは早まったか |
 | [コーディング時間](CODING_TIME.md) | Issue作成 → PR作成 | AIで実装が速くなったか |
-| [手戻り率](REWORK_RATE.md) | 追加コミット・Force Push | 初回品質は向上したか |
-| [レビュー効率](REVIEW_EFFICIENCY.md) | レビュー待ち・レビュー時間 | AIコードはレビューしやすいか |
-| [PRサイズ](PR_SIZE.md) | 変更行数・ファイル数 | コードが肥大化していないか |
 
 ---
 
@@ -72,4 +75,7 @@ DORA指標に加えて、**AI時代の開発を評価する追加指標**を提�
 → [組織導入ガイド](SETUP_AND_TROUBLESHOOTING.md) → [GitHub Apps認証](GITHUB_APPS_AUTH.md)
 
 ### 「拡張指標について詳しく知りたい」
-→ 各指標の詳細ドキュメントへ
+→ [拡張指標の詳細](EXTENDED_METRICS.md) → 各指標の個別ドキュメントへ
+
+### 「GitHubデータをどう計算しているか知りたい」
+→ [DORA指標の詳細](DORA_METRICS.md) / [拡張指標の詳細](EXTENDED_METRICS.md)

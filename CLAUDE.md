@@ -126,6 +126,9 @@ Claude Codeに以下のように質問してください：
 
 詳細な設計ドキュメントは以下を参照：
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - 全体構造・データフロー・設計原則
+- [docs/DORA_METRICS.md](docs/DORA_METRICS.md) - DORA指標の計算方法
+- [docs/EXTENDED_METRICS.md](docs/EXTENDED_METRICS.md) - 拡張指標の計算方法
+- [docs/MEASUREMENT_PHILOSOPHY.md](docs/MEASUREMENT_PHILOSOPHY.md) - 計測思想・設計判断の詳細
 - [docs/adr/](docs/adr/) - 設計判断の記録（ADR）
 
 ## 作業完了時のチェック

@@ -26,12 +26,14 @@ DevSyncGASは、**感覚ではなくデータで判断する**ためのツール
 
 代わりに注目されているのが、**DORA指標（DevOps Research and Assessment）**。Google Cloudの研究チームが確立した、**本番リリースまでの実際の価値提供を測る4つの指標**です。
 
-| DORA指標 | GitHubでの計算方法 |
-|----------|-------------------|
-| **デプロイ頻度** | Deployments API（environment: "production"）または"deploy"ワークフロー |
-| **リードタイム** | PR作成 → productionデプロイまでの時間 |
-| **変更障害率** | "bug"/"incident"ラベルのIssue数 ÷ 総デプロイ数 |
-| **平均修復時間（MTTR）** | "incident"ラベルのIssue作成 → クローズまでの時間 |
+| DORA指標 | 何を測るか |
+|----------|-----------|
+| **デプロイ頻度** | 本番環境へのデプロイ回数 |
+| **リードタイム** | PR作成 → デプロイまでの時間 |
+| **変更障害率** | 障害を引き起こしたデプロイの割合 |
+| **平均修復時間（MTTR）** | 障害から復旧までの時間 |
+
+> **GitHubデータでどう計算しているか**: [DORA指標の詳細](docs/DORA_METRICS.md)
 
 ### AI時代の拡張指標
 
@@ -45,7 +47,7 @@ DevSyncGASは、DORA指標に加えて、**AI活用の効果を評価する拡�
 
 これらを組み合わせることで、「AIで速くなった」を定量的に証明できます。
 
-> 詳細：[DORA指標](docs/DORA_METRICS.md) / [計測思想](docs/MEASUREMENT_PHILOSOPHY.md)
+> **GitHubデータでどう計算しているか**: [拡張指標の詳細](docs/EXTENDED_METRICS.md)
 
 ---
 
@@ -103,11 +105,14 @@ bun run push
 
 ## ドキュメント
 
+### セットアップ
 - **[クイックスタート](docs/QUICK_START.md)** - 5分で始める
-- **[DORA指標の詳細](docs/DORA_METRICS.md)** - 4つの指標の定義と計測方法
-- **[計測思想](docs/MEASUREMENT_PHILOSOPHY.md)** - なぜこの指標を、この方法で測るのか
-- **[拡張指標の詳細](docs/)** - サイクルタイム、手戻り率、レビュー効率など
 - **[組織導入ガイド](docs/SETUP_AND_TROUBLESHOOTING.md)** - チーム運用・トラブルシューティング
+
+### 計測する指標
+- **[DORA指標の詳細](docs/DORA_METRICS.md)** - 4つの指標の定義とGitHubデータでの計算方法
+- **[拡張指標の詳細](docs/EXTENDED_METRICS.md)** - サイクルタイム、コーディング時間、手戻り率など
+- **[計測思想](docs/MEASUREMENT_PHILOSOPHY.md)** - なぜこの指標を、この方法で測るのか
 
 ---
 

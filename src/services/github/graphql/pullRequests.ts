@@ -28,9 +28,6 @@ import type {
   PullRequestDetailQueryResponse,
   GraphQLPullRequest,
   GraphQLPullRequestDetail,
-  GraphQLReview,
-  GraphQLCommit,
-  GraphQLTimelineEvent,
 } from "./types";
 import type { DateRange } from "../api";
 
@@ -66,26 +63,29 @@ export function getPullRequestsGraphQL(
         : ["MERGED", "CLOSED"];
 
   while (page < maxPages) {
-    const result = executeGraphQLWithRetry<PullRequestsQueryResponse>(
-      PULL_REQUESTS_QUERY,
-      {
-        owner: repo.owner,
-        name: repo.name,
-        first: DEFAULT_PAGE_SIZE,
-        after: cursor,
-        states,
-      },
-      token
-    );
+    const queryResult: ApiResponse<PullRequestsQueryResponse> =
+      executeGraphQLWithRetry<PullRequestsQueryResponse>(
+        PULL_REQUESTS_QUERY,
+        {
+          owner: repo.owner,
+          name: repo.name,
+          first: DEFAULT_PAGE_SIZE,
+          after: cursor,
+          states,
+        },
+        token
+      );
 
-    if (!result.success || !result.data?.repository?.pullRequests) {
+    if (!queryResult.success || !queryResult.data?.repository?.pullRequests) {
       if (page === 0) {
-        return { success: false, error: result.error };
+        return { success: false, error: queryResult.error };
       }
       break;
     }
 
-    const { nodes, pageInfo } = result.data.repository.pullRequests;
+    const prsData = queryResult.data.repository.pullRequests;
+    const nodes: GraphQLPullRequest[] = prsData.nodes;
+    const pageInfo = prsData.pageInfo;
 
     for (const pr of nodes) {
       const createdAt = new Date(pr.createdAt);
@@ -113,11 +113,15 @@ function convertToPullRequest(
   pr: GraphQLPullRequest,
   repository: string
 ): GitHubPullRequest {
+  // GraphQLのstateはOPEN/MERGED/CLOSEDだが、GitHubPullRequestの型は"open"|"closed"
+  // MERGEDはclosedとして扱う（REST APIとの互換性維持）
+  const state: "open" | "closed" =
+    pr.state === "OPEN" ? "open" : "closed";
   return {
     id: parseInt(pr.id.replace(/\D/g, ""), 10) || 0,
     number: pr.number,
     title: pr.title,
-    state: pr.state.toLowerCase() as "open" | "closed" | "merged",
+    state,
     createdAt: pr.createdAt,
     mergedAt: pr.mergedAt,
     closedAt: pr.closedAt,
@@ -392,7 +396,6 @@ export function getPRSizeDataForPRsGraphQL(
       }
 
       for (let j = 0; j < batch.length; j++) {
-        const pr = batch[j];
         const prData = result.data.repository[`pr${j}`];
 
         if (!prData) continue;

@@ -68,26 +68,29 @@ export function getDeploymentsGraphQL(
     environment && environmentMatchMode === "exact" ? [environment] : null;
 
   while (page < maxPages) {
-    const result = executeGraphQLWithRetry<DeploymentsQueryResponse>(
-      DEPLOYMENTS_QUERY,
-      {
-        owner: repo.owner,
-        name: repo.name,
-        first: DEFAULT_PAGE_SIZE,
-        after: cursor,
-        environments,
-      },
-      token
-    );
+    const queryResult: ApiResponse<DeploymentsQueryResponse> =
+      executeGraphQLWithRetry<DeploymentsQueryResponse>(
+        DEPLOYMENTS_QUERY,
+        {
+          owner: repo.owner,
+          name: repo.name,
+          first: DEFAULT_PAGE_SIZE,
+          after: cursor,
+          environments,
+        },
+        token
+      );
 
-    if (!result.success || !result.data?.repository?.deployments) {
+    if (!queryResult.success || !queryResult.data?.repository?.deployments) {
       if (page === 0) {
-        return { success: false, error: result.error };
+        return { success: false, error: queryResult.error };
       }
       break;
     }
 
-    const { nodes, pageInfo } = result.data.repository.deployments;
+    const deploymentsData = queryResult.data.repository.deployments;
+    const nodes: GraphQLDeployment[] = deploymentsData.nodes;
+    const pageInfo = deploymentsData.pageInfo;
 
     for (const deployment of nodes) {
       const createdAt = new Date(deployment.createdAt);
@@ -145,10 +148,16 @@ function convertToDeployment(
 function mapDeploymentStatus(
   state: string,
   statusState?: string | null
-): string | null {
+): GitHubDeployment["status"] {
   // latestStatus がある場合はそちらを優先
   if (statusState) {
-    return statusState.toLowerCase();
+    const mapped = statusState.toLowerCase() as GitHubDeployment["status"];
+    // 有効なステータス値かチェック
+    const validStatuses = ["success", "failure", "error", "inactive", "in_progress", "queued", "pending"];
+    if (validStatuses.includes(mapped as string)) {
+      return mapped;
+    }
+    return null;
   }
 
   // state から推測

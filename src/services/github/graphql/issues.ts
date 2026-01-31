@@ -62,27 +62,30 @@ export function getIssuesGraphQL(
   logger.log(`  📋 Fetching issues from ${repo.fullName}...`);
 
   while (page < maxPages) {
-    const result = executeGraphQLWithRetry<IssuesQueryResponse>(
-      ISSUES_QUERY,
-      {
-        owner: repo.owner,
-        name: repo.name,
-        first: DEFAULT_PAGE_SIZE,
-        after: cursor,
-        labels: options?.labels?.length ? options.labels : null,
-        states: ["OPEN", "CLOSED"],
-      },
-      token
-    );
+    const queryResult: ApiResponse<IssuesQueryResponse> =
+      executeGraphQLWithRetry<IssuesQueryResponse>(
+        ISSUES_QUERY,
+        {
+          owner: repo.owner,
+          name: repo.name,
+          first: DEFAULT_PAGE_SIZE,
+          after: cursor,
+          labels: options?.labels?.length ? options.labels : null,
+          states: ["OPEN", "CLOSED"],
+        },
+        token
+      );
 
-    if (!result.success || !result.data?.repository?.issues) {
+    if (!queryResult.success || !queryResult.data?.repository?.issues) {
       if (page === 0) {
-        return { success: false, error: result.error };
+        return { success: false, error: queryResult.error };
       }
       break;
     }
 
-    const { nodes, pageInfo } = result.data.repository.issues;
+    const issuesData = queryResult.data.repository.issues;
+    const nodes: GraphQLIssue[] = issuesData.nodes;
+    const pageInfo = issuesData.pageInfo;
 
     for (const issue of nodes) {
       const createdAt = new Date(issue.createdAt);

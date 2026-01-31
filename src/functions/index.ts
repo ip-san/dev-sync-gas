@@ -25,6 +25,11 @@ export {
   syncAllProjectsHistorical,
   syncLast30Days,
   syncLast90Days,
+  // 日別バックフィル
+  syncDailyBackfill,
+  backfillAllProjectsDaily,
+  backfillLast30Days,
+  backfillLast90Days,
   cleanup,
   generateSummary,
   generateAllProjectSummaries,

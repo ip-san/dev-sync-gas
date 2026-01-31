@@ -317,6 +317,134 @@ export function calculateIncidentMetrics(incidents: GitHubIncident[]): IncidentM
 }
 
 // =============================================================================
+// 日付ユーティリティ
+// =============================================================================
+
+/**
+ * 日付範囲の配列を生成
+ */
+export function generateDateRange(since: Date, until: Date): Date[] {
+  const dates: Date[] = [];
+  const current = new Date(since);
+  current.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(until);
+  endDate.setHours(0, 0, 0, 0);
+
+  while (current <= endDate) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+/**
+ * 日付が指定日と同じか判定（UTC基準）
+ */
+export function isOnDate(target: Date, date: Date): boolean {
+  const targetStr = target.toISOString().split('T')[0];
+  const dateStr = date.toISOString().split('T')[0];
+  return targetStr === dateStr;
+}
+
+// =============================================================================
+// 日別メトリクス計算
+// =============================================================================
+
+/**
+ * 日別にグループ化してメトリクスを計算
+ *
+ * @param repositories - 対象リポジトリ一覧
+ * @param prs - 全期間のPR
+ * @param runs - 全期間のワークフロー実行
+ * @param deployments - 全期間のデプロイメント
+ * @param dateRange - 期間
+ * @returns 日別・リポジトリ別のメトリクス配列
+ */
+export function calculateDailyMetrics(
+  repositories: { fullName: string }[],
+  prs: GitHubPullRequest[],
+  runs: GitHubWorkflowRun[],
+  deployments: GitHubDeployment[],
+  dateRange: { since: Date; until: Date }
+): DevOpsMetrics[] {
+  const metrics: DevOpsMetrics[] = [];
+
+  // 期間内の各日付を生成
+  const dates = generateDateRange(dateRange.since, dateRange.until);
+
+  for (const date of dates) {
+    const dateStr = date.toISOString().split('T')[0];
+
+    for (const repo of repositories) {
+      // その日にマージされたPRをフィルタ
+      const dayPRs = prs.filter(
+        (pr) =>
+          pr.repository === repo.fullName &&
+          pr.mergedAt !== null &&
+          isOnDate(new Date(pr.mergedAt), date)
+      );
+
+      // その日のデプロイメントをフィルタ
+      const dayDeployments = deployments.filter(
+        (d) => d.repository === repo.fullName && isOnDate(new Date(d.createdAt), date)
+      );
+
+      // その日のワークフロー実行をフィルタ
+      const dayRuns = runs.filter(
+        (r) => r.repository === repo.fullName && isOnDate(new Date(r.createdAt), date)
+      );
+
+      // 日別メトリクス計算
+      const dayMetrics = calculateMetricsForDate(
+        repo.fullName,
+        dateStr,
+        dayPRs,
+        dayRuns,
+        dayDeployments
+      );
+
+      metrics.push(dayMetrics);
+    }
+  }
+
+  return metrics;
+}
+
+/**
+ * 指定日付でメトリクスを計算
+ */
+export function calculateMetricsForDate(
+  repository: string,
+  dateStr: string,
+  prs: GitHubPullRequest[],
+  runs: GitHubWorkflowRun[],
+  deployments: GitHubDeployment[]
+): DevOpsMetrics {
+  // 1日あたりのメトリクス計算（periodDays = 1）
+  const { count, frequency } = calculateDeploymentFrequency(deployments, runs, 1);
+  const { total, failed, rate } = calculateChangeFailureRate(deployments, runs);
+  const leadTimeResult = calculateLeadTimeDetailed(prs, deployments);
+
+  return {
+    date: dateStr,
+    repository,
+    deploymentCount: count,
+    deploymentFrequency: frequency,
+    leadTimeForChangesHours: leadTimeResult.hours,
+    leadTimeMeasurement: {
+      mergeToDeployCount: leadTimeResult.mergeToDeployCount,
+      createToMergeCount: leadTimeResult.createToMergeCount,
+    },
+    totalDeployments: total,
+    failedDeployments: failed,
+    changeFailureRate: rate,
+    meanTimeToRecoveryHours: calculateMTTR(deployments, runs),
+  };
+}
+
+// =============================================================================
 // リポジトリ単位のDORA Metrics計算
 // =============================================================================
 

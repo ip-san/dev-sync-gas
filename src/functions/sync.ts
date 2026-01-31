@@ -14,8 +14,13 @@ import {
   getAllRepositoriesDataGraphQL,
   type DateRange,
 } from '../services/github';
-import { writeMetricsToSheet, createSummarySheet, clearOldData } from '../services/spreadsheet';
-import { calculateMetricsForRepository } from '../utils/metrics';
+import {
+  writeMetricsToSheet,
+  writeMetricsWithDuplicateCheck,
+  createSummarySheet,
+  clearOldData,
+} from '../services/spreadsheet';
+import { calculateMetricsForRepository, calculateDailyMetrics } from '../utils/metrics';
 import { ensureContainerInitialized } from './helpers';
 import type {
   DevOpsMetrics,
@@ -229,6 +234,130 @@ export function syncLast30Days(): void {
 /** 過去90日分を取得 */
 export function syncLast90Days(): void {
   syncHistoricalMetrics(90);
+}
+
+// =============================================================================
+// 日別バックフィル
+// =============================================================================
+
+/**
+ * 日別バックフィル: 過去N日分のメトリクスを日別に記録
+ *
+ * 30日分なら 30 × リポジトリ数 の行が追加される。
+ * 重複チェックにより、既に記録済みの(日付, リポジトリ)はスキップされる。
+ *
+ * @param days - バックフィル日数（デフォルト: 30）
+ */
+export function syncDailyBackfill(days = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const token = getGitHubToken();
+
+  // 1. 期間設定
+  const until = new Date();
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  Logger.log(`📅 Daily backfill for the last ${days} days`);
+  Logger.log(`   From: ${since.toISOString().split('T')[0]}`);
+  Logger.log(`   To: ${until.toISOString().split('T')[0]}`);
+  Logger.log(`   Repositories: ${config.github.repositories.length}`);
+
+  // 2. GitHubデータ一括取得
+  const { pullRequests, workflowRuns, deployments } = fetchRepositoriesData(
+    config.github.repositories,
+    token,
+    { dateRange: { since, until } }
+  );
+
+  Logger.log(
+    `📥 Fetched ${pullRequests.length} PRs, ${workflowRuns.length} workflow runs, ${deployments.length} deployments`
+  );
+
+  // 3. 日別メトリクス計算
+  const dailyMetrics = calculateDailyMetrics(
+    config.github.repositories,
+    pullRequests,
+    workflowRuns,
+    deployments,
+    { since, until }
+  );
+
+  Logger.log(`📊 Generated ${dailyMetrics.length} daily records`);
+
+  // 4. 重複除外して書き込み
+  writeMetricsWithDuplicateCheck(config.spreadsheet.id, config.spreadsheet.sheetName, dailyMetrics);
+}
+
+/**
+ * 全プロジェクトの日別バックフィル
+ *
+ * @param days - バックフィル日数（デフォルト: 30）
+ */
+export function backfillAllProjectsDaily(days = 30): void {
+  ensureContainerInitialized();
+  const config = getConfig();
+  const projects = config.projects ?? [];
+
+  if (projects.length === 0) {
+    Logger.log('⚠️ No projects configured. Using legacy single spreadsheet mode.');
+    syncDailyBackfill(days);
+    return;
+  }
+
+  Logger.log(`📊 Daily backfill for ${projects.length} project groups (${days} days)`);
+
+  const token = getGitHubToken();
+
+  // 期間設定
+  const until = new Date();
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  for (const project of projects) {
+    Logger.log(`\n🔹 Project: ${project.name}`);
+    Logger.log(`   Spreadsheet: ${project.spreadsheetId}`);
+    Logger.log(`   Repositories: ${project.repositories.length}`);
+
+    if (project.repositories.length === 0) {
+      Logger.log(`   ⚠️ No repositories in this project, skipping`);
+      continue;
+    }
+
+    const { pullRequests, workflowRuns, deployments } = fetchRepositoriesData(
+      project.repositories,
+      token,
+      { dateRange: { since, until } }
+    );
+
+    Logger.log(
+      `   📥 Fetched ${pullRequests.length} PRs, ${workflowRuns.length} workflow runs, ${deployments.length} deployments`
+    );
+
+    const dailyMetrics = calculateDailyMetrics(
+      project.repositories,
+      pullRequests,
+      workflowRuns,
+      deployments,
+      { since, until }
+    );
+
+    Logger.log(`   📊 Generated ${dailyMetrics.length} daily records`);
+
+    writeMetricsWithDuplicateCheck(project.spreadsheetId, project.sheetName, dailyMetrics);
+  }
+
+  Logger.log(`\n✅ Daily backfill completed for ${projects.length} projects`);
+}
+
+/** 過去30日分を日別バックフィル */
+export function backfillLast30Days(): void {
+  syncDailyBackfill(30);
+}
+
+/** 過去90日分を日別バックフィル */
+export function backfillLast90Days(): void {
+  syncDailyBackfill(90);
 }
 
 // =============================================================================

@@ -14,7 +14,12 @@
  */
 
 // DevOps Metrics（DORA指標）
-export { writeMetricsToSheet, clearOldData, createSummarySheet } from './devops';
+export {
+  writeMetricsToSheet,
+  writeMetricsWithDuplicateCheck,
+  clearOldData,
+  createSummarySheet,
+} from './devops';
 
 // サイクルタイム指標
 export { writeCycleTimeToSheet } from './cycleTime';

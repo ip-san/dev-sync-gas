@@ -170,18 +170,24 @@ export function getCycleTimeData(
           productionPattern
         );
 
-        if (trackResult.success && trackResult.data) {
-          if (trackResult.data.productionMergedAt) {
-            if (
-              !bestResult?.productionMergedAt ||
-              new Date(trackResult.data.productionMergedAt) <
-                new Date(bestResult.productionMergedAt)
-            ) {
-              bestResult = trackResult.data;
-            }
-          } else if (!bestResult) {
-            bestResult = trackResult.data;
+        // Early return pattern to reduce nesting
+        if (!trackResult.success || !trackResult.data) {
+          continue;
+        }
+
+        const data = trackResult.data;
+
+        // Update bestResult if this is better
+        if (data.productionMergedAt) {
+          const shouldUpdate =
+            !bestResult?.productionMergedAt ||
+            new Date(data.productionMergedAt) < new Date(bestResult.productionMergedAt);
+
+          if (shouldUpdate) {
+            bestResult = data;
           }
+        } else if (!bestResult) {
+          bestResult = data;
         }
       }
 

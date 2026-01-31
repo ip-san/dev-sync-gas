@@ -51,7 +51,11 @@ export class GasHttpClient implements HttpClient {
 
     // タイムアウトを設定（GAS環境のみ）
     if (typeof UrlFetchApp !== 'undefined') {
-      (gasOptions as unknown as { muteHttpExceptions: boolean }).muteHttpExceptions = true;
+      // GASの型定義に存在しないプロパティを安全に設定
+      const gasOptionsWithMute: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions & {
+        muteHttpExceptions?: boolean;
+      } = gasOptions;
+      gasOptionsWithMute.muteHttpExceptions = true;
     }
 
     try {
@@ -87,8 +91,11 @@ export class GasHttpClient implements HttpClient {
       let data: T | undefined;
       try {
         data = JSON.parse(content) as T;
-      } catch {
-        // JSONでない場合はundefined
+      } catch (error) {
+        // JSONでない場合はundefined（エラーログを記録）
+        Logger.log(
+          `⚠️ Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
 
       return { statusCode, content, data };

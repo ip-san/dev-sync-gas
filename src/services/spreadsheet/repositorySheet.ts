@@ -8,12 +8,7 @@
 import type { DevOpsMetrics } from '../../types';
 import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
-import {
-  getOrCreateSheet,
-  autoResizeColumns,
-  openSpreadsheet,
-  applyDataBorders,
-} from './helpers';
+import { getOrCreateSheet, autoResizeColumns, openSpreadsheet, applyDataBorders } from './helpers';
 import { REPOSITORY_DEVOPS_SCHEMA, getHeadersFromSchema } from '../../schemas';
 
 /**

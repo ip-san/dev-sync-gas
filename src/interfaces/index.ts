@@ -48,13 +48,7 @@ export interface SheetRange {
   setWrap(wrap: boolean): void;
 }
 
-export type BorderStyle =
-  | 'dotted'
-  | 'dashed'
-  | 'solid'
-  | 'solid_medium'
-  | 'solid_thick'
-  | 'double';
+export type BorderStyle = 'dotted' | 'dashed' | 'solid' | 'solid_medium' | 'solid_thick' | 'double';
 
 export interface Sheet {
   getName(): string;

@@ -106,3 +106,45 @@ configureApiMode('rest');   // REST APIを使用
 configureApiMode('graphql'); // GraphQL APIを使用（デフォルト）
 showApiMode();              // 現在のモードを確認
 ```
+
+## コードの理解に困ったら
+
+Claude Codeに以下のように質問してください：
+
+```
+「src/services/github/graphql/ の設計意図を説明して」
+「プロジェクトグループ機能の使い方を教えて」
+「このPRで何が変わったか要約して」
+「DIコンテナの仕組みを解説して」
+「サイクルタイム計測のデータフローを説明して」
+```
+
+詳細な設計ドキュメントは以下を参照：
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - 全体構造・データフロー・設計原則
+- [docs/adr/](docs/adr/) - 設計判断の記録（ADR）
+
+## 作業完了時のチェック
+
+コード変更後は以下を確認してください：
+
+```bash
+bunx tsc --noEmit      # 型エラーなし
+bun run lint           # Lint警告なし
+bun test               # テスト通過
+bun run build          # ビルド成功
+```
+
+確認項目：
+- 未使用のimport/変数がないか
+- 新機能にテストを追加したか
+- 必要に応じてドキュメントを更新したか
+
+## 設計判断の記録
+
+重要な設計判断をした場合は、規模に応じて記録してください：
+
+| 規模 | 記録先 | 例 |
+|------|--------|-----|
+| 小 | コミットメッセージ | バグ修正、軽微な改善 |
+| 中 | PR Description | 機能追加、リファクタリング |
+| 大 | ADR（docs/adr/） | アーキテクチャ変更、技術選定 |

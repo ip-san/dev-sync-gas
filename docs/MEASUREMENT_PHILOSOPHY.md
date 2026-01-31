@@ -53,14 +53,14 @@ Google Workspaceを使用している組織では、**既存の認証基盤を�
 
 Google Workspaceは主要なセキュリティ認証を取得しています：
 
-| 認証 | 内容 |
-|------|------|
-| **ISO 27001** | 情報セキュリティマネジメントシステム |
-| **SOC 2 Type II** | セキュリティ・可用性・機密性の継続的監査 |
-| **ISO 27017** | クラウドセキュリティ |
-| **ISO 27018** | クラウド上の個人情報保護 |
+| 認証 | 内容 | 監査機関 |
+|------|------|----------|
+| **[ISO/IEC 27001:2022](https://cloud.google.com/security/compliance/iso-27001)** | 情報セキュリティマネジメントシステム | Ernst & Young CertifyPoint（IAF認定） |
+| **[SOC 2 Type II](https://cloud.google.com/security/compliance/soc-2)** | セキュリティ・可用性・機密性の継続的監査 | Ernst & Young LLP、Coalfire |
+| **ISO/IEC 27017** | クラウドセキュリティ | 国際認証機関 |
+| **ISO/IEC 27018** | クラウド上の個人情報保護 | 国際認証機関 |
 
-これらは**Ernst & Young LLP**や**Coalfire**などの独立した第三者機関による監査を受けています。
+これらは独立した第三者機関による監査を受けており、四半期ごとに[コンプライアンスレポート](https://cloud.google.com/security/compliance/compliance-reports-manager)が更新されます。
 
 独自ツールを導入する場合、同等のセキュリティ証明を確認・維持する必要がありますが、Google Workspaceなら組織の既存コンプライアンス体制に含まれている可能性が高いです。
 
@@ -70,9 +70,11 @@ Google Workspaceは主要なセキュリティ認証を取得しています：
 
 ### 参考資料
 
-- [Google Workspace セキュリティホワイトペーパー](https://workspace.google.com/learn-more/security/security-whitepaper/)
+公式ドキュメント：
+- [Google Cloud ISO/IEC 27001:2022 認証](https://cloud.google.com/security/compliance/iso-27001)
 - [Google Cloud SOC 2 コンプライアンス](https://cloud.google.com/security/compliance/soc-2)
-- [Google Cloud ISO 27001 認証](https://cloud.google.com/security/compliance/iso-27001)
+- [Google Workspace セキュリティホワイトペーパー](https://workspace.google.com/learn-more/security/security-whitepaper/)
+- [コンプライアンスレポートマネージャー](https://cloud.google.com/security/compliance/compliance-reports-manager)（SOC 2レポート四半期更新）
 
 ---
 

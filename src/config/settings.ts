@@ -453,18 +453,40 @@ export function resetProductionBranchPattern(): void {
 }
 
 /**
+ * プロパティから文字列配列を取得する汎用ヘルパー関数
+ * @param key プロパティキー
+ * @returns パースされた文字列配列（失敗時は空配列）
+ */
+function getPropertyAsStringArray(key: string): string[] {
+  const { storageClient, logger } = getContainer();
+  const json = storageClient.getProperty(key);
+  if (!json) {
+    return [];
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
+      return parsed;
+    }
+    logger.log(`⚠️ Property ${key} is not a valid string array`);
+  } catch (error) {
+    logger.log(
+      `⚠️ Failed to parse ${key}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  return [];
+}
+
+/**
  * サイクルタイム計測対象のIssueラベルを取得
  * 空配列の場合は全Issueが対象
  *
  * @returns ラベル配列（デフォルト: []）
  */
 export function getCycleTimeIssueLabels(): string[] {
-  const { storageClient } = getContainer();
-  const json = storageClient.getProperty('CYCLE_TIME_ISSUE_LABELS');
-  if (!json) {
-    return [];
-  }
-  return JSON.parse(json) as string[];
+  return getPropertyAsStringArray('CYCLE_TIME_ISSUE_LABELS');
 }
 
 /**
@@ -501,12 +523,7 @@ export function resetCycleTimeIssueLabels(): void {
  * @returns ラベル配列（デフォルト: []）
  */
 export function getCodingTimeIssueLabels(): string[] {
-  const { storageClient } = getContainer();
-  const json = storageClient.getProperty('CODING_TIME_ISSUE_LABELS');
-  if (!json) {
-    return [];
-  }
-  return JSON.parse(json) as string[];
+  return getPropertyAsStringArray('CODING_TIME_ISSUE_LABELS');
 }
 
 /**

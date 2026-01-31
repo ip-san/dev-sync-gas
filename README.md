@@ -6,14 +6,6 @@ GitHub × Google スプレッドシートで、コードを書いてからリリ
 
 ---
 
-## 業界標準のDORA指標を、自動で計測
-
-Google Cloudの研究チームが確立した**DORA指標（DevOps Research and Assessment）**を、GitHubのデータから自動収集。
-
-**デプロイ頻度・リードタイム・変更障害率・平均修復時間**の4つの指標で、開発チームのパフォーマンスを客観的に評価します。
-
----
-
 ## AIを使って、本当に速くなった？
 
 Claude CodeやCopilotを導入して「コードを書く速度は上がった気がする」。
@@ -45,12 +37,14 @@ Google Cloudの研究チームが7年以上の研究で確立した、**ソフ�
 
 これら4指標は、**「速く」かつ「安定して」価値を届けられているか**を客観的に評価します。
 
-### ベロシティとの違い
+**ベロシティとの違い:**
 
-| 指標 | 測るもの | AI時代の課題 |
+| 指標 | 測るもの | AI時代の適性 |
 |------|---------|-------------|
-| **ベロシティ** | こなしたストーリーポイント数 | AIがコード生成を高速化しても、検証の複雑さは変わらず、[虚栄の指標化](https://www.scrum.org/resources/blog/velocity-agent-efficiency-evidence-based-management-ai-era) |
-| **DORA指標** | デプロイの速さと安定性 | 本番リリースまでの実際の価値提供を測定。[Evidence-Based Management](https://www.scrum.org/resources/evidence-based-management)でも推奨 |
+| **ベロシティ** | こなしたストーリーポイント数 | AIがコード生成を高速化しても、検証の複雑さは変わらず[虚栄の指標化](https://www.scrum.org/resources/blog/velocity-agent-efficiency-evidence-based-management-ai-era) |
+| **DORA指標** | デプロイの速さと安定性 | 本番リリースまでの実際の価値提供を測定 |
+
+DevSyncGASは、この**DORA指標をGitHubから自動収集**し、Google スプレッドシートで可視化します。
 
 > 詳細：[DORA指標の詳しい解説](docs/DORA_METRICS.md)
 

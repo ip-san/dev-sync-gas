@@ -1,6 +1,6 @@
 {
   "name": "devsync-gas",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "GitHub複数リポジトリからDevOps指標（DORA metrics）を収集し、Googleスプレッドシートに書き出すGASプロダクト",
   "type": "module",
   "scripts": {

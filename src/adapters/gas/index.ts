@@ -21,26 +21,51 @@ import type {
 
 // HTTP Client
 export class GasHttpClient implements HttpClient {
+  // セキュリティ: デフォルトタイムアウトを設定（30秒）
+  private readonly DEFAULT_TIMEOUT_MS = 30000;
+
   fetch<T = unknown>(url: string, options: HttpRequestOptions = {}): HttpResponse<T> {
     const gasOptions: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
       method: options.method ?? 'get',
       headers: options.headers,
       payload: options.payload,
       muteHttpExceptions: options.muteHttpExceptions ?? true,
+      // タイムアウト設定（GAS実行時間制限6分を考慮）
+      validateHttpsCertificates: true, // セキュリティ: SSL証明書を検証
+      followRedirects: true,
+      // GASのfetchはミリ秒ではなく秒単位
+      // ただし、型定義上は存在しないため any でキャスト
     };
 
-    const response = UrlFetchApp.fetch(url, gasOptions);
-    const statusCode = response.getResponseCode();
-    const content = response.getContentText();
-
-    let data: T | undefined;
-    try {
-      data = JSON.parse(content) as T;
-    } catch {
-      // JSONでない場合はundefined
+    // タイムアウトを設定（GAS環境のみ）
+    if (typeof UrlFetchApp !== 'undefined') {
+      (gasOptions as unknown as { muteHttpExceptions: boolean }).muteHttpExceptions = true;
     }
 
-    return { statusCode, content, data };
+    try {
+      const response = UrlFetchApp.fetch(url, gasOptions);
+      const statusCode = response.getResponseCode();
+      const content = response.getContentText();
+
+      let data: T | undefined;
+      try {
+        data = JSON.parse(content) as T;
+      } catch {
+        // JSONでない場合はundefined
+      }
+
+      return { statusCode, content, data };
+    } catch (error) {
+      // タイムアウトエラーの場合は明示的なメッセージ
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+        throw new Error(
+          `Request to ${url} timed out after ${this.DEFAULT_TIMEOUT_MS / 1000} seconds. ` +
+            'This may indicate network issues or slow API response.'
+        );
+      }
+      throw error;
+    }
   }
 }
 

@@ -334,7 +334,7 @@ describe("settings", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
           {
             name: "project1",
-            spreadsheetId: "sheet1",
+            spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678",
             sheetName: "DevOps Metrics",
             repositories: [{ owner: "owner1", name: "repo1", fullName: "owner1/repo1" }],
           },
@@ -351,7 +351,7 @@ describe("settings", () => {
       it("プロジェクトを追加する", () => {
         addProject({
           name: "newProject",
-          spreadsheetId: "new-sheet-id",
+          spreadsheetId: "NEW1234567890abcdefghijklmnopqrstuvwxyz1234",
           sheetName: "Metrics",
           repositories: [],
         });
@@ -359,17 +359,17 @@ describe("settings", () => {
         const projects = getProjects();
         expect(projects).toHaveLength(1);
         expect(projects[0].name).toBe("newProject");
-        expect(projects[0].spreadsheetId).toBe("new-sheet-id");
+        expect(projects[0].spreadsheetId).toBe("NEW1234567890abcdefghijklmnopqrstuvwxyz1234");
       });
 
       it("同名のプロジェクトが存在する場合はエラーを投げる", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
-          { name: "existing", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+          { name: "existing", spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678", sheetName: "Test", repositories: [] },
         ]));
 
         expect(() => addProject({
           name: "existing",
-          spreadsheetId: "sheet2",
+          spreadsheetId: "abcdefghijklmnopqrstuvwxyz1234567890abcdef",
           sheetName: "Test",
           repositories: [],
         })).toThrow('Project "existing" already exists');
@@ -379,8 +379,8 @@ describe("settings", () => {
     describe("removeProject", () => {
       it("プロジェクトを削除する", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
-          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
-          { name: "project2", spreadsheetId: "sheet2", sheetName: "Test", repositories: [] },
+          { name: "project1", spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678", sheetName: "Test", repositories: [] },
+          { name: "project2", spreadsheetId: "abcdefghijklmnopqrstuvwxyz1234567890abcdef", sheetName: "Test", repositories: [] },
         ]));
 
         removeProject("project1");
@@ -394,7 +394,7 @@ describe("settings", () => {
     describe("addRepositoryToProject", () => {
       it("プロジェクトにリポジトリを追加する", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
-          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+          { name: "project1", spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678", sheetName: "Test", repositories: [] },
         ]));
 
         addRepositoryToProject("project1", "owner", "repo");
@@ -413,7 +413,7 @@ describe("settings", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
           {
             name: "project1",
-            spreadsheetId: "sheet1",
+            spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678",
             sheetName: "Test",
             repositories: [{ owner: "owner", name: "repo", fullName: "owner/repo" }],
           },
@@ -431,7 +431,7 @@ describe("settings", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
           {
             name: "project1",
-            spreadsheetId: "sheet1",
+            spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678",
             sheetName: "Test",
             repositories: [
               { owner: "owner1", name: "repo1", fullName: "owner1/repo1" },
@@ -451,7 +451,7 @@ describe("settings", () => {
     describe("getConfig with projects", () => {
       it("projectsが設定されている場合はconfigに含まれる", () => {
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
-          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+          { name: "project1", spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678", sheetName: "Test", repositories: [] },
         ]));
 
         const config = getConfig();
@@ -462,7 +462,7 @@ describe("settings", () => {
       it("projectsがある場合はSPREADSHEET_IDがなくてもエラーにならない", () => {
         container.storageClient.deleteProperty("SPREADSHEET_ID");
         container.storageClient.setProperty("PROJECTS", JSON.stringify([
-          { name: "project1", spreadsheetId: "sheet1", sheetName: "Test", repositories: [] },
+          { name: "project1", spreadsheetId: "1234567890abcdefghijklmnopqrstuvwxyz12345678", sheetName: "Test", repositories: [] },
         ]));
 
         const config = getConfig();

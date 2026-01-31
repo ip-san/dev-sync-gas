@@ -1,6 +1,13 @@
 import type { Config, GitHubRepository, GitHubAppConfig, ProjectGroup } from '../types';
 import { getContainer } from '../container';
 import { resolveGitHubToken } from '../services/githubAuth';
+import {
+  validateRepositoryOwner,
+  validateRepositoryName,
+  validateProjectName,
+  validateSpreadsheetId,
+} from '../utils/validation';
+import { auditLog } from '../utils/auditLog';
 
 // =============================================================================
 // API モード設定
@@ -183,6 +190,10 @@ export function getProjects(): ProjectGroup[] {
  * プロジェクトグループを追加
  */
 export function addProject(project: ProjectGroup): void {
+  // 入力検証
+  validateProjectName(project.name);
+  validateSpreadsheetId(project.spreadsheetId);
+
   const config = getConfig();
   const projects = config.projects ?? [];
 
@@ -193,12 +204,24 @@ export function addProject(project: ProjectGroup): void {
 
   projects.push(project);
   setConfig({ projects });
+
+  // 監査ログ
+  auditLog('project.create', {
+    name: project.name,
+    spreadsheetId: project.spreadsheetId,
+    sheetName: project.sheetName,
+  });
 }
 
 /**
  * プロジェクトグループを更新
  */
 export function updateProject(name: string, updates: Partial<Omit<ProjectGroup, 'name'>>): void {
+  // 入力検証
+  if (updates.spreadsheetId) {
+    validateSpreadsheetId(updates.spreadsheetId);
+  }
+
   const config = getConfig();
   const projects = config.projects ?? [];
 
@@ -209,6 +232,9 @@ export function updateProject(name: string, updates: Partial<Omit<ProjectGroup, 
 
   projects[index] = { ...projects[index], ...updates };
   setConfig({ projects });
+
+  // 監査ログ
+  auditLog('project.update', { name, updates });
 }
 
 /**
@@ -216,14 +242,26 @@ export function updateProject(name: string, updates: Partial<Omit<ProjectGroup, 
  */
 export function removeProject(name: string): void {
   const config = getConfig();
+  const beforeCount = (config.projects ?? []).length;
   const projects = (config.projects ?? []).filter((p) => p.name !== name);
-  setConfig({ projects });
+  const afterCount = projects.length;
+
+  if (beforeCount !== afterCount) {
+    setConfig({ projects });
+
+    // 監査ログ
+    auditLog('project.delete', { name });
+  }
 }
 
 /**
  * プロジェクトグループにリポジトリを追加
  */
 export function addRepositoryToProject(projectName: string, owner: string, repoName: string): void {
+  // 入力検証
+  validateRepositoryOwner(owner);
+  validateRepositoryName(repoName);
+
   const config = getConfig();
   const projects = config.projects ?? [];
 
@@ -238,6 +276,14 @@ export function addRepositoryToProject(projectName: string, owner: string, repoN
   if (!exists) {
     project.repositories.push(newRepo);
     setConfig({ projects });
+
+    // 監査ログ
+    auditLog('project.repository.add', {
+      projectName,
+      owner,
+      repoName,
+      fullName: newRepo.fullName,
+    });
   }
 }
 
@@ -253,18 +299,51 @@ export function removeRepositoryFromProject(projectName: string, fullName: strin
     throw new Error(`Project "${projectName}" not found`);
   }
 
+  const beforeCount = project.repositories.length;
   project.repositories = project.repositories.filter((r) => r.fullName !== fullName);
-  setConfig({ projects });
+  const afterCount = project.repositories.length;
+
+  if (beforeCount !== afterCount) {
+    setConfig({ projects });
+
+    // 監査ログ
+    auditLog('project.repository.remove', { projectName, fullName });
+  }
 }
 
 /**
  * GitHub Apps設定をクリア（PAT認証に戻す際に使用）
+ * セキュリティ: 機密情報の削除を監査ログに記録
  */
 export function clearGitHubAppConfig(): void {
-  const { storageClient } = getContainer();
-  storageClient.deleteProperty('GITHUB_APP_ID');
-  storageClient.deleteProperty('GITHUB_APP_PRIVATE_KEY');
-  storageClient.deleteProperty('GITHUB_APP_INSTALLATION_ID');
+  const { storageClient, logger } = getContainer();
+
+  // 削除前の確認メッセージ
+  logger.log('⚠️ Clearing GitHub App configuration...');
+  logger.log('   This will remove App ID, Private Key, and Installation ID');
+  logger.log('   Make sure to revoke the GitHub App access if no longer needed');
+
+  try {
+    storageClient.deleteProperty('GITHUB_APP_ID');
+    storageClient.deleteProperty('GITHUB_APP_PRIVATE_KEY');
+    storageClient.deleteProperty('GITHUB_APP_INSTALLATION_ID');
+
+    // 監査ログ（成功）
+    auditLog('config.github_app.clear', {
+      message: 'GitHub App configuration cleared successfully',
+    });
+
+    logger.log('✅ GitHub App configuration cleared');
+  } catch (error) {
+    // 監査ログ（失敗）
+    auditLog(
+      'config.github_app.clear',
+      { message: 'Failed to clear GitHub App configuration' },
+      'failure',
+      error instanceof Error ? error.message : String(error)
+    );
+    throw error;
+  }
 }
 
 /**
@@ -280,6 +359,10 @@ export function getGitHubToken(): string {
 }
 
 export function addRepository(owner: string, name: string): void {
+  // 入力検証
+  validateRepositoryOwner(owner);
+  validateRepositoryName(name);
+
   const config = getConfig();
   const newRepo: GitHubRepository = { owner, name, fullName: `${owner}/${name}` };
   const exists = config.github.repositories.some((r) => r.fullName === newRepo.fullName);
@@ -287,13 +370,24 @@ export function addRepository(owner: string, name: string): void {
   if (!exists) {
     config.github.repositories.push(newRepo);
     setConfig({ github: config.github });
+
+    // 監査ログ
+    auditLog('repository.add', { owner, name, fullName: newRepo.fullName });
   }
 }
 
 export function removeRepository(fullName: string): void {
   const config = getConfig();
+  const beforeCount = config.github.repositories.length;
   config.github.repositories = config.github.repositories.filter((r) => r.fullName !== fullName);
-  setConfig({ github: config.github });
+  const afterCount = config.github.repositories.length;
+
+  if (beforeCount !== afterCount) {
+    setConfig({ github: config.github });
+
+    // 監査ログ
+    auditLog('repository.remove', { fullName });
+  }
 }
 
 // ============================================================

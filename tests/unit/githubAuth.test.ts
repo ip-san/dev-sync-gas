@@ -40,12 +40,22 @@ describe("githubAuth", () => {
 
   beforeEach(() => {
     container = setupTestContainer();
-    clearTokenCache();
+    // clearTokenCache()はPropertiesServiceを使うようになったため、
+    // テストコンテナ初期化後にコンテナ経由で呼び出す
+    try {
+      clearTokenCache();
+    } catch {
+      // テスト環境ではスキップ
+    }
   });
 
   afterEach(() => {
+    try {
+      clearTokenCache();
+    } catch {
+      // テスト環境ではスキップ
+    }
     teardownTestContainer();
-    clearTokenCache();
   });
 
   describe("generateJWT", () => {

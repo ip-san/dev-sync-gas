@@ -96,3 +96,6 @@ export {
   showReviewEfficiencyDetails,
   showPRSizeDetails,
 } from './debug';
+
+// 監査ログ
+export { exportAuditLogs, showAuditLogs } from './audit';

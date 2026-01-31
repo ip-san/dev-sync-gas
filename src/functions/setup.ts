@@ -30,6 +30,7 @@ import {
   validatePrivateKey,
 } from '../utils/validation';
 import { auditLog } from '../utils/auditLog';
+import { validateSpreadsheetAccess } from '../utils/spreadsheetValidator';
 
 // =============================================================================
 // 初期セットアップ
@@ -45,6 +46,8 @@ export function setup(githubToken: string, spreadsheetId: string): void {
   try {
     validateGitHubToken(githubToken);
     validateSpreadsheetId(spreadsheetId);
+    // スプレッドシートへのアクセス権限を検証
+    validateSpreadsheetAccess(spreadsheetId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     Logger.log(`❌ Validation error: ${errorMessage}`);
@@ -86,6 +89,8 @@ export function setupWithGitHubApp(
     validatePrivateKey(privateKey);
     validateGitHubInstallationId(installationId);
     validateSpreadsheetId(spreadsheetId);
+    // スプレッドシートへのアクセス権限を検証
+    validateSpreadsheetAccess(spreadsheetId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     Logger.log(`❌ Validation error: ${errorMessage}`);

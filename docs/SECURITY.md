@@ -187,6 +187,49 @@ migratePrivateKey();
 
 詳細は「[機密情報の取り扱い](#機密情報の取り扱い)」セクションを参照。
 
+### 8. スプレッドシートアクセス権限検証
+
+セットアップ時にスプレッドシートへのアクセス権限を事前検証します。
+
+**機能:**
+- スプレッドシートIDの形式検証
+- 実際のアクセステスト（SpreadsheetApp.openById）
+- エラーの種類に応じた詳細なメッセージ
+
+**セキュリティ改善:**
+- ✅ アクセス権限不足を早期検出
+- ✅ 存在しないスプレッドシートを事前に検知
+- ✅ 明確なエラーメッセージで問題解決を支援
+
+**自動実行:**
+```javascript
+// 以下の関数で自動的に検証される
+setup('token', 'spreadsheet-id');
+setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+addProject({ name: 'project', spreadsheetId: 'id', ... });
+```
+
+### 9. API レート制限リトライ機構
+
+GitHub APIのレート制限やサーバーエラーに自動対応します。
+
+**機能:**
+- レート制限（429）の自動リトライ（最大3回）
+- Retry-Afterヘッダーの自動認識
+- Exponential backoff（1秒、2秒、4秒）
+- サーバーエラー（5xx）にも対応
+
+**セキュリティ改善:**
+- ✅ APIレート制限超過によるデータ取得失敗を防止
+- ✅ 一時的なサーバーエラーからの自動復旧
+- ✅ ログ出力によるリトライ状況の可視化
+
+**動作例:**
+```
+⚠️ Rate limit exceeded (429). Retrying after 60s (attempt 1/3)
+⚠️ Server error (503). Retrying after 1s (attempt 1/3)
+```
+
 ---
 
 ## 監査ログ
@@ -371,53 +414,60 @@ enableSecretManager('your-gcp-project-id');
 setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
 ```
 
-### リスク2: スプレッドシートアクセス制御
+### リスク2: スプレッドシートアクセス制御 ✅ 対策済み
 
-**現状:**
-- スプレッドシートIDの妥当性チェックのみ
-- アクセス権がない場合のエラーハンドリングが不十分
+**実装状況:**
+- ✅ スプレッドシートアクセス権限の事前検証を実装
+- ✅ エラーの種類に応じた詳細なメッセージを提供
+- ✅ setup()、setupWithGitHubApp()、addProject() で自動実行
 
-**推奨対策:**
+**実装内容:**
+- `src/utils/spreadsheetValidator.ts` にvalidateSpreadsheetAccess()を実装
+- アクセス権限エラー、存在しないスプレッドシートなどを区別
+- セットアップ時に自動的にアクセス権限を検証
+
+**残存リスク:**
+- テスト環境ではSpreadsheetApp未定義のためスキップ
+- GAS環境でのみ検証が実行される
+
+**動作:**
 ```javascript
-// スプレッドシートアクセス前の権限確認
-function validateSpreadsheetAccess(spreadsheetId) {
-  try {
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    spreadsheet.getName(); // アクセステスト
-    return true;
-  } catch (e) {
-    throw new Error(
-      `Cannot access spreadsheet ${spreadsheetId}. ` +
-      'Check if the spreadsheet exists and you have edit permission.'
-    );
-  }
-}
+// setup時に自動実行される
+setup('token', 'spreadsheet-id'); // アクセス権限を自動検証
+
+// エラー例：
+// "Spreadsheet not found: xxxx
+//  Check if:
+//  1. The spreadsheet ID is correct
+//  2. The spreadsheet has not been deleted
+//  3. The spreadsheet is in your Google Drive or shared with you"
 ```
 
-### リスク3: レート制限超過
+### リスク3: レート制限超過 ✅ 対策済み
 
-**現状:**
-- GitHub APIレート制限超過時のリトライ機構なし
+**実装状況:**
+- ✅ GitHub APIレート制限（429）の自動リトライを実装
+- ✅ Exponential backoffによる段階的な待機
+- ✅ Retry-Afterヘッダーの自動認識
+- ✅ サーバーエラー（5xx）にも対応
 
-**推奨対策:**
+**実装内容:**
+- `src/adapters/gas/index.ts` のGasHttpClientにリトライ機構を実装
+- 最大3回まで自動リトライ
+- Retry-Afterヘッダーがあればその値を優先
+- なければExponential backoff（1秒、2秒、4秒）
+
+**動作:**
 ```javascript
-// Exponential backoffでリトライ
-function fetchWithRetry(url, options, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    const response = UrlFetchApp.fetch(url, options);
-
-    if (response.getResponseCode() === 429) {
-      const retryAfter = parseInt(response.getHeaders()['Retry-After'] || '60');
-      Utilities.sleep(retryAfter * 1000);
-      continue;
-    }
-
-    return response;
-  }
-
-  throw new Error('Max retries exceeded');
-}
+// 自動的に実行される（設定不要）
+// レート制限（429）またはサーバーエラー（5xx）時：
+// ⚠️ Rate limit exceeded (429). Retrying after 60s (attempt 1/3)
+// ⚠️ Server error (503). Retrying after 1s (attempt 1/3)
 ```
+
+**残存リスク:**
+- 最大リトライ回数（3回）を超えた場合はエラー
+- GAS実行時間制限（6分）内に完了する必要がある
 
 ---
 

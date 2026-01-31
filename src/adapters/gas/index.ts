@@ -23,8 +23,19 @@ import type {
 export class GasHttpClient implements HttpClient {
   // セキュリティ: デフォルトタイムアウトを設定（30秒）
   private readonly DEFAULT_TIMEOUT_MS = 30000;
+  // レート制限対策: リトライ設定
+  private readonly MAX_RETRIES = 3;
+  private readonly INITIAL_BACKOFF_MS = 1000;
 
   fetch<T = unknown>(url: string, options: HttpRequestOptions = {}): HttpResponse<T> {
+    return this.fetchWithRetry<T>(url, options, 0);
+  }
+
+  private fetchWithRetry<T = unknown>(
+    url: string,
+    options: HttpRequestOptions,
+    retryCount: number
+  ): HttpResponse<T> {
     const gasOptions: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
       method: options.method ?? 'get',
       headers: options.headers,
@@ -47,6 +58,31 @@ export class GasHttpClient implements HttpClient {
       const statusCode = response.getResponseCode();
       const content = response.getContentText();
 
+      // レート制限（429）の場合はリトライ
+      if (statusCode === 429 && retryCount < this.MAX_RETRIES) {
+        const retryAfter = this.getRetryAfter(response);
+        const backoffMs = retryAfter ?? this.calculateBackoff(retryCount);
+
+        Logger.log(
+          `⚠️ Rate limit exceeded (429). Retrying after ${backoffMs / 1000}s (attempt ${retryCount + 1}/${this.MAX_RETRIES})`
+        );
+
+        Utilities.sleep(backoffMs);
+        return this.fetchWithRetry<T>(url, options, retryCount + 1);
+      }
+
+      // サーバーエラー（5xx）の場合もリトライ
+      if (statusCode >= 500 && statusCode < 600 && retryCount < this.MAX_RETRIES) {
+        const backoffMs = this.calculateBackoff(retryCount);
+
+        Logger.log(
+          `⚠️ Server error (${statusCode}). Retrying after ${backoffMs / 1000}s (attempt ${retryCount + 1}/${this.MAX_RETRIES})`
+        );
+
+        Utilities.sleep(backoffMs);
+        return this.fetchWithRetry<T>(url, options, retryCount + 1);
+      }
+
       let data: T | undefined;
       try {
         data = JSON.parse(content) as T;
@@ -66,6 +102,33 @@ export class GasHttpClient implements HttpClient {
       }
       throw error;
     }
+  }
+
+  /**
+   * Retry-Afterヘッダーから待機時間を取得
+   */
+  private getRetryAfter(response: GoogleAppsScript.URL_Fetch.HTTPResponse): number | null {
+    try {
+      const headers = response.getHeaders() as Record<string, string>;
+      const retryAfter = headers['Retry-After'] || headers['retry-after'];
+
+      if (retryAfter) {
+        const seconds = parseInt(String(retryAfter), 10);
+        if (!isNaN(seconds)) {
+          return seconds * 1000; // ミリ秒に変換
+        }
+      }
+    } catch {
+      // ヘッダー取得失敗時はnull
+    }
+    return null;
+  }
+
+  /**
+   * Exponential backoffで待機時間を計算
+   */
+  private calculateBackoff(retryCount: number): number {
+    return this.INITIAL_BACKOFF_MS * Math.pow(2, retryCount);
   }
 }
 

@@ -8,6 +8,7 @@ import {
   validateSpreadsheetId,
 } from '../utils/validation';
 import { auditLog } from '../utils/auditLog';
+import { validateSpreadsheetAccess } from '../utils/spreadsheetValidator';
 
 // =============================================================================
 // API モード設定
@@ -193,6 +194,8 @@ export function addProject(project: ProjectGroup): void {
   // 入力検証
   validateProjectName(project.name);
   validateSpreadsheetId(project.spreadsheetId);
+  // スプレッドシートへのアクセス権限を検証
+  validateSpreadsheetAccess(project.spreadsheetId);
 
   const config = getConfig();
   const projects = config.projects ?? [];

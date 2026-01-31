@@ -1,6 +1,22 @@
 # 🏗️ DevSyncGAS アーキテクチャ
 
-本ドキュメントはDevSyncGASの設計意図・構造・データフローを説明します。
+**なぜこの設計なのか？技術的な意思決定の裏側を理解する**
+
+このドキュメントは、DevSyncGASの設計意図・構造・データフローを説明します。
+
+> **読むべき人:** コードを読む人、拡張する人、設計判断の理由を知りたい人
+>
+> **読む前の疑問:** 「なぜDIコンテナ？」「なぜGraphQL優先？」「なぜスキーママイグレーション？」
+>
+> **読んだ後:** 「この設計なら、テストしやすく、拡張しやすい」
+
+---
+
+## ⚡ 3行でわかる設計思想
+
+1. **GAS APIを抽象化** → テスト可能、環境依存を排除
+2. **GraphQL優先** → API呼び出し回数を30分の1に削減
+3. **リポジトリ別シート** → 問題のあるプロジェクトを即座に特定
 
 ---
 
@@ -138,30 +154,60 @@ src/
 
 ### 1. DIコンテナによるGAS API抽象化
 
-GAS固有のAPI（`UrlFetchApp`、`SpreadsheetApp`等）を直接呼ばず、`interfaces/`で定義した抽象インターフェース経由でアクセスする。
+**課題:** GAS APIを直接呼ぶと、テストが書けない
 
 ```typescript
-// 悪い例: GAS APIを直接呼ぶ
-const response = UrlFetchApp.fetch(url);
-
-// 良い例: DIコンテナ経由
-const { httpClient } = getContainer();
-const response = httpClient.fetch(url);
+// ❌ こうすると...
+const response = UrlFetchApp.fetch(url);  // GAS環境でないと動かない
 ```
 
-**理由**: テスト時にモック実装を注入できる。
+**解決策:** 抽象インターフェース経由でアクセス
+
+```typescript
+// ✅ こうすれば...
+const { httpClient } = getContainer();
+const response = httpClient.fetch(url);  // モック実装に差し替えられる
+```
+
+**なぜこうした？**
+- テスト時にモック実装を注入できる
+- GAS環境以外（ローカル開発環境）でも動作確認できる
+- 将来、GAS以外のプラットフォームに移行しやすい
+
+詳細は [ADR-0002: DIコンテナによるGAS抽象化](adr/0002-di-container-for-gas-abstraction.md) を参照。
 
 ### 2. GraphQL優先（REST APIフォールバック）
 
-デフォルトでGraphQL APIを使用し、API呼び出し回数を削減する。
+**課題:** REST APIだとレート制限に引っかかる
+
+```
+REST API: PR 100件のレビュー効率取得に 300リクエスト
+    ↓
+GitHub API制限: 5,000 req/hour
+    ↓
+大規模リポジトリで制限に到達
+```
+
+**解決策:** GraphQL APIでバッチ取得
+
+```
+GraphQL API: PR 100件のレビュー効率取得に 10リクエスト（30倍効率化）
+    ↓
+同じ制限内で、30倍のデータを取得可能
+```
 
 ```typescript
 // 設定で切り替え可能
-configureApiMode('graphql');  // デフォルト
-configureApiMode('rest');     // フォールバック
+configureApiMode('graphql');  // デフォルト（推奨）
+configureApiMode('rest');     // トラブル時のフォールバック
 ```
 
-**理由**: REST APIは PR 100件のレビュー効率取得に300リクエスト必要だが、GraphQLなら10リクエストで済む（30倍効率化）。
+**なぜこうした？**
+- API呼び出し回数を最大30分の1に削減
+- レート制限に到達しにくい
+- REST APIもサポートすることで、GraphQLに問題があっても回避可能
+
+詳細は [ADR-0001: GraphQL APIをデフォルトに](adr/0001-graphql-api-default.md) を参照。
 
 ### 3. プロジェクトグループによる複数スプレッドシート対応
 
@@ -185,22 +231,37 @@ migrateAllSchemas();  // 実行
 
 ### 5. リポジトリ別シート構造
 
-リポジトリごとに別シートに分離され、Dashboard・Summaryが自動生成される。
+**課題:** 全リポジトリを1シートにまとめると、見づらい
 
 ```
+❌ 従来: 1シートに全データ
+owner/repo-a | 2024-01-01 | 10 | daily | ...
+owner/repo-a | 2024-01-02 | 12 | daily | ...
+owner/repo-b | 2024-01-01 | 5  | weekly | ...
+owner/repo-b | 2024-01-02 | 3  | weekly | ...
+    ↓
+スクロールが大変、フィルタリングが必要
+```
+
+**解決策:** リポジトリごとにシート分離
+
+```
+✅ 改善: リポジトリ別シート + Dashboard
 プロジェクト (スプレッドシート)
-├── Dashboard                    # 全リポ×全指標の俯瞰 + ステータス
-├── Dashboard - Trend            # 週次トレンド
-├── DevOps Summary               # リポジトリ比較サマリー
-├── owner/repo-a                 # リポジトリ別データ
-├── owner/repo-b
-└── owner/repo-c
+├── 📊 Dashboard                    # 全リポ×全指標の俯瞰 + ステータス
+├── 📈 Dashboard - Trend            # 週次トレンド
+├── 📋 DevOps Summary               # リポジトリ比較サマリー
+├── 📁 owner/repo-a                 # リポジトリ別データ
+├── 📁 owner/repo-b
+└── 📁 owner/repo-c
+    ↓
+シートタブで即座に切り替え、問題のあるリポジトリが一目瞭然
 ```
 
-**メリット**:
-- シートタブでリポジトリを即座に切り替え可能
-- 問題のあるリポジトリが一目瞭然
-- Dashboardでステータス（良好/要注意/要対応）を表示
+**なぜこうした？**
+- 問題のあるリポジトリを即座に特定できる
+- Dashboardで全体俯瞰、個別シートで詳細分析
+- ステータス（良好/要注意/要対応）を色分け表示
 
 ```typescript
 // DORA指標同期（Dashboard/Summary自動生成）

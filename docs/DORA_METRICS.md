@@ -76,8 +76,10 @@ syncDailyBackfill(30);
 
 **計算方法:**
 ```
-失敗デプロイ数 / 総デプロイ数 × 100
+"bug"/"incident"ラベルのIssue数 / 総デプロイ数 × 100
 ```
+
+デプロイパイプラインの技術的失敗ではなく、**リリース後に発生した実際の障害**を計測します。
 
 ### 4. Mean Time to Recovery（平均復旧時間）
 
@@ -91,7 +93,11 @@ syncDailyBackfill(30);
 | Low | 1週間以上 |
 
 **計算方法:**
-失敗デプロイから次の成功デプロイまでの時間を平均
+```
+"incident"ラベルのIssue作成 → クローズまでの時間を平均
+```
+
+デプロイメントパイプラインの復旧ではなく、**実際のサービス障害からの復旧時間**を計測します。
 
 ---
 
@@ -114,16 +120,19 @@ syncDailyBackfill(30);
 
 ---
 
-## インシデントベースのMTTR
+## インシデントラベルの設定
 
-より正確なMTTRを計測するため、インシデントラベルを設定できます。
+CFRとMTTRを正しく計測するため、障害を示すIssueラベルを設定してください。
 
-```javascript
-// "incident" ラベルのIssueをインシデントとして計測
-configureIncidentLabels(["incident", "outage", "production-bug"]);
-```
+**推奨ラベル:**
+- `bug` - 本番環境のバグ
+- `incident` - サービス障害
+- `production-bug` - 本番限定の不具合
+- `outage` - サービス停止
 
-この場合、MTTRは「インシデントIssue作成 → close」で計算されます。
+これらのラベルが付いたIssueを使って、以下を計測します：
+- **CFR**: ラベル付きIssue数 ÷ 総デプロイ数
+- **MTTR**: Issue作成 → クローズまでの平均時間
 
 ---
 
@@ -141,8 +150,8 @@ configureIncidentLabels(["incident", "outage", "production-bug"]);
 |------|----------|------------|
 | デプロイ頻度 | オンデマンド（複数回/日）がElite | 1日1回以上をEliteとして扱う |
 | Lead Time | コミット → デプロイ | **PR作成 → デプロイ**（デプロイデータがない場合のみ PR作成 → マージ） |
-| CFR | インシデント発生率 | 失敗デプロイ率 |
-| MTTR | インシデント → 復旧 | 失敗デプロイ → 成功デプロイ（またはIssueベース） |
+| CFR | インシデント発生率 | ラベル付きIssueベースで計測（DORA準拠） |
+| MTTR | インシデント → 復旧 | ラベル付きIssueベースで計測（DORA準拠） |
 
 詳細な設計判断は [計測思想](MEASUREMENT_PHILOSOPHY.md) を参照してください。
 

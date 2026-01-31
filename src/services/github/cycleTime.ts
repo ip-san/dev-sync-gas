@@ -16,6 +16,7 @@ import { getContainer } from '../../container';
 import { type IssueDateRange } from './api';
 import { getIssues, getLinkedPRsForIssue } from './issues';
 import { getPullRequestWithBranches, findPRContainingCommit } from './pullRequests';
+import { MAX_PR_CHAIN_DEPTH } from '../../config/apiConfig';
 
 // =============================================================================
 // PRチェーン追跡
@@ -38,11 +39,10 @@ export function trackToProductionMerge(
 }> {
   const { logger } = getContainer();
   const prChain: PRChainItem[] = [];
-  const maxDepth = 5;
   let currentPRNumber = initialPRNumber;
   let productionMergedAt: string | null = null;
 
-  for (let depth = 0; depth < maxDepth; depth++) {
+  for (let depth = 0; depth < MAX_PR_CHAIN_DEPTH; depth++) {
     const prResult = getPullRequestWithBranches(owner, repo, currentPRNumber, token);
 
     if (!prResult.success || !prResult.data) {

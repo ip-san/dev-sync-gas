@@ -48,6 +48,9 @@ export function paginateAPI<T, R>(options: PaginationOptions<T, R>): ApiResponse
   const { getEndpoint, fetchFn, transform, filter, config } = options;
   const results: R[] = [];
   let page = 1;
+  let pagesRetrieved = 0;
+  let pagesFailed = 0;
+  let partialFailureError: string | undefined;
 
   while (page <= config.maxPages) {
     const endpoint = getEndpoint(page);
@@ -58,7 +61,9 @@ export function paginateAPI<T, R>(options: PaginationOptions<T, R>): ApiResponse
       if (page === 1) {
         return { success: false, error: response.error };
       }
-      // 2ページ目以降の失敗は現在までの結果を返す
+      // 2ページ目以降の失敗は現在までの結果を返す（警告付き）
+      pagesFailed++;
+      partialFailureError = response.error;
       break;
     }
 
@@ -75,10 +80,33 @@ export function paginateAPI<T, R>(options: PaginationOptions<T, R>): ApiResponse
       }
     }
 
+    pagesRetrieved++;
     page++;
   }
 
-  return { success: true, data: results };
+  // 部分的な失敗があった場合は警告を含める
+  if (pagesFailed > 0) {
+    return {
+      success: true,
+      data: results,
+      warning: `Partial failure: Retrieved ${pagesRetrieved} page(s), but ${pagesFailed} page(s) failed. Last error: ${partialFailureError}`,
+      metadata: {
+        pagesRetrieved,
+        pagesFailed,
+        itemsRetrieved: results.length,
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: results,
+    metadata: {
+      pagesRetrieved,
+      pagesFailed: 0,
+      itemsRetrieved: results.length,
+    },
+  };
 }
 
 /**
@@ -113,6 +141,9 @@ export function paginateAndReduce<T, R, A>(
   const { getEndpoint, fetchFn, transform, config } = options;
   let accumulator = initialValue;
   let page = 1;
+  let pagesRetrieved = 0;
+  let pagesFailed = 0;
+  let partialFailureError: string | undefined;
 
   while (page <= config.maxPages) {
     const endpoint = getEndpoint(page);
@@ -122,6 +153,9 @@ export function paginateAndReduce<T, R, A>(
       if (page === 1) {
         return { success: false, error: response.error };
       }
+      // 2ページ目以降の失敗は現在までの結果を返す（警告付き）
+      pagesFailed++;
+      partialFailureError = response.error;
       break;
     }
 
@@ -134,8 +168,29 @@ export function paginateAndReduce<T, R, A>(
       accumulator = reducer(accumulator, transformed);
     }
 
+    pagesRetrieved++;
     page++;
   }
 
-  return { success: true, data: accumulator };
+  // 部分的な失敗があった場合は警告を含める
+  if (pagesFailed > 0) {
+    return {
+      success: true,
+      data: accumulator,
+      warning: `Partial failure: Retrieved ${pagesRetrieved} page(s), but ${pagesFailed} page(s) failed. Last error: ${partialFailureError}`,
+      metadata: {
+        pagesRetrieved,
+        pagesFailed,
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: accumulator,
+    metadata: {
+      pagesRetrieved,
+      pagesFailed: 0,
+    },
+  };
 }

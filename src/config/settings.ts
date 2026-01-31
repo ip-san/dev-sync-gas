@@ -343,9 +343,9 @@ export function clearGitHubAppConfig(): void {
   logger.log('   Make sure to revoke the GitHub App access if no longer needed');
 
   try {
-    storageClient.deleteProperty('GITHUB_APP_ID');
-    storageClient.deleteProperty('GITHUB_APP_PRIVATE_KEY');
-    storageClient.deleteProperty('GITHUB_APP_INSTALLATION_ID');
+    storageClient.deleteProperty(CONFIG_KEYS.GITHUB_AUTH.APP_ID);
+    storageClient.deleteProperty(CONFIG_KEYS.GITHUB_AUTH.APP_PRIVATE_KEY);
+    storageClient.deleteProperty(CONFIG_KEYS.GITHUB_AUTH.APP_INSTALLATION_ID);
 
     // 監査ログ（成功）
     auditLog('config.github_app.clear', {
@@ -691,7 +691,7 @@ export function diagnoseConfig(): ConfigDiagnosticResult {
       items.push({
         name: 'リポジトリ',
         status: 'ok',
-        message: `${repositories.length}件登録済み: ${repositories.map((r) => r.fullName).join(', ')}`,
+        message: `${repositories.length}件登録済み`,
       });
     }
   }

@@ -9,6 +9,7 @@
 
 import type { ApiResponse } from '../../../types';
 import { getContainer } from '../../../container';
+import { DEFAULT_PAGE_SIZE, MAX_RETRIES, RETRY_DELAY_MS } from '../../../config/apiConfig';
 
 // =============================================================================
 // 定数
@@ -17,14 +18,8 @@ import { getContainer } from '../../../container';
 /** GitHub GraphQL API エンドポイント */
 export const GITHUB_GRAPHQL_ENDPOINT = 'https://api.github.com/graphql';
 
-/** デフォルトのページサイズ（GraphQL推奨値） */
-export const DEFAULT_PAGE_SIZE = 100;
-
-/** 最大リトライ回数 */
-export const MAX_RETRIES = 3;
-
-/** リトライ間隔（ミリ秒） */
-export const RETRY_DELAY_MS = 1000;
+// ページサイズ・リトライ設定は apiConfig.ts からインポート
+export { DEFAULT_PAGE_SIZE, MAX_RETRIES, RETRY_DELAY_MS };
 
 // =============================================================================
 // 型定義
@@ -102,7 +97,7 @@ export function executeGraphQL<T>(
     if (response.statusCode !== 200) {
       return {
         success: false,
-        error: `GraphQL HTTP error: ${response.statusCode} - ${response.content}`,
+        error: `GraphQL HTTP error: ${response.statusCode}`,
       };
     }
 

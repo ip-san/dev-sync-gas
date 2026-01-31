@@ -26,6 +26,9 @@ import type {
   GraphQLPullRequestDetail,
 } from './types';
 import type { DateRange } from '../api';
+import { parseRepositorySafe } from '../../../utils/repositoryParser';
+import { DEFAULT_BATCH_SIZE } from '../../../config/apiConfig';
+import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
 
 // =============================================================================
 // PR一覧取得
@@ -116,7 +119,7 @@ function convertToPullRequest(pr: GraphQLPullRequest, repository: string): GitHu
   // MERGEDはclosedとして扱う（REST APIとの互換性維持）
   const state: 'open' | 'closed' = pr.state === 'OPEN' ? 'open' : 'closed';
   return {
-    id: parseInt(pr.id.replace(/\D/g, ''), 10) || 0,
+    id: parseGraphQLNodeIdOrZero(pr.id),
     number: pr.number,
     title: pr.title,
     state,
@@ -229,15 +232,16 @@ export function getReworkDataForPRsGraphQL(
   }
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const [owner, repo] = repoFullName.split('/');
-    if (!owner || !repo) {
+    const parseResult = parseRepositorySafe(repoFullName);
+    if (!parseResult.success || !parseResult.data) {
+      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
       continue;
     }
+    const { owner, repo } = parseResult.data;
 
-    // 10件ずつバッチ処理
-    const batchSize = 10;
-    for (let i = 0; i < prs.length; i += batchSize) {
-      const batch = prs.slice(i, i + batchSize);
+    // バッチ処理（設定可能なバッチサイズ）
+    for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
+      const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
       const prNumbers = batch.map((pr) => pr.number);
 
       const query = buildBatchPRDetailQuery(prNumbers);
@@ -343,15 +347,16 @@ export function getPRSizeDataForPRsGraphQL(
   }
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const [owner, repo] = repoFullName.split('/');
-    if (!owner || !repo) {
+    const parseResult = parseRepositorySafe(repoFullName);
+    if (!parseResult.success || !parseResult.data) {
+      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
       continue;
     }
+    const { owner, repo } = parseResult.data;
 
-    // 10件ずつバッチ処理
-    const batchSize = 10;
-    for (let i = 0; i < prs.length; i += batchSize) {
-      const batch = prs.slice(i, i + batchSize);
+    // バッチ処理（設定可能なバッチサイズ）
+    for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
+      const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
       const prNumbers = batch.map((pr) => pr.number);
 
       // サイズ情報取得用の簡易クエリ
@@ -449,15 +454,16 @@ export function getReviewEfficiencyDataForPRsGraphQL(
   }
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const [owner, repo] = repoFullName.split('/');
-    if (!owner || !repo) {
+    const parseResult = parseRepositorySafe(repoFullName);
+    if (!parseResult.success || !parseResult.data) {
+      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
       continue;
     }
+    const { owner, repo } = parseResult.data;
 
-    // 10件ずつバッチ処理
-    const batchSize = 10;
-    for (let i = 0; i < prs.length; i += batchSize) {
-      const batch = prs.slice(i, i + batchSize);
+    // バッチ処理（設定可能なバッチサイズ）
+    for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
+      const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
       const prNumbers = batch.map((pr) => pr.number);
 
       const query = buildBatchPRDetailQuery(prNumbers);

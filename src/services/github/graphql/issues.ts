@@ -21,6 +21,7 @@ import type {
 import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { ISSUES_QUERY, ISSUE_WITH_LINKED_PRS_QUERY, COMMIT_ASSOCIATED_PRS_QUERY } from './queries';
+import { MAX_PR_CHAIN_DEPTH } from '../../../config/apiConfig';
 import type {
   IssuesQueryResponse,
   IssueWithLinkedPRsQueryResponse,
@@ -282,11 +283,10 @@ export function trackToProductionMergeGraphQL(
 }> {
   const { logger } = getContainer();
   const prChain: PRChainItem[] = [];
-  const maxDepth = 5;
   let currentPRNumber = initialPRNumber;
   let productionMergedAt: string | null = null;
 
-  for (let depth = 0; depth < maxDepth; depth++) {
+  for (let depth = 0; depth < MAX_PR_CHAIN_DEPTH; depth++) {
     const prResult = getPullRequestWithBranchesGraphQL(owner, repo, currentPRNumber, token);
 
     if (!prResult.success || !prResult.data) {

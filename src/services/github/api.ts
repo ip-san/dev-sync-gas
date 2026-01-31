@@ -7,6 +7,12 @@
 
 import type { ApiResponse } from '../../types';
 import { getContainer } from '../../container';
+import { sanitizeGitHubError, sanitizeErrorMessage } from '../../utils/errorSanitizer';
+import {
+  DEFAULT_MAX_PAGES,
+  PER_PAGE,
+  STATUS_FETCH_WARNING_THRESHOLD,
+} from '../../config/apiConfig';
 
 // =============================================================================
 // 定数
@@ -15,14 +21,8 @@ import { getContainer } from '../../container';
 /** GitHub API のベースURL */
 export const GITHUB_API_BASE = 'https://api.github.com';
 
-/** ページネーションのデフォルト最大ページ数 */
-export const DEFAULT_MAX_PAGES = 5;
-
-/** 1ページあたりの取得件数（GitHub API最大値） */
-export const PER_PAGE = 100;
-
-/** ステータス取得時の警告閾値（この件数を超えると警告ログ） */
-export const STATUS_FETCH_WARNING_THRESHOLD = 50;
+// ページネーション・しきい値設定は apiConfig.ts からインポート
+export { DEFAULT_MAX_PAGES, PER_PAGE, STATUS_FETCH_WARNING_THRESHOLD };
 
 // =============================================================================
 // 型定義
@@ -78,12 +78,12 @@ export function fetchGitHub<T>(endpoint: string, token: string): ApiResponse<T> 
     }
     return {
       success: false,
-      error: `GitHub API error: ${response.statusCode} - ${response.content}`,
+      error: sanitizeGitHubError(response.statusCode, response.data),
     };
   } catch (error) {
     return {
       success: false,
-      error: `Request failed: ${error instanceof Error ? error.message : String(error)}`,
+      error: `Request failed: ${sanitizeErrorMessage(error)}`,
     };
   }
 }

@@ -12,6 +12,7 @@ import type {
   DevOpsMetrics,
 } from '../../types';
 import { getFrequencyCategory } from '../../config/doraThresholds';
+import { LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS } from '../../config/apiConfig';
 
 // =============================================================================
 // 定数
@@ -19,9 +20,6 @@ import { getFrequencyCategory } from '../../config/doraThresholds';
 
 /** ミリ秒から時間への変換定数 */
 const MS_TO_HOURS = 1000 * 60 * 60;
-
-/** Lead Time計算時のマージ→デプロイ関連付け最大時間（時間） */
-const LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS = 24;
 
 // =============================================================================
 // Lead Time計算結果

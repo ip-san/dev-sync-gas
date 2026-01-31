@@ -26,6 +26,7 @@ import {
   type DateRange,
 } from './api';
 import { paginateAPI, paginateAndReduce } from '../../utils/pagination';
+import { parseRepositorySafe } from '../../utils/repositoryParser';
 
 // =============================================================================
 // PR一覧取得
@@ -47,7 +48,8 @@ export function getPullRequests(
   dateRange?: DateRange,
   maxPages = DEFAULT_MAX_PAGES
 ): ApiResponse<GitHubPullRequest[]> {
-  return paginateAPI({
+  const { logger } = getContainer();
+  const result = paginateAPI({
     getEndpoint: (page) =>
       `/repos/${repo.fullName}/pulls?state=${state}&per_page=${PER_PAGE}&page=${page}&sort=updated&direction=desc`,
     fetchFn: (endpoint) => fetchGitHub<GitHubPRResponse[]>(endpoint, token),
@@ -74,6 +76,13 @@ export function getPullRequests(
     },
     config: { maxPages },
   });
+
+  // 部分的な失敗の警告をログ出力
+  if (result.warning) {
+    logger.log(`  ⚠️ ${result.warning}`);
+  }
+
+  return result;
 }
 
 // =============================================================================
@@ -204,11 +213,12 @@ export function getReworkDataForPRs(
   const reworkData: PRReworkData[] = [];
 
   for (const pr of pullRequests) {
-    const [owner, repo] = pr.repository.split('/');
-    if (!owner || !repo) {
-      logger.log(`  ⚠️ Invalid repository format: ${pr.repository}`);
+    const parseResult = parseRepositorySafe(pr.repository);
+    if (!parseResult.success || !parseResult.data) {
+      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
       continue;
     }
+    const { owner, repo } = parseResult.data;
 
     const prCreatedAt = new Date(pr.createdAt);
 
@@ -417,11 +427,12 @@ export function getReviewEfficiencyDataForPRs(
   const msToHours = 1000 * 60 * 60;
 
   for (const pr of pullRequests) {
-    const [owner, repo] = pr.repository.split('/');
-    if (!owner || !repo) {
-      logger.log(`  ⚠️ Invalid repository format: ${pr.repository}`);
+    const parseResult = parseRepositorySafe(pr.repository);
+    if (!parseResult.success || !parseResult.data) {
+      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
       continue;
     }
+    const { owner, repo } = parseResult.data;
 
     // Ready for Review時刻を取得
     const readyResult = getPRReadyForReviewAt(owner, repo, pr.number, token);

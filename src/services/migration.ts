@@ -340,17 +340,23 @@ function checkSchemaUpToDate(
 }
 
 /**
+ * データマイグレーションのパラメータ
+ */
+interface PerformDataMigrationParams {
+  sheet: Sheet;
+  oldData: unknown[][];
+  oldHeaders: string[];
+  schema: SheetSchema;
+  targetHeaders: string[];
+  lastRow: number;
+  duration: number;
+}
+
+/**
  * データマイグレーションを実行
  */
-function performDataMigration(
-  sheet: Sheet,
-  oldData: unknown[][],
-  oldHeaders: string[],
-  schema: SheetSchema,
-  targetHeaders: string[],
-  lastRow: number,
-  duration: number
-): MigrationResult {
+function performDataMigration(params: PerformDataMigrationParams): MigrationResult {
+  const { sheet, oldData, oldHeaders, schema, targetHeaders, lastRow, duration } = params;
   const { logger } = getContainer();
 
   const mappings = createColumnMapping(oldHeaders, schema);
@@ -378,15 +384,21 @@ function performDataMigration(
 }
 
 /**
+ * マイグレーションエラー処理のパラメータ
+ */
+interface HandleMigrationErrorParams {
+  error: unknown;
+  spreadsheet: Spreadsheet;
+  schema: SheetSchema;
+  backup: { backupSheet: Sheet; backupName: string } | null;
+  duration: number;
+}
+
+/**
  * マイグレーションエラーを処理
  */
-function handleMigrationError(
-  error: unknown,
-  spreadsheet: Spreadsheet,
-  schema: SheetSchema,
-  backup: { backupSheet: Sheet; backupName: string } | null,
-  duration: number
-): MigrationResult {
+function handleMigrationError(params: HandleMigrationErrorParams): MigrationResult {
+  const { error, spreadsheet, schema, backup, duration } = params;
   const { logger } = getContainer();
   const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -456,17 +468,23 @@ export function migrateSheetSchema(spreadsheet: Spreadsheet, schema: SheetSchema
       logger.log(`   Backup available: ${backup.backupName}`);
     }
 
-    return performDataMigration(
+    return performDataMigration({
       sheet,
       oldData,
       oldHeaders,
       schema,
       targetHeaders,
       lastRow,
-      Date.now() - startTime
-    );
+      duration: Date.now() - startTime,
+    });
   } catch (error) {
-    return handleMigrationError(error, spreadsheet, schema, backup, Date.now() - startTime);
+    return handleMigrationError({
+      error,
+      spreadsheet,
+      schema,
+      backup,
+      duration: Date.now() - startTime,
+    });
   }
 }
 

@@ -51,15 +51,15 @@ export function trackToProductionMerge(options: TrackToProductionOptions): ApiRe
   let productionMergedAt: string | null = null;
 
   for (let depth = 0; depth < MAX_PR_CHAIN_DEPTH; depth++) {
-    const result = processTrackStep(
+    const result = processTrackStep({
       owner,
       repo,
       currentPRNumber,
       token,
       productionPattern,
       prChain,
-      logger
-    );
+      logger,
+    });
 
     if (result.productionMergedAt) {
       productionMergedAt = result.productionMergedAt;

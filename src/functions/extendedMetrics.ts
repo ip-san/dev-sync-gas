@@ -200,14 +200,24 @@ function fetchMergedPRs(days: number): GitHubPullRequest[] | null {
   Logger.log(`🚀 Using ${apiMode === 'graphql' ? 'GraphQL' : 'REST'} API`);
 
   const allPRs: GitHubPullRequest[] = [];
-  const getPRs = apiMode === 'graphql' ? getPullRequestsGraphQL : getPullRequests;
 
   for (const repo of config.github.repositories) {
     Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
-    const result = getPRs(repo, token, 'all', {
-      since: startDate,
-      until: endDate,
-    });
+    const result =
+      apiMode === 'graphql'
+        ? getPullRequestsGraphQL(repo, token, 'all', {
+            since: startDate,
+            until: endDate,
+          })
+        : getPullRequests({
+            repo,
+            token,
+            state: 'all',
+            dateRange: {
+              since: startDate,
+              until: endDate,
+            },
+          });
 
     if (result.success && result.data) {
       const mergedPRs = result.data.filter((pr) => pr.mergedAt !== null);

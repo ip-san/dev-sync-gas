@@ -42,13 +42,19 @@ import { MS_TO_HOURS } from '../../utils/timeConstants.js';
  * @param dateRange - 期間フィルタ（オプション）
  * @param maxPages - 最大取得ページ数（デフォルト: 5）
  */
-export function getPullRequests(
-  repo: GitHubRepository,
-  token: string,
-  state: 'open' | 'closed' | 'all' = 'all',
-  dateRange?: DateRange,
-  maxPages = DEFAULT_MAX_PAGES
-): ApiResponse<GitHubPullRequest[]> {
+/**
+ * getPullRequests のオプション
+ */
+export interface GetPullRequestsOptions {
+  repo: GitHubRepository;
+  token: string;
+  state?: 'open' | 'closed' | 'all';
+  dateRange?: DateRange;
+  maxPages?: number;
+}
+
+export function getPullRequests(options: GetPullRequestsOptions): ApiResponse<GitHubPullRequest[]> {
+  const { repo, token, state = 'all', dateRange, maxPages = DEFAULT_MAX_PAGES } = options;
   const { logger } = getContainer();
   const result = paginateAPI({
     getEndpoint: (page) =>
@@ -421,16 +427,22 @@ function getPRReadyForReviewAt(
 // =============================================================================
 
 /**
+ * fetchReadyForReviewTime のオプション
+ */
+interface FetchReadyForReviewTimeOptions {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  prCreatedAt: string;
+  token: string;
+  logger: ReturnType<typeof getContainer>['logger'];
+}
+
+/**
  * Ready for Review時刻を取得
  */
-function fetchReadyForReviewTime(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  prCreatedAt: string,
-  token: string,
-  logger: ReturnType<typeof getContainer>['logger']
-): string {
+function fetchReadyForReviewTime(options: FetchReadyForReviewTimeOptions): string {
+  const { owner, repo, prNumber, prCreatedAt, token, logger } = options;
   const readyResult = getPRReadyForReviewAt(owner, repo, prNumber, token);
 
   if (readyResult.success && readyResult.data) {
@@ -453,15 +465,21 @@ interface ReviewInfo {
 }
 
 /**
+ * fetchAndSortReviews のオプション
+ */
+interface FetchAndSortReviewsOptions {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  token: string;
+  logger: ReturnType<typeof getContainer>['logger'];
+}
+
+/**
  * PRのレビュー情報を取得してソート
  */
-function fetchAndSortReviews(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  token: string,
-  logger: ReturnType<typeof getContainer>['logger']
-): ReviewInfo {
+function fetchAndSortReviews(options: FetchAndSortReviewsOptions): ReviewInfo {
+  const { owner, repo, prNumber, token, logger } = options;
   const reviewsResult = getPRReviews(owner, repo, prNumber, token);
   let firstReviewAt: string | null = null;
   let approvedAt: string | null = null;
@@ -558,23 +576,23 @@ export function getReviewEfficiencyDataForPRs(
     const { owner, repo } = parseResult.data;
 
     // Ready for Review時刻を取得
-    const readyForReviewAt = fetchReadyForReviewTime(
+    const readyForReviewAt = fetchReadyForReviewTime({
       owner,
       repo,
-      pr.number,
-      pr.createdAt,
+      prNumber: pr.number,
+      prCreatedAt: pr.createdAt,
       token,
-      logger
-    );
+      logger,
+    });
 
     // レビュー情報を取得
-    const { firstReviewAt, approvedAt } = fetchAndSortReviews(
+    const { firstReviewAt, approvedAt } = fetchAndSortReviews({
       owner,
       repo,
-      pr.number,
+      prNumber: pr.number,
       token,
-      logger
-    );
+      logger,
+    });
 
     // レビュー効率指標を計算
     const metrics = calculateReviewMetrics(

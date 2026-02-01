@@ -57,7 +57,7 @@ describe('github', () => {
         []
       );
 
-      const result = getPullRequests(testRepo, 'test-token');
+      const result = getPullRequests({ repo: testRepo, token: 'test-token' });
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
@@ -71,7 +71,7 @@ describe('github', () => {
         { statusCode: 401, content: 'Unauthorized' }
       );
 
-      const result = getPullRequests(testRepo, 'invalid-token');
+      const result = getPullRequests({ repo: testRepo, token: 'invalid-token' });
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Unauthorized');
@@ -111,9 +111,14 @@ describe('github', () => {
         []
       );
 
-      const result = getPullRequests(testRepo, 'test-token', 'all', {
-        since: new Date('2024-01-01'),
-        until: new Date('2024-12-31'),
+      const result = getPullRequests({
+        repo: testRepo,
+        token: 'test-token',
+        state: 'all',
+        dateRange: {
+          since: new Date('2024-01-01'),
+          until: new Date('2024-12-31'),
+        },
       });
 
       expect(result.success).toBe(true);
@@ -165,7 +170,7 @@ describe('github', () => {
         []
       );
 
-      const result = getPullRequests(testRepo, 'test-token');
+      const result = getPullRequests({ repo: testRepo, token: 'test-token' });
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(2);

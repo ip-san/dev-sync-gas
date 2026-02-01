@@ -7,7 +7,7 @@
  */
 
 import type { DevOpsMetrics, HealthStatus } from '../../types';
-import type { Sheet } from '../../interfaces';
+import type { Sheet, Spreadsheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { DEFAULT_HEALTH_THRESHOLDS } from '../../types/dashboard';
 import {
@@ -144,16 +144,79 @@ function calculateOverallAverage(
 }
 
 /**
- * Dashboardシートを作成または更新
- *
- * @param spreadsheetId - スプレッドシートID
- * @param metrics - 全リポジトリのメトリクス
+ * リポジトリデータから行データを作成
  */
-export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
-  const { logger } = getContainer();
-  const spreadsheet = openSpreadsheet(spreadsheetId);
+function createRepositoryRow(data: RepositoryLatestData): (string | number)[] {
+  const status = determineHealthStatus(
+    data.leadTimeHours,
+    data.changeFailureRate,
+    data.cycleTimeHours,
+    data.timeToFirstReviewHours
+  );
 
-  // 既存シートをクリアまたは作成
+  return [
+    data.repository,
+    data.deploymentFrequency,
+    data.leadTimeHours ?? 'N/A',
+    data.changeFailureRate ?? 'N/A',
+    data.mttrHours ?? 'N/A',
+    data.cycleTimeHours ?? 'N/A',
+    data.timeToFirstReviewHours ?? 'N/A',
+    data.avgLinesOfCode ?? 'N/A',
+    formatStatus(status),
+  ];
+}
+
+/**
+ * 全体平均行を作成
+ */
+function createOverallAverageRow(
+  overall: Omit<RepositoryLatestData, 'repository' | 'latestDate'>
+): (string | number)[] {
+  const overallStatus = determineHealthStatus(
+    overall.leadTimeHours,
+    overall.changeFailureRate,
+    overall.cycleTimeHours,
+    overall.timeToFirstReviewHours
+  );
+
+  return [
+    '【全体平均】',
+    overall.deploymentFrequency,
+    overall.leadTimeHours ?? 'N/A',
+    overall.changeFailureRate ?? 'N/A',
+    overall.mttrHours ?? 'N/A',
+    overall.cycleTimeHours ?? 'N/A',
+    overall.timeToFirstReviewHours ?? 'N/A',
+    overall.avgLinesOfCode ?? 'N/A',
+    formatStatus(overallStatus),
+  ];
+}
+
+/**
+ * Dashboardシート用の行データを作成
+ */
+function prepareDashboardRows(repoDataList: RepositoryLatestData[]): (string | number)[][] {
+  const rows: (string | number)[][] = [];
+
+  // リポジトリ行を作成
+  for (const data of repoDataList) {
+    rows.push(createRepositoryRow(data));
+  }
+
+  // 全体平均行（複数リポジトリの場合）
+  if (repoDataList.length > 1) {
+    const overall = calculateOverallAverage(repoDataList);
+    rows.push(createOverallAverageRow(overall));
+  }
+
+  return rows;
+}
+
+/**
+ * Dashboardシートを初期化
+ */
+function initializeDashboardSheet(spreadsheet: Spreadsheet): Sheet {
   let sheet = spreadsheet.getSheetByName('Dashboard');
   if (sheet) {
     sheet.clear();
@@ -169,6 +232,21 @@ export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]):
   sheet.getRange(1, 1, 1, DASHBOARD_HEADERS.length).setValues([DASHBOARD_HEADERS]);
   styleHeaderRow(sheet, DASHBOARD_HEADERS.length);
 
+  return sheet;
+}
+
+/**
+ * Dashboardシートを作成または更新
+ *
+ * @param spreadsheetId - スプレッドシートID
+ * @param metrics - 全リポジトリのメトリクス
+ */
+export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
+  const { logger } = getContainer();
+  const spreadsheet = openSpreadsheet(spreadsheetId);
+
+  const sheet = initializeDashboardSheet(spreadsheet);
+
   if (metrics.length === 0) {
     logger.log('⚠️ No metrics for dashboard');
     return;
@@ -179,51 +257,7 @@ export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]):
   const repoDataList = Array.from(latestByRepo.values());
 
   // 行データを作成
-  const rows: (string | number)[][] = [];
-
-  for (const data of repoDataList) {
-    const status = determineHealthStatus(
-      data.leadTimeHours,
-      data.changeFailureRate,
-      data.cycleTimeHours,
-      data.timeToFirstReviewHours
-    );
-
-    rows.push([
-      data.repository,
-      data.deploymentFrequency,
-      data.leadTimeHours ?? 'N/A',
-      data.changeFailureRate ?? 'N/A',
-      data.mttrHours ?? 'N/A',
-      data.cycleTimeHours ?? 'N/A',
-      data.timeToFirstReviewHours ?? 'N/A',
-      data.avgLinesOfCode ?? 'N/A',
-      formatStatus(status),
-    ]);
-  }
-
-  // 全体平均行（複数リポジトリの場合）
-  if (repoDataList.length > 1) {
-    const overall = calculateOverallAverage(repoDataList);
-    const overallStatus = determineHealthStatus(
-      overall.leadTimeHours,
-      overall.changeFailureRate,
-      overall.cycleTimeHours,
-      overall.timeToFirstReviewHours
-    );
-
-    rows.push([
-      '【全体平均】',
-      overall.deploymentFrequency,
-      overall.leadTimeHours ?? 'N/A',
-      overall.changeFailureRate ?? 'N/A',
-      overall.mttrHours ?? 'N/A',
-      overall.cycleTimeHours ?? 'N/A',
-      overall.timeToFirstReviewHours ?? 'N/A',
-      overall.avgLinesOfCode ?? 'N/A',
-      formatStatus(overallStatus),
-    ]);
-  }
+  const rows = prepareDashboardRows(repoDataList);
 
   // データ書き込み
   if (rows.length > 0) {
@@ -360,12 +394,21 @@ function calculateChange(current: number | null, previous: number | null): strin
 }
 
 /**
- * トレンドシートを作成または更新
+ * トレンドシート用のヘッダー
  */
-export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
-  const { logger } = getContainer();
-  const spreadsheet = openSpreadsheet(spreadsheetId);
+const TREND_HEADERS = [
+  '週',
+  'デプロイ回数',
+  'リードタイム (時間)',
+  '変更障害率 (%)',
+  'サイクルタイム (時間)',
+  '前週比',
+];
 
+/**
+ * トレンドシートを初期化
+ */
+function initializeTrendSheet(spreadsheet: Spreadsheet): Sheet {
   const sheetName = 'Dashboard - Trend';
   let sheet = spreadsheet.getSheetByName(sheetName);
   if (sheet) {
@@ -374,25 +417,16 @@ export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetri
     sheet = spreadsheet.insertSheet(sheetName);
   }
 
-  const headers = [
-    '週',
-    'デプロイ回数',
-    'リードタイム (時間)',
-    '変更障害率 (%)',
-    'サイクルタイム (時間)',
-    '前週比',
-  ];
+  sheet.getRange(1, 1, 1, TREND_HEADERS.length).setValues([TREND_HEADERS]);
+  styleHeaderRow(sheet, TREND_HEADERS.length);
 
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  styleHeaderRow(sheet, headers.length);
+  return sheet;
+}
 
-  const trends = calculateWeeklyTrends(metrics);
-
-  if (trends.length === 0) {
-    logger.log('⚠️ No trend data available');
-    return;
-  }
-
+/**
+ * トレンドシート用の行データを作成
+ */
+function prepareTrendRows(trends: WeeklyTrendData[]): (string | number)[][] {
   const rows: (string | number)[][] = [];
 
   for (let i = 0; i < trends.length; i++) {
@@ -413,20 +447,51 @@ export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetri
     ]);
   }
 
-  if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  return rows;
+}
+
+/**
+ * トレンドシートのフォーマット
+ */
+function formatTrendSheet(sheet: Sheet, rowCount: number): void {
+  if (rowCount === 0) {
+    return;
   }
 
   // フォーマット
-  sheet.getRange(2, 2, rows.length, 1).setNumberFormat('#,##0');
-  sheet.getRange(2, 3, rows.length, 1).setNumberFormat('#,##0.0');
-  sheet.getRange(2, 4, rows.length, 1).setNumberFormat('#,##0.0');
-  sheet.getRange(2, 5, rows.length, 1).setNumberFormat('#,##0.0');
+  sheet.getRange(2, 2, rowCount, 1).setNumberFormat('#,##0');
+  sheet.getRange(2, 3, rowCount, 1).setNumberFormat('#,##0.0');
+  sheet.getRange(2, 4, rowCount, 1).setNumberFormat('#,##0.0');
+  sheet.getRange(2, 5, rowCount, 1).setNumberFormat('#,##0.0');
 
   // データ範囲にボーダーを適用
-  applyDataBorders(sheet, rows.length, headers.length);
+  applyDataBorders(sheet, rowCount, TREND_HEADERS.length);
 
-  autoResizeColumns(sheet, headers.length);
+  autoResizeColumns(sheet, TREND_HEADERS.length);
+}
+
+/**
+ * トレンドシートを作成または更新
+ */
+export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
+  const { logger } = getContainer();
+  const spreadsheet = openSpreadsheet(spreadsheetId);
+
+  const sheet = initializeTrendSheet(spreadsheet);
+  const trends = calculateWeeklyTrends(metrics);
+
+  if (trends.length === 0) {
+    logger.log('⚠️ No trend data available');
+    return;
+  }
+
+  const rows = prepareTrendRows(trends);
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, TREND_HEADERS.length).setValues(rows);
+  }
+
+  formatTrendSheet(sheet, rows.length);
 
   logger.log(`✅ Trend sheet updated with ${trends.length} weeks`);
 }

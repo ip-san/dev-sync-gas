@@ -15,10 +15,12 @@ import {
   getCodingTimeIssueLabels,
   setCodingTimeIssueLabels,
   resetCodingTimeIssueLabels,
+  getExcludeMetricsLabels,
+  setExcludeMetricsLabels,
+  resetExcludeMetricsLabels,
   getGitHubApiMode,
   setGitHubApiMode,
   resetGitHubApiMode,
-  type GitHubApiMode,
 } from '../config/settings';
 import { ensureContainerInitialized } from './helpers';
 
@@ -167,7 +169,7 @@ export function showCodingTimeConfig(): void {
  */
 export function configureApiMode(mode: 'graphql' | 'rest'): void {
   ensureContainerInitialized();
-  setGitHubApiMode(mode as GitHubApiMode);
+  setGitHubApiMode(mode);
   if (mode === 'graphql') {
     Logger.log('✅ API mode set to: GraphQL (efficient mode)');
     Logger.log('   Benefits: Reduced API calls, batch operations, better rate limit usage');
@@ -193,4 +195,43 @@ export function resetApiMode(): void {
   ensureContainerInitialized();
   resetGitHubApiMode();
   Logger.log('✅ API mode reset to: GraphQL (default)');
+}
+
+// =============================================================================
+// 除外ラベル設定
+// =============================================================================
+
+/**
+ * 計測から除外するラベルを設定
+ *
+ * @example
+ * configureExcludeLabels(["exclude-metrics", "dependencies", "bot"]);
+ * configureExcludeLabels([]);  // 除外しない
+ */
+export function configureExcludeLabels(labels: string[]): void {
+  ensureContainerInitialized();
+  setExcludeMetricsLabels(labels);
+  if (labels.length > 0) {
+    Logger.log(`✅ Exclude labels set to: ${labels.join(', ')}`);
+  } else {
+    Logger.log('✅ Exclude labels cleared (no exclusions)');
+  }
+}
+
+/**
+ * 現在の除外ラベルを表示
+ */
+export function showExcludeLabels(): void {
+  ensureContainerInitialized();
+  const labels = getExcludeMetricsLabels();
+  Logger.log(`📋 Exclude labels: ${labels.join(', ')}`);
+}
+
+/**
+ * 除外ラベル設定をリセット
+ */
+export function resetExcludeLabelsConfig(): void {
+  ensureContainerInitialized();
+  resetExcludeMetricsLabels();
+  Logger.log('✅ Exclude labels reset to: "exclude-metrics"');
 }

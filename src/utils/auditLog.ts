@@ -3,7 +3,21 @@
  * ITGC要件: 設定変更の追跡と監査証跡の記録
  */
 
+import { z } from 'zod';
 import { getContainer } from '../container';
+import { AUDIT_LOG_VALUE_MAX_LENGTH } from '../config/apiConfig';
+
+/**
+ * 監査ログエントリのzodスキーマ
+ */
+const AuditLogEntrySchema = z.object({
+  timestamp: z.string(),
+  user: z.string(),
+  action: z.string(),
+  details: z.record(z.string(), z.unknown()),
+  status: z.enum(['success', 'failure']),
+  errorMessage: z.string().optional(),
+});
 
 /**
  * 監査ログエントリ
@@ -98,9 +112,9 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
 
     if (isSensitive) {
       sanitized[key] = '[REDACTED]';
-    } else if (typeof value === 'string' && value.length > 200) {
+    } else if (typeof value === 'string' && value.length > AUDIT_LOG_VALUE_MAX_LENGTH) {
       // 長い文字列は切り詰め
-      sanitized[key] = value.substring(0, 200) + '... (truncated)';
+      sanitized[key] = value.substring(0, AUDIT_LOG_VALUE_MAX_LENGTH) + '... (truncated)';
     } else if (typeof value === 'object' && value !== null) {
       // ネストされたオブジェクトは再帰的にサニタイズ
       sanitized[key] = sanitizeDetails(value as Record<string, unknown>);
@@ -120,6 +134,20 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
  * @param limit - 取得件数
  * @returns 監査ログエントリの配列
  */
+/**
+ * 監査ログの1行をパース
+ */
+function parseAuditLogLine(line: string): AuditLogEntry | null {
+  try {
+    const jsonStr = line.substring(line.indexOf('{'));
+    const parsed: unknown = JSON.parse(jsonStr);
+    return AuditLogEntrySchema.parse(parsed);
+  } catch {
+    // パースエラーは無視
+    return null;
+  }
+}
+
 export function getAuditLogs(limit = 100): AuditLogEntry[] {
   try {
     if (!Logger?.getLog?.()) {
@@ -135,16 +163,14 @@ export function getAuditLogs(limit = 100): AuditLogEntry[] {
         continue;
       }
 
-      try {
-        const jsonStr = line.substring(line.indexOf('{'));
-        const entry = JSON.parse(jsonStr) as AuditLogEntry;
-        auditEntries.push(entry);
+      const entry = parseAuditLogLine(line);
+      if (!entry) {
+        continue;
+      }
 
-        if (auditEntries.length >= limit) {
-          break;
-        }
-      } catch {
-        // パースエラーは無視
+      auditEntries.push(entry);
+      if (auditEntries.length >= limit) {
+        break;
       }
     }
 

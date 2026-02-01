@@ -10,7 +10,6 @@
  * - setup.ts: セットアップ・設定関数
  * - config.ts: 設定表示・変更関数
  * - migration.ts: マイグレーション関数
- * - debug.ts: デバッグ用詳細表示関数
  */
 
 // 共通ヘルパー
@@ -87,15 +86,6 @@ export {
   updateHeadersOnly,
   showBackupCleanupHelp,
 } from './migration';
-
-// デバッグ用詳細表示
-export {
-  showCycleTimeDetails,
-  showCodingTimeDetails,
-  showReworkRateDetails,
-  showReviewEfficiencyDetails,
-  showPRSizeDetails,
-} from './debug';
 
 // 監査ログ
 export { exportAuditLogs, showAuditLogs } from './audit';

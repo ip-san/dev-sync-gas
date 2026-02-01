@@ -66,6 +66,8 @@ export const LABEL_KEYS = {
   REFACTORING: 'LABEL_REFACTORING',
   /** ドキュメントラベル名 */
   DOCUMENTATION: 'LABEL_DOCUMENTATION',
+  /** 計測から除外するラベル（JSON配列） */
+  EXCLUDE_METRICS: 'EXCLUDE_METRICS_LABELS',
 } as const;
 
 /**

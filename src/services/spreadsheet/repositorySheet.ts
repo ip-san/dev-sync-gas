@@ -10,6 +10,14 @@ import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { getOrCreateSheet, autoResizeColumns, openSpreadsheet, applyDataBorders } from './helpers';
 import { REPOSITORY_DEVOPS_SCHEMA, getHeadersFromSchema } from '../../schemas';
+import { REPOSITORY_NAME_MAX_LENGTH } from '../../config/apiConfig';
+
+/**
+ * 文字列が有効なデプロイメント頻度かをチェックする型ガード
+ */
+function isValidDeploymentFrequency(value: unknown): value is DevOpsMetrics['deploymentFrequency'] {
+  return value === 'daily' || value === 'weekly' || value === 'monthly' || value === 'yearly';
+}
 
 /**
  * リポジトリ別シートのヘッダー
@@ -26,7 +34,9 @@ const REPOSITORY_SHEET_HEADERS = getHeadersFromSchema(REPOSITORY_DEVOPS_SCHEMA);
 export function getRepositorySheetName(repository: string): string {
   // Google Sheetsのシート名制限: 100文字以内
   // owner/repo形式をそのまま使用（スラッシュはシート名に使用可能）
-  return repository.length > 100 ? repository.substring(0, 100) : repository;
+  return repository.length > REPOSITORY_NAME_MAX_LENGTH
+    ? repository.substring(0, REPOSITORY_NAME_MAX_LENGTH)
+    : repository;
 }
 
 /**
@@ -196,6 +206,25 @@ export function writeMetricsToAllRepositorySheets(
 }
 
 /**
+ * 行データをDevOpsMetricsにパース（リポジトリ別シート用）
+ */
+function parseRepositoryMetricRow(row: unknown[], repository: string): DevOpsMetrics {
+  const frequency = isValidDeploymentFrequency(row[2]) ? row[2] : 'daily';
+
+  return {
+    date: String(row[0]),
+    repository: repository,
+    deploymentCount: Number(row[1]) || 0,
+    deploymentFrequency: frequency,
+    leadTimeForChangesHours: Number(row[3]) || 0,
+    totalDeployments: Number(row[4]) || 0,
+    failedDeployments: Number(row[5]) || 0,
+    changeFailureRate: Number(row[6]) || 0,
+    meanTimeToRecoveryHours: row[7] === 'N/A' ? null : Number(row[7]) || null,
+  };
+}
+
+/**
  * 指定されたリポジトリのシートからメトリクスを読み取る
  *
  * @param spreadsheetId - スプレッドシートID
@@ -223,17 +252,7 @@ export function readMetricsFromRepositorySheet(
   const metrics: DevOpsMetrics[] = [];
 
   for (const row of data) {
-    metrics.push({
-      date: String(row[0]),
-      repository: repository,
-      deploymentCount: Number(row[1]) || 0,
-      deploymentFrequency: row[2] as DevOpsMetrics['deploymentFrequency'],
-      leadTimeForChangesHours: Number(row[3]) || 0,
-      totalDeployments: Number(row[4]) || 0,
-      failedDeployments: Number(row[5]) || 0,
-      changeFailureRate: Number(row[6]) || 0,
-      meanTimeToRecoveryHours: row[7] === 'N/A' ? null : Number(row[7]) || null,
-    });
+    metrics.push(parseRepositoryMetricRow(row, repository));
   }
 
   return metrics;

@@ -265,6 +265,167 @@ function restoreFromBackup(sheet: Sheet, backupSheet: Sheet): boolean {
 // =============================================================================
 
 /**
+ * 新しいシートを作成して初期化
+ */
+function createNewSheet(
+  spreadsheet: Spreadsheet,
+  schema: SheetSchema,
+  targetHeaders: string[],
+  duration: number
+): MigrationResult {
+  const newSheet = spreadsheet.insertSheet(schema.sheetName);
+  initializeSheet(newSheet, schema);
+
+  return {
+    sheetName: schema.sheetName,
+    success: true,
+    status: 'created',
+    toVersion: schema.version,
+    rowsMigrated: 0,
+    columnsAdded: targetHeaders,
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+  };
+}
+
+/**
+ * 空のシートを初期化
+ */
+function initializeEmptySheet(
+  sheet: Sheet,
+  schema: SheetSchema,
+  targetHeaders: string[],
+  duration: number
+): MigrationResult {
+  initializeSheet(sheet, schema);
+
+  return {
+    sheetName: schema.sheetName,
+    success: true,
+    status: 'created',
+    toVersion: schema.version,
+    rowsMigrated: 0,
+    columnsAdded: targetHeaders,
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+  };
+}
+
+/**
+ * スキーマが最新かチェックし、最新の場合は結果を返す
+ */
+function checkSchemaUpToDate(
+  oldHeaders: string[],
+  targetHeaders: string[],
+  schema: SheetSchema,
+  duration: number
+): MigrationResult | null {
+  const changes = analyzeChanges(oldHeaders, targetHeaders);
+  if (changes.added.length === 0 && changes.removed.length === 0 && !changes.reordered) {
+    return {
+      sheetName: schema.sheetName,
+      success: true,
+      status: 'up_to_date',
+      toVersion: schema.version,
+      rowsMigrated: 0,
+      columnsAdded: [],
+      columnsRemoved: [],
+      columnsRenamed: [],
+      duration,
+    };
+  }
+  return null;
+}
+
+/**
+ * データマイグレーションのパラメータ
+ */
+interface PerformDataMigrationParams {
+  sheet: Sheet;
+  oldData: unknown[][];
+  oldHeaders: string[];
+  schema: SheetSchema;
+  targetHeaders: string[];
+  lastRow: number;
+  duration: number;
+}
+
+/**
+ * データマイグレーションを実行
+ */
+function performDataMigration(params: PerformDataMigrationParams): MigrationResult {
+  const { sheet, oldData, oldHeaders, schema, targetHeaders, lastRow, duration } = params;
+  const { logger } = getContainer();
+
+  const mappings = createColumnMapping(oldHeaders, schema);
+  const removedColumns = findRemovedColumns(oldHeaders, schema);
+  const newData = migrateData(oldData, mappings);
+  const changes = analyzeChanges(oldHeaders, targetHeaders);
+
+  sheet.clear();
+  sheet.getRange(1, 1, newData.length, schema.columns.length).setValues(newData);
+  applySheetFormat(sheet, schema);
+
+  logger.log(`✅ Migrated: ${schema.sheetName}`);
+
+  return {
+    sheetName: schema.sheetName,
+    success: true,
+    status: 'migrated',
+    toVersion: schema.version,
+    rowsMigrated: lastRow - 1,
+    columnsAdded: changes.added,
+    columnsRemoved: removedColumns,
+    columnsRenamed: [],
+    duration,
+  };
+}
+
+/**
+ * マイグレーションエラー処理のパラメータ
+ */
+interface HandleMigrationErrorParams {
+  error: unknown;
+  spreadsheet: Spreadsheet;
+  schema: SheetSchema;
+  backup: { backupSheet: Sheet; backupName: string } | null;
+  duration: number;
+}
+
+/**
+ * マイグレーションエラーを処理
+ */
+function handleMigrationError(params: HandleMigrationErrorParams): MigrationResult {
+  const { error, spreadsheet, schema, backup, duration } = params;
+  const { logger } = getContainer();
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  logger.log(`❌ Migration failed for ${schema.sheetName}: ${errorMessage}`);
+
+  if (backup) {
+    const sheet = spreadsheet.getSheetByName(schema.sheetName);
+    if (sheet && restoreFromBackup(sheet, backup.backupSheet)) {
+      logger.log(`🔄 Restored ${schema.sheetName} from backup`);
+    }
+  }
+
+  return {
+    sheetName: schema.sheetName,
+    success: false,
+    status: 'error',
+    toVersion: schema.version,
+    rowsMigrated: 0,
+    columnsAdded: [],
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+    error: errorMessage,
+  };
+}
+
+/**
  * シートのスキーママイグレーションを実行
  *
  * マイグレーション前にバックアップシートを作成し、
@@ -274,131 +435,145 @@ function restoreFromBackup(sheet: Sheet, backupSheet: Sheet): boolean {
 export function migrateSheetSchema(spreadsheet: Spreadsheet, schema: SheetSchema): MigrationResult {
   const startTime = Date.now();
   const { logger } = getContainer();
-
   let backup: { backupSheet: Sheet; backupName: string } | null = null;
 
   try {
     const sheet = spreadsheet.getSheetByName(schema.sheetName);
     const targetHeaders = getHeadersFromSchema(schema);
 
-    // シートが存在しない場合は新規作成
     if (!sheet) {
-      const newSheet = spreadsheet.insertSheet(schema.sheetName);
-      initializeSheet(newSheet, schema);
-
-      return {
-        sheetName: schema.sheetName,
-        success: true,
-        status: 'created',
-        toVersion: schema.version,
-        rowsMigrated: 0,
-        columnsAdded: targetHeaders,
-        columnsRemoved: [],
-        columnsRenamed: [],
-        duration: Date.now() - startTime,
-      };
+      return createNewSheet(spreadsheet, schema, targetHeaders, Date.now() - startTime);
     }
 
     const lastRow = sheet.getLastRow();
-
-    // 空のシートの場合はヘッダーのみ設定
     if (lastRow === 0) {
-      initializeSheet(sheet, schema);
-
-      return {
-        sheetName: schema.sheetName,
-        success: true,
-        status: 'created',
-        toVersion: schema.version,
-        rowsMigrated: 0,
-        columnsAdded: targetHeaders,
-        columnsRemoved: [],
-        columnsRenamed: [],
-        duration: Date.now() - startTime,
-      };
+      return initializeEmptySheet(sheet, schema, targetHeaders, Date.now() - startTime);
     }
 
-    // 現在のデータを取得
     const oldData = sheet.getDataRange().getValues();
     const oldHeaders = oldData[0] as string[];
 
-    // 変更が必要か確認
-    const changes = analyzeChanges(oldHeaders, targetHeaders);
-    if (changes.added.length === 0 && changes.removed.length === 0 && !changes.reordered) {
-      return {
-        sheetName: schema.sheetName,
-        success: true,
-        status: 'up_to_date',
-        toVersion: schema.version,
-        rowsMigrated: 0,
-        columnsAdded: [],
-        columnsRemoved: [],
-        columnsRenamed: [],
-        duration: Date.now() - startTime,
-      };
+    const upToDateResult = checkSchemaUpToDate(
+      oldHeaders,
+      targetHeaders,
+      schema,
+      Date.now() - startTime
+    );
+    if (upToDateResult) {
+      return upToDateResult;
     }
 
-    // バックアップを作成（データがある場合のみ）
     backup = createBackup(spreadsheet, sheet, schema.sheetName);
-
-    // マッピングを作成
-    const mappings = createColumnMapping(oldHeaders, schema);
-    const removedColumns = findRemovedColumns(oldHeaders, schema);
-
-    // データを変換
-    const newData = migrateData(oldData, mappings);
-
-    // シートをクリアして再書き込み
-    sheet.clear();
-    sheet.getRange(1, 1, newData.length, schema.columns.length).setValues(newData);
-
-    // フォーマットを適用
-    applySheetFormat(sheet, schema);
-
-    logger.log(`✅ Migrated: ${schema.sheetName}`);
     if (backup) {
       logger.log(`   Backup available: ${backup.backupName}`);
     }
 
-    return {
-      sheetName: schema.sheetName,
-      success: true,
-      status: 'migrated',
-      toVersion: schema.version,
-      rowsMigrated: lastRow - 1,
-      columnsAdded: changes.added,
-      columnsRemoved: removedColumns,
-      columnsRenamed: [],
+    return performDataMigration({
+      sheet,
+      oldData,
+      oldHeaders,
+      schema,
+      targetHeaders,
+      lastRow,
       duration: Date.now() - startTime,
-    };
+    });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.log(`❌ Migration failed for ${schema.sheetName}: ${errorMessage}`);
-
-    // バックアップからリストアを試みる
-    if (backup) {
-      const sheet = spreadsheet.getSheetByName(schema.sheetName);
-      if (sheet) {
-        const restored = restoreFromBackup(sheet, backup.backupSheet);
-        if (restored) {
-          logger.log(`🔄 Restored ${schema.sheetName} from backup`);
-        }
-      }
-    }
-
-    return {
-      sheetName: schema.sheetName,
-      success: false,
-      status: 'error',
-      toVersion: schema.version,
-      rowsMigrated: 0,
-      columnsAdded: [],
-      columnsRemoved: [],
-      columnsRenamed: [],
+    return handleMigrationError({
+      error,
+      spreadsheet,
+      schema,
+      backup,
       duration: Date.now() - startTime,
-      error: errorMessage,
-    };
+    });
   }
+}
+
+/**
+ * シートが存在しない場合のMigrationResultを構築
+ */
+function createSheetNotFoundResult(
+  sheetName: string,
+  version: string,
+  duration: number
+): MigrationResult {
+  return {
+    sheetName,
+    success: false,
+    status: 'skipped',
+    toVersion: version,
+    rowsMigrated: 0,
+    columnsAdded: [],
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+    error: 'Sheet does not exist',
+  };
+}
+
+/**
+ * シート作成時のMigrationResultを構築
+ */
+function createSheetCreatedResult(
+  sheetName: string,
+  version: string,
+  headers: string[],
+  duration: number
+): MigrationResult {
+  return {
+    sheetName,
+    success: true,
+    status: 'created',
+    toVersion: version,
+    rowsMigrated: 0,
+    columnsAdded: headers,
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+  };
+}
+
+/**
+ * ヘッダー更新成功時のMigrationResultを構築
+ */
+function createHeadersUpdatedResult(
+  sheetName: string,
+  version: string,
+  duration: number
+): MigrationResult {
+  return {
+    sheetName,
+    success: true,
+    status: 'migrated',
+    toVersion: version,
+    rowsMigrated: 0,
+    columnsAdded: [],
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+  };
+}
+
+/**
+ * エラー時のMigrationResultを構築
+ */
+function createMigrationErrorResult(
+  sheetName: string,
+  version: string,
+  duration: number,
+  errorMessage: string
+): MigrationResult {
+  return {
+    sheetName,
+    success: false,
+    status: 'error',
+    toVersion: version,
+    rowsMigrated: 0,
+    columnsAdded: [],
+    columnsRemoved: [],
+    columnsRenamed: [],
+    duration,
+    error: errorMessage,
+  };
 }
 
 /**
@@ -416,34 +591,18 @@ export function updateSheetHeadersOnly(
     const targetHeaders = getHeadersFromSchema(schema);
 
     if (!sheet) {
-      return {
-        sheetName: schema.sheetName,
-        success: false,
-        status: 'skipped',
-        toVersion: schema.version,
-        rowsMigrated: 0,
-        columnsAdded: [],
-        columnsRemoved: [],
-        columnsRenamed: [],
-        duration: Date.now() - startTime,
-        error: 'Sheet does not exist',
-      };
+      return createSheetNotFoundResult(schema.sheetName, schema.version, Date.now() - startTime);
     }
 
     const lastRow = sheet.getLastRow();
     if (lastRow === 0) {
       initializeSheet(sheet, schema);
-      return {
-        sheetName: schema.sheetName,
-        success: true,
-        status: 'created',
-        toVersion: schema.version,
-        rowsMigrated: 0,
-        columnsAdded: targetHeaders,
-        columnsRemoved: [],
-        columnsRenamed: [],
-        duration: Date.now() - startTime,
-      };
+      return createSheetCreatedResult(
+        schema.sheetName,
+        schema.version,
+        targetHeaders,
+        Date.now() - startTime
+      );
     }
 
     // ヘッダー行のみ更新
@@ -452,31 +611,15 @@ export function updateSheetHeadersOnly(
 
     logger.log(`✅ Headers updated: ${schema.sheetName}`);
 
-    return {
-      sheetName: schema.sheetName,
-      success: true,
-      status: 'migrated',
-      toVersion: schema.version,
-      rowsMigrated: 0,
-      columnsAdded: [],
-      columnsRemoved: [],
-      columnsRenamed: [],
-      duration: Date.now() - startTime,
-    };
+    return createHeadersUpdatedResult(schema.sheetName, schema.version, Date.now() - startTime);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      sheetName: schema.sheetName,
-      success: false,
-      status: 'error',
-      toVersion: schema.version,
-      rowsMigrated: 0,
-      columnsAdded: [],
-      columnsRemoved: [],
-      columnsRenamed: [],
-      duration: Date.now() - startTime,
-      error: errorMessage,
-    };
+    return createMigrationErrorResult(
+      schema.sheetName,
+      schema.version,
+      Date.now() - startTime,
+      errorMessage
+    );
   }
 }
 

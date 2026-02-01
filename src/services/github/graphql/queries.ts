@@ -59,6 +59,11 @@ export const PULL_REQUESTS_QUERY = `
           additions
           deletions
           changedFiles
+          labels(first: 20) {
+            nodes {
+              name
+            }
+          }
         }
       }
     }

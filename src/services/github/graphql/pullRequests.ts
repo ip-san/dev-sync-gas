@@ -19,6 +19,8 @@ import type {
 import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { PULL_REQUESTS_QUERY, PULL_REQUEST_DETAIL_QUERY, buildBatchPRDetailQuery } from './queries';
+import { isWithinPRDateRange } from './issueHelpers.js';
+import { validatePaginatedResponse, validateSingleResponse } from './errorHelpers.js';
 import type {
   PullRequestsQueryResponse,
   PullRequestDetailQueryResponse,
@@ -32,10 +34,89 @@ import { calculateReworkDataForPR, createDefaultReworkData } from './reworkHelpe
 import { calculatePRSizeData } from './prSizeHelpers.js';
 import { groupPRsByRepository, parseRepository } from './batchProcessing.js';
 import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
+import { shouldExcludeByLabels } from '../../../utils/labelFilter.js';
+import { getExcludeMetricsLabels } from '../../../config/settings.js';
 
 // =============================================================================
 // PR一覧取得
 // =============================================================================
+
+/**
+ * Pull Requests取得のパラメータ
+ */
+export interface GetPullRequestsGraphQLParams {
+  repo: GitHubRepository;
+  token: string;
+  state?: 'open' | 'closed' | 'all';
+  dateRange?: DateRange;
+  maxPages?: number;
+}
+
+/**
+ * PR状態をGraphQL形式のstatesに変換
+ */
+function convertPRStateToGraphQLStates(state: 'open' | 'closed' | 'all'): string[] {
+  if (state === 'all') {
+    return ['MERGED', 'OPEN', 'CLOSED'];
+  }
+  if (state === 'open') {
+    return ['OPEN'];
+  }
+  return ['MERGED', 'CLOSED'];
+}
+
+/**
+ * GraphQL Pull Requests Query用の変数を構築
+ */
+function buildPullRequestsQueryVariables(
+  repo: GitHubRepository,
+  cursor: string | null,
+  states: string[]
+): Record<string, unknown> {
+  return {
+    owner: repo.owner,
+    name: repo.name,
+    first: DEFAULT_PAGE_SIZE,
+    after: cursor,
+    states,
+  };
+}
+
+/**
+ * 日付範囲と除外ラベルでPRをフィルタリング
+ */
+function filterPRsByDateRange(
+  prs: GraphQLPullRequest[],
+  dateRange: DateRange | undefined,
+  repository: string
+): GitHubPullRequest[] {
+  const filtered: GitHubPullRequest[] = [];
+  const excludeLabels = getExcludeMetricsLabels();
+  let excludedCount = 0;
+
+  for (const pr of prs) {
+    const createdAt = new Date(pr.createdAt);
+
+    if (!isWithinPRDateRange(createdAt, dateRange)) {
+      continue;
+    }
+
+    const prLabels = pr.labels.nodes.map((l) => l.name);
+    if (shouldExcludeByLabels(prLabels, excludeLabels)) {
+      excludedCount++;
+      continue;
+    }
+
+    filtered.push(convertToPullRequest(pr, repository));
+  }
+
+  if (excludedCount > 0) {
+    const { logger } = getContainer();
+    logger.log(`  ℹ️ Excluded ${excludedCount} PRs by labels`);
+  }
+
+  return filtered;
+}
 
 /**
  * リポジトリのPR一覧を取得（GraphQL版）
@@ -45,67 +126,37 @@ import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
  * - ブランチ情報（baseRefName, headRefName）も取得
  */
 export function getPullRequestsGraphQL(
-  repo: GitHubRepository,
-  token: string,
-  state: 'open' | 'closed' | 'all' = 'all',
-  dateRange?: DateRange,
-  maxPages: number = 5
+  params: GetPullRequestsGraphQLParams
 ): ApiResponse<GitHubPullRequest[]> {
+  const { repo, token, state = 'all', dateRange, maxPages = 5 } = params;
   const { logger } = getContainer();
   const allPRs: GitHubPullRequest[] = [];
   let cursor: string | null = null;
   let page = 0;
 
-  // GraphQL用のstate変換
-  const states =
-    state === 'all'
-      ? ['MERGED', 'OPEN', 'CLOSED']
-      : state === 'open'
-        ? ['OPEN']
-        : ['MERGED', 'CLOSED'];
+  const states = convertPRStateToGraphQLStates(state);
 
   while (page < maxPages) {
+    const variables = buildPullRequestsQueryVariables(repo, cursor, states);
     const queryResult: ApiResponse<PullRequestsQueryResponse> =
-      executeGraphQLWithRetry<PullRequestsQueryResponse>(
-        PULL_REQUESTS_QUERY,
-        {
-          owner: repo.owner,
-          name: repo.name,
-          first: DEFAULT_PAGE_SIZE,
-          after: cursor,
-          states,
-        },
-        token
-      );
+      executeGraphQLWithRetry<PullRequestsQueryResponse>(PULL_REQUESTS_QUERY, variables, token);
 
-    if (!queryResult.success || !queryResult.data?.repository?.pullRequests) {
-      if (page === 0) {
-        return { success: false, error: queryResult.error };
-      }
+    const validationError = validatePaginatedResponse(queryResult, page, 'repository.pullRequests');
+    if (validationError) {
+      return validationError;
+    }
+    if (!queryResult.success) {
       break;
     }
 
-    const prsData = queryResult.data.repository.pullRequests;
-    const nodes: GraphQLPullRequest[] = prsData.nodes;
-    const pageInfo = prsData.pageInfo;
+    const prsData = queryResult.data!.repository!.pullRequests;
+    const filteredPRs = filterPRsByDateRange(prsData.nodes, dateRange, repo.fullName);
+    allPRs.push(...filteredPRs);
 
-    for (const pr of nodes) {
-      // 期間フィルタリング（Early Return）
-      const createdAt = new Date(pr.createdAt);
-      if (dateRange?.until && createdAt > dateRange.until) {
-        continue;
-      }
-      if (dateRange?.since && createdAt < dateRange.since) {
-        continue;
-      }
-
-      allPRs.push(convertToPullRequest(pr, repo.fullName));
-    }
-
-    if (!pageInfo.hasNextPage) {
+    if (!prsData.pageInfo.hasNextPage) {
       break;
     }
-    cursor = pageInfo.endCursor;
+    cursor = prsData.pageInfo.endCursor;
     page++;
   }
 
@@ -163,11 +214,12 @@ export function getPRDetailsGraphQL(
     token
   );
 
-  if (!result.success || !result.data?.repository?.pullRequest) {
-    return { success: false, error: result.error };
+  const validationError = validateSingleResponse(result, 'repository.pullRequest');
+  if (validationError) {
+    return validationError;
   }
 
-  const pr = result.data.repository.pullRequest;
+  const pr = result.data!.repository!.pullRequest!;
   return {
     success: true,
     data: {
@@ -197,11 +249,12 @@ export function getPullRequestWithBranchesGraphQL(
     token
   );
 
-  if (!result.success || !result.data?.repository?.pullRequest) {
-    return { success: false, error: result.error };
+  const validationError = validateSingleResponse(result, 'repository.pullRequest');
+  if (validationError) {
+    return validationError;
   }
 
-  const pr = result.data.repository.pullRequest;
+  const pr = result.data!.repository!.pullRequest!;
   return {
     success: true,
     data: convertToPullRequest(pr, `${owner}/${repo}`),
@@ -211,6 +264,52 @@ export function getPullRequestWithBranchesGraphQL(
 // =============================================================================
 // 手戻りデータ取得（バッチ処理）
 // =============================================================================
+
+/**
+ * PR手戻りデータ処理のパラメータ
+ */
+interface ProcessBatchReworkDataParams {
+  batch: GitHubPullRequest[];
+  owner: string;
+  repo: string;
+  token: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
+ * 1バッチ分のPR手戻りデータを処理
+ */
+function processBatchReworkData(params: ProcessBatchReworkDataParams): PRReworkData[] {
+  const { batch, owner, repo, token, logger } = params;
+  const reworkData: PRReworkData[] = [];
+  const prNumbers = batch.map((pr) => pr.number);
+
+  const query = buildBatchPRDetailQuery(prNumbers);
+  const result = executeGraphQLWithRetry<{
+    repository: Record<string, GraphQLPullRequestDetail | null>;
+  }>(query, { owner, name: repo }, token);
+
+  if (!result.success || !result.data?.repository) {
+    logger.log(`  ⚠️ Failed to fetch batch PR details: ${result.error}`);
+    // フォールバック: 空データを追加
+    return batch.map((pr) => createDefaultReworkData(pr));
+  }
+
+  // 各PRのデータを処理
+  for (let j = 0; j < batch.length; j++) {
+    const pr = batch[j];
+    const prData = result.data.repository[`pr${j}`];
+
+    if (!prData) {
+      reworkData.push(createDefaultReworkData(pr));
+      continue;
+    }
+
+    reworkData.push(calculateReworkDataForPR(prData, pr));
+  }
+
+  return reworkData;
+}
 
 /**
  * 複数PRの手戻りデータを一括取得（GraphQL版）
@@ -238,34 +337,8 @@ export function getReworkDataForPRsGraphQL(
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
       const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
-      const prNumbers = batch.map((pr) => pr.number);
-
-      const query = buildBatchPRDetailQuery(prNumbers);
-      const result = executeGraphQLWithRetry<{
-        repository: Record<string, GraphQLPullRequestDetail | null>;
-      }>(query, { owner, name: repo }, token);
-
-      if (!result.success || !result.data?.repository) {
-        logger.log(`  ⚠️ Failed to fetch batch PR details: ${result.error}`);
-        // フォールバック: 空データを追加
-        for (const pr of batch) {
-          reworkData.push(createDefaultReworkData(pr));
-        }
-        continue;
-      }
-
-      // 各PRのデータを処理
-      for (let j = 0; j < batch.length; j++) {
-        const pr = batch[j];
-        const prData = result.data.repository[`pr${j}`];
-
-        if (!prData) {
-          reworkData.push(createDefaultReworkData(pr));
-          continue;
-        }
-
-        reworkData.push(calculateReworkDataForPR(prData, pr));
-      }
+      const batchResults = processBatchReworkData({ batch, owner, repo, token, logger });
+      reworkData.push(...batchResults);
     }
   }
 
@@ -275,6 +348,87 @@ export function getReworkDataForPRsGraphQL(
 // =============================================================================
 // PRサイズデータ取得
 // =============================================================================
+
+/**
+ * PRサイズデータ処理のパラメータ
+ */
+interface ProcessBatchSizeDataParams {
+  batch: GitHubPullRequest[];
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  token: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
+ * バッチPRサイズ取得用のGraphQLクエリを構築
+ */
+function buildBatchPRSizeQuery(prNumbers: number[]): string {
+  return `
+    query GetBatchPRSize($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        ${prNumbers
+          .map(
+            (num, idx) => `
+          pr${idx}: pullRequest(number: ${num}) {
+            number
+            title
+            createdAt
+            mergedAt
+            additions
+            deletions
+            changedFiles
+          }
+        `
+          )
+          .join('\n')}
+      }
+    }
+  `;
+}
+
+/**
+ * 1バッチ分のPRサイズデータを処理
+ */
+function processBatchSizeData(params: ProcessBatchSizeDataParams): PRSizeData[] {
+  const { batch, owner, repo, repoFullName, token, logger } = params;
+  const sizeData: PRSizeData[] = [];
+  const prNumbers = batch.map((pr) => pr.number);
+
+  const query = buildBatchPRSizeQuery(prNumbers);
+  const result = executeGraphQLWithRetry<{
+    repository: Record<
+      string,
+      {
+        number: number;
+        title: string;
+        createdAt: string;
+        mergedAt: string | null;
+        additions: number;
+        deletions: number;
+        changedFiles: number;
+      } | null
+    >;
+  }>(query, { owner, name: repo }, token);
+
+  if (!result.success || !result.data?.repository) {
+    logger.log(`  ⚠️ Failed to fetch batch PR size: ${result.error}`);
+    return [];
+  }
+
+  for (let j = 0; j < batch.length; j++) {
+    const prData = result.data.repository[`pr${j}`];
+
+    if (!prData) {
+      continue;
+    }
+
+    sizeData.push(calculatePRSizeData(prData, repoFullName));
+  }
+
+  return sizeData;
+}
 
 /**
  * 複数PRのサイズデータを取得（GraphQL版）
@@ -302,60 +456,15 @@ export function getPRSizeDataForPRsGraphQL(
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
       const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
-      const prNumbers = batch.map((pr) => pr.number);
-
-      // サイズ情報取得用の簡易クエリ
-      const query = `
-        query GetBatchPRSize($owner: String!, $name: String!) {
-          repository(owner: $owner, name: $name) {
-            ${prNumbers
-              .map(
-                (num, idx) => `
-              pr${idx}: pullRequest(number: ${num}) {
-                number
-                title
-                createdAt
-                mergedAt
-                additions
-                deletions
-                changedFiles
-              }
-            `
-              )
-              .join('\n')}
-          }
-        }
-      `;
-
-      const result = executeGraphQLWithRetry<{
-        repository: Record<
-          string,
-          {
-            number: number;
-            title: string;
-            createdAt: string;
-            mergedAt: string | null;
-            additions: number;
-            deletions: number;
-            changedFiles: number;
-          } | null
-        >;
-      }>(query, { owner, name: repo }, token);
-
-      if (!result.success || !result.data?.repository) {
-        logger.log(`  ⚠️ Failed to fetch batch PR size: ${result.error}`);
-        continue;
-      }
-
-      for (let j = 0; j < batch.length; j++) {
-        const prData = result.data.repository[`pr${j}`];
-
-        if (!prData) {
-          continue;
-        }
-
-        sizeData.push(calculatePRSizeData(prData, repoFullName));
-      }
+      const batchResults = processBatchSizeData({
+        batch,
+        owner,
+        repo,
+        repoFullName,
+        token,
+        logger,
+      });
+      sizeData.push(...batchResults);
     }
   }
 
@@ -365,6 +474,51 @@ export function getPRSizeDataForPRsGraphQL(
 // =============================================================================
 // レビュー効率データ取得（バッチ処理）
 // =============================================================================
+
+/**
+ * PRレビューデータ処理のパラメータ
+ */
+interface ProcessBatchReviewDataParams {
+  batch: GitHubPullRequest[];
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  token: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
+ * 1バッチ分のPRレビュー効率データを処理
+ */
+function processBatchReviewData(params: ProcessBatchReviewDataParams): PRReviewData[] {
+  const { batch, owner, repo, repoFullName, token, logger } = params;
+  const reviewData: PRReviewData[] = [];
+  const prNumbers = batch.map((pr) => pr.number);
+
+  const query = buildBatchPRDetailQuery(prNumbers);
+  const result = executeGraphQLWithRetry<{
+    repository: Record<string, GraphQLPullRequestDetail | null>;
+  }>(query, { owner, name: repo }, token);
+
+  if (!result.success || !result.data?.repository) {
+    logger.log(`  ⚠️ Failed to fetch batch PR reviews: ${result.error}`);
+    return [];
+  }
+
+  for (let j = 0; j < batch.length; j++) {
+    const pr = batch[j];
+    const prData = result.data.repository[`pr${j}`];
+
+    if (!prData) {
+      reviewData.push(createDefaultReviewData(pr));
+      continue;
+    }
+
+    reviewData.push(calculateReviewDataForPR(prData, repoFullName));
+  }
+
+  return reviewData;
+}
 
 /**
  * 複数PRのレビュー効率データを一括取得（GraphQL版）
@@ -392,29 +546,15 @@ export function getReviewEfficiencyDataForPRsGraphQL(
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
       const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
-      const prNumbers = batch.map((pr) => pr.number);
-
-      const query = buildBatchPRDetailQuery(prNumbers);
-      const result = executeGraphQLWithRetry<{
-        repository: Record<string, GraphQLPullRequestDetail | null>;
-      }>(query, { owner, name: repo }, token);
-
-      if (!result.success || !result.data?.repository) {
-        logger.log(`  ⚠️ Failed to fetch batch PR reviews: ${result.error}`);
-        continue;
-      }
-
-      for (let j = 0; j < batch.length; j++) {
-        const pr = batch[j];
-        const prData = result.data.repository[`pr${j}`];
-
-        if (!prData) {
-          reviewData.push(createDefaultReviewData(pr));
-          continue;
-        }
-
-        reviewData.push(calculateReviewDataForPR(prData, repoFullName));
-      }
+      const batchResults = processBatchReviewData({
+        batch,
+        owner,
+        repo,
+        repoFullName,
+        token,
+        logger,
+      });
+      reviewData.push(...batchResults);
     }
   }
 

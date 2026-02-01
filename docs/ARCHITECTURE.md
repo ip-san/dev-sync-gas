@@ -306,3 +306,5 @@ syncAllProjects();      // 全プロジェクト一括同期
 
 ### 開発ガイド
 - [CLAUDE.md](../CLAUDE.md) - 開発コマンド、skill
+- [CODE_QUALITY.md](CODE_QUALITY.md) - コード品質管理・自動チェック
+- [REFACTORING_GUIDE.md](REFACTORING_GUIDE.md) - リファクタリングの実践的ガイド

@@ -7,6 +7,8 @@
 import { getContainer } from '../container.js';
 import type { GitHubRepository } from '../types/index.js';
 import { getGitHubAuthMode } from './authMode.js';
+import { GitHubRepositoriesSchema } from '../utils/configSchemas.js';
+import { SPREADSHEET_ID_DISPLAY_LENGTH } from './apiConfig.js';
 
 export interface ConfigDiagnosticItem {
   name: string;
@@ -40,59 +42,99 @@ function diagnoseSpreadsheetId(): ConfigDiagnosticItem {
   return {
     name: 'Spreadsheet ID',
     status: 'ok',
-    message: `設定済み: ${spreadsheetId.substring(0, 10)}...`,
+    message: `設定済み: ${spreadsheetId.substring(0, SPREADSHEET_ID_DISPLAY_LENGTH)}...`,
   };
+}
+
+/**
+ * GitHub Apps設定の不足項目をチェック
+ */
+function findMissingAppConfigItems(
+  appId: string | null,
+  privateKey: string | null,
+  installationId: string | null
+): string[] {
+  const missing: string[] = [];
+  if (!appId) {
+    missing.push('App ID');
+  }
+  if (!privateKey) {
+    missing.push('Private Key');
+  }
+  if (!installationId) {
+    missing.push('Installation ID');
+  }
+  return missing;
+}
+
+/**
+ * GitHub Apps設定が部分的に存在するかチェック
+ */
+function hasPartialAppConfig(
+  appId: string | null,
+  privateKey: string | null,
+  installationId: string | null
+): boolean {
+  return appId !== null || privateKey !== null || installationId !== null;
+}
+
+/**
+ * 認証が未設定の場合の診断結果を作成
+ */
+function diagnoseNoAuth(): ConfigDiagnosticItem[] {
+  const { storageClient } = getContainer();
+  const appId = storageClient.getProperty('GITHUB_APP_ID');
+  const privateKey = storageClient.getProperty('GITHUB_APP_PRIVATE_KEY');
+  const installationId = storageClient.getProperty('GITHUB_APP_INSTALLATION_ID');
+  const token = storageClient.getProperty('GITHUB_TOKEN');
+
+  // 部分的に設定されている場合のヒント
+  if (hasPartialAppConfig(appId, privateKey, installationId)) {
+    const missing = findMissingAppConfigItems(appId, privateKey, installationId);
+
+    return [
+      {
+        name: 'GitHub認証',
+        status: 'error',
+        message: `GitHub Apps設定が不完全です（${missing.join(', ')} が未設定）`,
+        hint: 'setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください',
+      },
+    ];
+  }
+
+  if (!token) {
+    return [
+      {
+        name: 'GitHub認証',
+        status: 'error',
+        message: 'GitHub認証が設定されていません',
+        hint: "setup('GITHUB_TOKEN', 'SPREADSHEET_ID') でPAT認証、または setupWithGitHubApp() でGitHub Apps認証を設定してください",
+      },
+    ];
+  }
+
+  return [];
 }
 
 /**
  * GitHub認証設定を診断
  */
 function diagnoseGitHubAuth(): ConfigDiagnosticItem[] {
-  const { storageClient } = getContainer();
-  const items: ConfigDiagnosticItem[] = [];
   const authMode = getGitHubAuthMode();
 
   if (authMode === 'none') {
-    const appId = storageClient.getProperty('GITHUB_APP_ID');
-    const privateKey = storageClient.getProperty('GITHUB_APP_PRIVATE_KEY');
-    const installationId = storageClient.getProperty('GITHUB_APP_INSTALLATION_ID');
-    const token = storageClient.getProperty('GITHUB_TOKEN');
-
-    // 部分的に設定されている場合のヒント
-    const hasPartialAppConfig = appId !== null || privateKey !== null || installationId !== null;
-    if (hasPartialAppConfig) {
-      const missing: string[] = [];
-      if (!appId) {
-        missing.push('App ID');
-      }
-      if (!privateKey) {
-        missing.push('Private Key');
-      }
-      if (!installationId) {
-        missing.push('Installation ID');
-      }
-
-      items.push({
-        name: 'GitHub認証',
-        status: 'error',
-        message: `GitHub Apps設定が不完全です（${missing.join(', ')} が未設定）`,
-        hint: 'setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください',
-      });
-    } else if (!token) {
-      items.push({
-        name: 'GitHub認証',
-        status: 'error',
-        message: 'GitHub認証が設定されていません',
-        hint: "setup('GITHUB_TOKEN', 'SPREADSHEET_ID') でPAT認証、または setupWithGitHubApp() でGitHub Apps認証を設定してください",
-      });
-    }
-  } else if (authMode === 'pat') {
-    items.push(...diagnosePATAuth());
-  } else if (authMode === 'app') {
-    items.push(...diagnoseAppAuth());
+    return diagnoseNoAuth();
   }
 
-  return items;
+  if (authMode === 'pat') {
+    return diagnosePATAuth();
+  }
+
+  if (authMode === 'app') {
+    return diagnoseAppAuth();
+  }
+
+  return [];
 }
 
 /**
@@ -168,7 +210,8 @@ function diagnoseRepositories(): ConfigDiagnosticItem {
 
   let repositories: GitHubRepository[] = [];
   try {
-    repositories = repositoriesJson ? (JSON.parse(repositoriesJson) as GitHubRepository[]) : [];
+    const parsed: unknown = repositoriesJson ? JSON.parse(repositoriesJson) : [];
+    repositories = GitHubRepositoriesSchema.parse(parsed);
   } catch {
     return {
       name: 'リポジトリ設定',

@@ -12,7 +12,10 @@ import type {
   DevOpsMetrics,
 } from '../../types';
 import { getFrequencyCategory } from '../../config/doraThresholds';
-import { LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS } from '../../config/apiConfig';
+import {
+  LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS,
+  DECIMAL_PRECISION_MULTIPLIER,
+} from '../../config/apiConfig';
 
 // =============================================================================
 // 定数
@@ -59,6 +62,52 @@ export function calculateLeadTime(
 }
 
 /**
+ * PR1件のLead Timeを計算してリストに追加
+ */
+interface PRLeadTimeResult {
+  leadTimeHours: number | null;
+  measurementType: 'merge-to-deploy' | 'create-to-merge';
+}
+
+function calculatePRLeadTime(
+  pr: GitHubPullRequest,
+  successfulDeployments: GitHubDeployment[]
+): PRLeadTimeResult {
+  const createdAt = new Date(pr.createdAt).getTime();
+  const mergedAt = new Date(pr.mergedAt!).getTime();
+
+  // デプロイメントデータがない場合は早期リターン
+  if (successfulDeployments.length === 0) {
+    const diffHours = (mergedAt - createdAt) / MS_TO_HOURS;
+    return { leadTimeHours: diffHours, measurementType: 'create-to-merge' };
+  }
+
+  // PR作成後の最初のデプロイを探す
+  const deploymentAfterCreation = successfulDeployments.find(
+    (d) => new Date(d.createdAt).getTime() >= createdAt
+  );
+
+  // デプロイが見つからない場合はフォールバック
+  if (!deploymentAfterCreation) {
+    const diffHours = (mergedAt - createdAt) / MS_TO_HOURS;
+    return { leadTimeHours: diffHours, measurementType: 'create-to-merge' };
+  }
+
+  const deployedAt = new Date(deploymentAfterCreation.createdAt).getTime();
+  const mergeToDeployHours = (deployedAt - mergedAt) / MS_TO_HOURS;
+
+  // マージからデプロイまでが閾値以内なら関連付ける
+  if (mergeToDeployHours <= LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS) {
+    const diffHours = (deployedAt - createdAt) / MS_TO_HOURS;
+    return { leadTimeHours: diffHours, measurementType: 'merge-to-deploy' };
+  }
+
+  // 閾値を超えている場合はフォールバック
+  const diffHours = (mergedAt - createdAt) / MS_TO_HOURS;
+  return { leadTimeHours: diffHours, measurementType: 'create-to-merge' };
+}
+
+/**
  * Lead Timeの詳細計算（測定方法の内訳を含む）
  *
  * DORA公式定義に準拠: コミット（PR作成）→本番デプロイ
@@ -81,33 +130,15 @@ export function calculateLeadTimeDetailed(
   let createToMergeCount = 0;
 
   for (const pr of mergedPRs) {
-    const createdAt = new Date(pr.createdAt).getTime();
-    const mergedAt = new Date(pr.mergedAt!).getTime();
-
-    // デプロイメントデータがある場合: PR作成後の最初のデプロイを探す
-    if (successfulDeployments.length > 0) {
-      const deploymentAfterCreation = successfulDeployments.find(
-        (d) => new Date(d.createdAt).getTime() >= createdAt
-      );
-
-      if (deploymentAfterCreation) {
-        const deployedAt = new Date(deploymentAfterCreation.createdAt).getTime();
-        const diffHours = (deployedAt - createdAt) / MS_TO_HOURS;
-        // PR作成後一定時間以内のデプロイのみを関連付ける
-        // （マージ時点を基準にデプロイ関連付けの妥当性を確認）
-        const mergeToDeployHours = (deployedAt - mergedAt) / MS_TO_HOURS;
-        if (mergeToDeployHours <= LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS) {
-          leadTimes.push(diffHours);
-          mergeToDeployCount++;
-          continue;
-        }
+    const result = calculatePRLeadTime(pr, successfulDeployments);
+    if (result.leadTimeHours !== null) {
+      leadTimes.push(result.leadTimeHours);
+      if (result.measurementType === 'merge-to-deploy') {
+        mergeToDeployCount++;
+      } else {
+        createToMergeCount++;
       }
     }
-
-    // フォールバック: PR作成からマージまでの時間
-    const diffHours = (mergedAt - createdAt) / MS_TO_HOURS;
-    leadTimes.push(diffHours);
-    createToMergeCount++;
   }
 
   if (leadTimes.length === 0) {
@@ -115,7 +146,9 @@ export function calculateLeadTimeDetailed(
   }
 
   const totalHours = leadTimes.reduce((sum, hours) => sum + hours, 0);
-  const hours = Math.round((totalHours / leadTimes.length) * 10) / 10;
+  const hours =
+    Math.round((totalHours / leadTimes.length) * DECIMAL_PRECISION_MULTIPLIER) /
+    DECIMAL_PRECISION_MULTIPLIER;
 
   return { hours, mergeToDeployCount, createToMergeCount };
 }
@@ -185,7 +218,11 @@ export function calculateChangeFailureRate(
     const failed = deploymentsWithStatus.filter(
       (d) => d.status === 'failure' || d.status === 'error'
     ).length;
-    const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
+    const rate =
+      total > 0
+        ? Math.round((failed / total) * 100 * DECIMAL_PRECISION_MULTIPLIER) /
+          DECIMAL_PRECISION_MULTIPLIER
+        : 0;
     return { total, failed, rate };
   }
 
@@ -194,7 +231,11 @@ export function calculateChangeFailureRate(
 
   const total = deploymentRuns.length;
   const failed = deploymentRuns.filter((run) => run.conclusion === 'failure').length;
-  const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
+  const rate =
+    total > 0
+      ? Math.round((failed / total) * 100 * DECIMAL_PRECISION_MULTIPLIER) /
+        DECIMAL_PRECISION_MULTIPLIER
+      : 0;
 
   return { total, failed, rate };
 }
@@ -367,13 +408,19 @@ export function isOnDate(target: Date, date: Date): boolean {
  * @param dateRange - 期間
  * @returns 日別・リポジトリ別のメトリクス配列
  */
-export function calculateDailyMetrics(
-  repositories: { fullName: string }[],
-  prs: GitHubPullRequest[],
-  runs: GitHubWorkflowRun[],
-  deployments: GitHubDeployment[],
-  dateRange: { since: Date; until: Date }
-): DevOpsMetrics[] {
+/**
+ * calculateDailyMetrics のオプション
+ */
+export interface CalculateDailyMetricsOptions {
+  repositories: { fullName: string }[];
+  prs: GitHubPullRequest[];
+  runs: GitHubWorkflowRun[];
+  deployments: GitHubDeployment[];
+  dateRange: { since: Date; until: Date };
+}
+
+export function calculateDailyMetrics(options: CalculateDailyMetricsOptions): DevOpsMetrics[] {
+  const { repositories, prs, runs, deployments, dateRange } = options;
   const metrics: DevOpsMetrics[] = [];
 
   // 期間内の各日付を生成
@@ -402,13 +449,13 @@ export function calculateDailyMetrics(
       );
 
       // 日別メトリクス計算
-      const dayMetrics = calculateMetricsForDate(
-        repo.fullName,
+      const dayMetrics = calculateMetricsForDate({
+        repository: repo.fullName,
         dateStr,
-        dayPRs,
-        dayRuns,
-        dayDeployments
-      );
+        prs: dayPRs,
+        runs: dayRuns,
+        deployments: dayDeployments,
+      });
 
       metrics.push(dayMetrics);
     }
@@ -418,15 +465,21 @@ export function calculateDailyMetrics(
 }
 
 /**
+ * calculateMetricsForDate のオプション
+ */
+export interface CalculateMetricsForDateOptions {
+  repository: string;
+  dateStr: string;
+  prs: GitHubPullRequest[];
+  runs: GitHubWorkflowRun[];
+  deployments: GitHubDeployment[];
+}
+
+/**
  * 指定日付でメトリクスを計算
  */
-export function calculateMetricsForDate(
-  repository: string,
-  dateStr: string,
-  prs: GitHubPullRequest[],
-  runs: GitHubWorkflowRun[],
-  deployments: GitHubDeployment[]
-): DevOpsMetrics {
+export function calculateMetricsForDate(options: CalculateMetricsForDateOptions): DevOpsMetrics {
+  const { repository, dateStr, prs, runs, deployments } = options;
   // 1日あたりのメトリクス計算（periodDays = 1）
   const { count, frequency } = calculateDeploymentFrequency(deployments, runs, 1);
   const { total, failed, rate } = calculateChangeFailureRate(deployments, runs);
@@ -454,16 +507,24 @@ export function calculateMetricsForDate(
 // =============================================================================
 
 /**
+ * calculateMetricsForRepository のオプション
+ */
+export interface CalculateMetricsForRepositoryOptions {
+  repository: string;
+  prs: GitHubPullRequest[];
+  runs: GitHubWorkflowRun[];
+  deployments?: GitHubDeployment[];
+  periodDays?: number;
+  incidents?: GitHubIncident[];
+}
+
+/**
  * リポジトリ単位でDORA metricsを計算する
  */
 export function calculateMetricsForRepository(
-  repository: string,
-  prs: GitHubPullRequest[],
-  runs: GitHubWorkflowRun[],
-  deployments: GitHubDeployment[] = [],
-  periodDays = 30,
-  incidents: GitHubIncident[] = []
+  options: CalculateMetricsForRepositoryOptions
 ): DevOpsMetrics {
+  const { repository, prs, runs, deployments = [], periodDays = 30, incidents = [] } = options;
   const repoPRs = prs.filter((pr) => pr.repository === repository);
   const repoRuns = runs.filter((run) => run.repository === repository);
   const repoDeployments = deployments.filter((d) => d.repository === repository);

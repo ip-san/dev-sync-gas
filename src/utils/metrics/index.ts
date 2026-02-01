@@ -5,8 +5,13 @@
  *
  * 構成:
  * - dora.ts: DORA Four Key Metrics
- * - extended.ts: 拡張指標（サイクルタイム、コーディング時間など）
+ * - cycleTime.ts: サイクルタイム計算
+ * - codingTime.ts: コーディング時間計算
+ * - reworkRate.ts: 手戻り率計算
+ * - reviewEfficiency.ts: レビュー効率計算
+ * - prSize.ts: PRサイズ計算
  * - aggregate.ts: 複数リポジトリ横断集計
+ * - statsHelpers.ts: 統計計算ヘルパー
  */
 
 // DORA Four Key Metrics
@@ -28,13 +33,11 @@ export {
 } from './dora';
 
 // 拡張指標
-export {
-  calculateCycleTime,
-  calculateCodingTime,
-  calculateReworkRate,
-  calculateReviewEfficiency,
-  calculatePRSize,
-} from './extended';
+export { calculateCycleTime } from './cycleTime';
+export { calculateCodingTime } from './codingTime';
+export { calculateReworkRate } from './reworkRate';
+export { calculateReviewEfficiency } from './reviewEfficiency';
+export { calculatePRSize } from './prSize';
 
 // 複数リポジトリ横断集計
 export {

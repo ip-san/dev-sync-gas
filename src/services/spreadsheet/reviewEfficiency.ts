@@ -82,6 +82,41 @@ export function writeReviewEfficiencyToSheet(
 }
 
 /**
+ * メトリック値をフォーマット
+ * null の場合は 'N/A' を返す
+ */
+function formatMetricValue(value: number | null): number | string {
+  return value ?? 'N/A';
+}
+
+/**
+ * サマリー行を構築
+ */
+function buildSummaryRow(metrics: ReviewEfficiencyMetrics): (string | number)[] {
+  return [
+    metrics.period,
+    metrics.prCount,
+    formatMetricValue(metrics.timeToFirstReview.avgHours),
+    formatMetricValue(metrics.timeToFirstReview.medianHours),
+    formatMetricValue(metrics.timeToFirstReview.minHours),
+    formatMetricValue(metrics.timeToFirstReview.maxHours),
+    formatMetricValue(metrics.reviewDuration.avgHours),
+    formatMetricValue(metrics.reviewDuration.medianHours),
+    formatMetricValue(metrics.reviewDuration.minHours),
+    formatMetricValue(metrics.reviewDuration.maxHours),
+    formatMetricValue(metrics.timeToMerge.avgHours),
+    formatMetricValue(metrics.timeToMerge.medianHours),
+    formatMetricValue(metrics.timeToMerge.minHours),
+    formatMetricValue(metrics.timeToMerge.maxHours),
+    formatMetricValue(metrics.totalTime.avgHours),
+    formatMetricValue(metrics.totalTime.medianHours),
+    formatMetricValue(metrics.totalTime.minHours),
+    formatMetricValue(metrics.totalTime.maxHours),
+    new Date().toISOString(),
+  ];
+}
+
+/**
  * サマリーシートに書き込み
  */
 function writeSummarySheet(
@@ -90,27 +125,7 @@ function writeSummarySheet(
 ): void {
   const sheet = getOrCreateSheet(spreadsheet, SHEET_NAME, SUMMARY_HEADERS);
 
-  const row = [
-    metrics.period,
-    metrics.prCount,
-    metrics.timeToFirstReview.avgHours ?? 'N/A',
-    metrics.timeToFirstReview.medianHours ?? 'N/A',
-    metrics.timeToFirstReview.minHours ?? 'N/A',
-    metrics.timeToFirstReview.maxHours ?? 'N/A',
-    metrics.reviewDuration.avgHours ?? 'N/A',
-    metrics.reviewDuration.medianHours ?? 'N/A',
-    metrics.reviewDuration.minHours ?? 'N/A',
-    metrics.reviewDuration.maxHours ?? 'N/A',
-    metrics.timeToMerge.avgHours ?? 'N/A',
-    metrics.timeToMerge.medianHours ?? 'N/A',
-    metrics.timeToMerge.minHours ?? 'N/A',
-    metrics.timeToMerge.maxHours ?? 'N/A',
-    metrics.totalTime.avgHours ?? 'N/A',
-    metrics.totalTime.medianHours ?? 'N/A',
-    metrics.totalTime.minHours ?? 'N/A',
-    metrics.totalTime.maxHours ?? 'N/A',
-    new Date().toISOString(),
-  ];
+  const row = buildSummaryRow(metrics);
 
   const lastRow = sheet.getLastRow();
   sheet.getRange(lastRow + 1, 1, 1, SUMMARY_HEADERS.length).setValues([row]);

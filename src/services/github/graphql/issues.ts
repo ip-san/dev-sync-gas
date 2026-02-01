@@ -18,25 +18,86 @@ import type {
   IssueCycleTime,
   IssueCodingTime,
 } from '../../../types';
-import type { LoggerClient } from '../../../interfaces/index.js';
 import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { ISSUES_QUERY, ISSUE_WITH_LINKED_PRS_QUERY, COMMIT_ASSOCIATED_PRS_QUERY } from './queries';
-import { MAX_PR_CHAIN_DEPTH } from '../../../config/apiConfig';
+import {
+  trackToProductionMerge as trackToProductionMergeShared,
+  selectBestTrackResult,
+} from '../shared/prTracking.js';
+import type { PRFetcher, MinimalPRInfo } from '../shared/prTracking.js';
+import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
 import type {
   IssuesQueryResponse,
   IssueWithLinkedPRsQueryResponse,
   GraphQLIssue,
   CommitAssociatedPRsQueryResponse,
+  CrossReferencedEvent,
 } from './types';
 import type { IssueDateRange } from '../api';
-import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
-import { selectBestTrackResult } from '../cycleTimeHelpers.js';
 import { MS_TO_HOURS } from '../../../utils/timeConstants.js';
+import { isWithinDateRange } from './issueHelpers.js';
+import { validatePaginatedResponse, validateSingleResponse } from './errorHelpers.js';
+import { shouldExcludeByLabels } from '../../../utils/labelFilter.js';
+import { getExcludeMetricsLabels } from '../../../config/settings.js';
 
 // =============================================================================
 // Issue一覧取得
 // =============================================================================
+
+/**
+ * GraphQL Issues Query用の変数を構築
+ */
+function buildIssuesQueryVariables(
+  repo: GitHubRepository,
+  cursor: string | null,
+  labels?: string[]
+): Record<string, unknown> {
+  return {
+    owner: repo.owner,
+    name: repo.name,
+    first: DEFAULT_PAGE_SIZE,
+    after: cursor,
+    labels: labels?.length ? labels : null,
+    states: ['OPEN', 'CLOSED'],
+  };
+}
+
+/**
+ * 日付範囲と除外ラベルでIssueをフィルタリング
+ */
+function filterIssuesByDateRange(
+  issues: GraphQLIssue[],
+  dateRange: IssueDateRange | undefined,
+  repository: string
+): GitHubIssue[] {
+  const filtered: GitHubIssue[] = [];
+  const excludeLabels = getExcludeMetricsLabels();
+  let excludedCount = 0;
+
+  for (const issue of issues) {
+    const createdAt = new Date(issue.createdAt);
+
+    if (!isWithinDateRange(createdAt, dateRange)) {
+      continue;
+    }
+
+    const issueLabels = issue.labels.nodes.map((l) => l.name);
+    if (shouldExcludeByLabels(issueLabels, excludeLabels)) {
+      excludedCount++;
+      continue;
+    }
+
+    filtered.push(convertToIssue(issue, repository));
+  }
+
+  if (excludedCount > 0) {
+    const { logger } = getContainer();
+    logger.log(`  ℹ️ Excluded ${excludedCount} issues by labels`);
+  }
+
+  return filtered;
+}
 
 /**
  * リポジトリのIssue一覧を取得（GraphQL版）
@@ -62,55 +123,30 @@ export function getIssuesGraphQL(
   logger.log(`  📋 Fetching issues from ${repo.fullName}...`);
 
   while (page < maxPages) {
+    const variables = buildIssuesQueryVariables(repo, cursor, options?.labels);
     const queryResult: ApiResponse<IssuesQueryResponse> =
-      executeGraphQLWithRetry<IssuesQueryResponse>(
-        ISSUES_QUERY,
-        {
-          owner: repo.owner,
-          name: repo.name,
-          first: DEFAULT_PAGE_SIZE,
-          after: cursor,
-          labels: options?.labels?.length ? options.labels : null,
-          states: ['OPEN', 'CLOSED'],
-        },
-        token
-      );
+      executeGraphQLWithRetry<IssuesQueryResponse>(ISSUES_QUERY, variables, token);
 
-    if (!queryResult.success || !queryResult.data?.repository?.issues) {
-      if (page === 0) {
-        return { success: false, error: queryResult.error };
-      }
+    const validationError = validatePaginatedResponse(queryResult, page, 'repository.issues');
+    if (validationError) {
+      return validationError;
+    }
+    if (!queryResult.success) {
       break;
     }
 
-    const issuesData = queryResult.data.repository.issues;
-    const nodes: GraphQLIssue[] = issuesData.nodes;
-    const pageInfo = issuesData.pageInfo;
+    const issuesData = queryResult.data!.repository!.issues;
+    const filteredIssues = filterIssuesByDateRange(
+      issuesData.nodes,
+      options?.dateRange,
+      repo.fullName
+    );
+    allIssues.push(...filteredIssues);
 
-    for (const issue of nodes) {
-      const createdAt = new Date(issue.createdAt);
-
-      // 日付範囲チェック
-      if (options?.dateRange?.start) {
-        const startDate = new Date(options.dateRange.start);
-        if (createdAt < startDate) {
-          continue;
-        }
-      }
-      if (options?.dateRange?.end) {
-        const endDate = new Date(options.dateRange.end);
-        if (createdAt > endDate) {
-          continue;
-        }
-      }
-
-      allIssues.push(convertToIssue(issue, repo.fullName));
-    }
-
-    if (!pageInfo.hasNextPage) {
+    if (!issuesData.pageInfo.hasNextPage) {
       break;
     }
-    cursor = pageInfo.endCursor;
+    cursor = issuesData.pageInfo.endCursor;
     page++;
   }
 
@@ -144,6 +180,54 @@ function convertToIssue(issue: GraphQLIssue, repository: string): GitHubIssue {
  * REST APIのTimeline APIと比較して、
  * PR情報（createdAt, mergedAt, branches）も同時取得。
  */
+/**
+ * タイムラインイベントから有効なPRを抽出するかチェック
+ */
+function isValidLinkedPR(
+  source: CrossReferencedEvent['source'],
+  owner: string,
+  repo: string,
+  existingPRNumbers: Set<number>
+): boolean {
+  if (!source?.number) {
+    return false;
+  }
+
+  // 同じリポジトリのPRのみ
+  const sourceRepo = source.repository?.nameWithOwner;
+  if (sourceRepo && sourceRepo !== `${owner}/${repo}`) {
+    return false;
+  }
+
+  // 重複チェック
+  if (existingPRNumbers.has(source.number)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * タイムラインイベントからPR情報を抽出
+ */
+function extractPRInfo(source: NonNullable<CrossReferencedEvent['source']>): {
+  number: number;
+  createdAt: string;
+  mergedAt: string | null;
+  baseRefName: string;
+  headRefName: string;
+  mergeCommitSha: string | null;
+} {
+  return {
+    number: source.number!,
+    createdAt: source.createdAt ?? '',
+    mergedAt: source.mergedAt ?? null,
+    baseRefName: source.baseRefName ?? '',
+    headRefName: source.headRefName ?? '',
+    mergeCommitSha: source.mergeCommit?.oid ?? null,
+  };
+}
+
 export function getLinkedPRsForIssueGraphQL(
   owner: string,
   repo: string,
@@ -169,11 +253,12 @@ export function getLinkedPRsForIssueGraphQL(
     token
   );
 
-  if (!result.success || !result.data?.repository?.issue) {
-    return { success: false, error: result.error };
+  const validationError = validateSingleResponse(result, 'repository.issue');
+  if (validationError) {
+    return validationError;
   }
 
-  const timeline = result.data.repository.issue.timelineItems.nodes;
+  const timeline = result.data!.repository!.issue!.timelineItems.nodes;
   const linkedPRs: {
     number: number;
     createdAt: string;
@@ -182,32 +267,15 @@ export function getLinkedPRsForIssueGraphQL(
     headRefName: string;
     mergeCommitSha: string | null;
   }[] = [];
+  const prNumbers = new Set<number>();
 
   for (const event of timeline) {
     const source = event.source;
-    if (!source?.number) {
-      continue;
+    if (isValidLinkedPR(source, owner, repo, prNumbers) && source) {
+      const prInfo = extractPRInfo(source);
+      linkedPRs.push(prInfo);
+      prNumbers.add(prInfo.number);
     }
-
-    // 同じリポジトリのPRのみ
-    const sourceRepo = source.repository?.nameWithOwner;
-    if (sourceRepo && sourceRepo !== `${owner}/${repo}`) {
-      continue;
-    }
-
-    // 重複チェック
-    if (linkedPRs.some((pr) => pr.number === source.number)) {
-      continue;
-    }
-
-    linkedPRs.push({
-      number: source.number,
-      createdAt: source.createdAt ?? '',
-      mergedAt: source.mergedAt ?? null,
-      baseRefName: source.baseRefName ?? '',
-      headRefName: source.headRefName ?? '',
-      mergeCommitSha: source.mergeCommit?.oid ?? null,
-    });
   }
 
   return { success: true, data: linkedPRs };
@@ -272,6 +340,50 @@ export function findPRContainingCommitGraphQL(
 }
 
 /**
+ * GraphQL API版PRFetcherの作成
+ *
+ * 共通のPR追跡ロジックで使用するためのアダプター
+ */
+function createGraphQLFetcher(owner: string, repo: string, token: string): PRFetcher {
+  return {
+    getPR(prNumber: number): ApiResponse<MinimalPRInfo | null> {
+      const result = getPullRequestWithBranchesGraphQL(owner, repo, prNumber, token);
+
+      if (!result.success || !result.data) {
+        return { success: false, error: result.error };
+      }
+
+      const pr = result.data;
+      return {
+        success: true,
+        data: {
+          number: pr.number,
+          baseBranch: pr.baseBranch ?? null,
+          headBranch: pr.headBranch ?? null,
+          mergedAt: pr.mergedAt,
+          mergeCommitSha: pr.mergeCommitSha ?? null,
+        },
+      };
+    },
+
+    findPRByCommit(commitSha: string, currentPRNumber: number): ApiResponse<number | null> {
+      const result = findPRContainingCommitGraphQL(owner, repo, commitSha, token);
+
+      if (!result.success || !result.data) {
+        return { success: true, data: null };
+      }
+
+      // 同じPRの場合は無限ループを防止
+      if (result.data.number === currentPRNumber) {
+        return { success: true, data: null };
+      }
+
+      return { success: true, data: result.data.number };
+    },
+  };
+}
+
+/**
  * PRチェーンを追跡してproductionブランチへのマージを検出（GraphQL版）
  */
 /**
@@ -285,104 +397,6 @@ export interface TrackToProductionGraphQLOptions {
   productionPattern?: string;
 }
 
-/**
- * PR追跡の1ステップ処理結果
- */
-interface TrackStepResult {
-  shouldContinue: boolean;
-  productionMergedAt: string | null;
-  nextPRNumber: number | null;
-}
-
-/**
- * productionブランチへのマージを検出（内部ヘルパー）
- */
-function checkProductionMergeGraphQL(
-  pr: { baseBranch?: string | null | undefined; mergedAt: string | null; number: number },
-  productionPattern: string,
-  logger: LoggerClient
-): TrackStepResult | null {
-  if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
-    if (pr.mergedAt) {
-      logger.log(
-        `    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`
-      );
-      return { shouldContinue: false, productionMergedAt: pr.mergedAt, nextPRNumber: null };
-    }
-  }
-  return null;
-}
-
-/**
- * 次のPRを検索（内部ヘルパー）
- */
-function findNextPRGraphQL(
-  owner: string,
-  repo: string,
-  mergeCommitSha: string,
-  currentPRNumber: number,
-  token: string
-): number | null {
-  const nextPRResult = findPRContainingCommitGraphQL(owner, repo, mergeCommitSha, token);
-  if (!nextPRResult.success || !nextPRResult.data) {
-    return null;
-  }
-
-  // 同じPRの場合は無限ループを防止
-  if (nextPRResult.data.number === currentPRNumber) {
-    return null;
-  }
-
-  return nextPRResult.data.number;
-}
-
-/**
- * PR追跡の1ステップを実行（内部ヘルパー）
- */
-function processTrackStepGraphQL(
-  owner: string,
-  repo: string,
-  currentPRNumber: number,
-  token: string,
-  productionPattern: string,
-  prChain: PRChainItem[],
-  logger: LoggerClient
-): TrackStepResult {
-  const prResult = getPullRequestWithBranchesGraphQL(owner, repo, currentPRNumber, token);
-
-  if (!prResult.success || !prResult.data) {
-    logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
-    return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
-  }
-
-  const pr = prResult.data;
-  prChain.push({
-    prNumber: pr.number,
-    baseBranch: pr.baseBranch ?? 'unknown',
-    headBranch: pr.headBranch ?? 'unknown',
-    mergedAt: pr.mergedAt,
-  });
-
-  // productionブランチへのマージを検出
-  const productionResult = checkProductionMergeGraphQL(pr, productionPattern, logger);
-  if (productionResult) {
-    return productionResult;
-  }
-
-  // マージされていない場合は追跡終了
-  if (!pr.mergedAt || !pr.mergeCommitSha) {
-    return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
-  }
-
-  // 次のPRを検索
-  const nextPRNumber = findNextPRGraphQL(owner, repo, pr.mergeCommitSha, currentPRNumber, token);
-  if (!nextPRNumber) {
-    return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
-  }
-
-  return { shouldContinue: true, productionMergedAt: null, nextPRNumber };
-}
-
 export function trackToProductionMergeGraphQL(
   options: TrackToProductionGraphQLOptions
 ): ApiResponse<{
@@ -391,33 +405,92 @@ export function trackToProductionMergeGraphQL(
 }> {
   const { owner, repo, initialPRNumber, token, productionPattern = 'production' } = options;
   const { logger } = getContainer();
-  const prChain: PRChainItem[] = [];
-  let currentPRNumber = initialPRNumber;
-  let productionMergedAt: string | null = null;
 
-  for (let depth = 0; depth < MAX_PR_CHAIN_DEPTH; depth++) {
-    const result = processTrackStepGraphQL(
-      owner,
-      repo,
-      currentPRNumber,
-      token,
-      productionPattern,
-      prChain,
-      logger
-    );
+  // 共通のPR追跡ロジックを使用（GraphQL API版のfetcherを提供）
+  const fetcher = createGraphQLFetcher(owner, repo, token);
+  return trackToProductionMergeShared(fetcher, initialPRNumber, productionPattern, logger);
+}
 
-    if (result.productionMergedAt) {
-      productionMergedAt = result.productionMergedAt;
-    }
+/**
+ * サイクルタイムを計算
+ */
+function calculateCycleTimeHours(issueCreatedAt: string, productionMergedAt: string): number {
+  const startTime = new Date(issueCreatedAt).getTime();
+  const endTime = new Date(productionMergedAt).getTime();
+  return Math.round(((endTime - startTime) / MS_TO_HOURS) * 10) / 10;
+}
 
-    if (!result.shouldContinue) {
-      break;
-    }
+/**
+ * リンクPRなしのサイクルタイムエントリを作成
+ */
+function createEmptyCycleTimeEntry(issue: GitHubIssue, repository: string): IssueCycleTime {
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository,
+    issueCreatedAt: issue.createdAt,
+    productionMergedAt: null,
+    cycleTimeHours: null,
+    prChain: [],
+  };
+}
 
-    currentPRNumber = result.nextPRNumber!;
+/**
+ * Issueサイクルタイム処理のパラメータ
+ */
+interface ProcessIssueCycleTimeParams {
+  issue: GitHubIssue;
+  repo: GitHubRepository;
+  token: string;
+  productionPattern: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
+ * 1つのIssueをサイクルタイム処理
+ */
+function processIssueForCycleTime(params: ProcessIssueCycleTimeParams): IssueCycleTime {
+  const { issue, repo, token, productionPattern, logger } = params;
+
+  logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
+
+  const linkedPRsResult = getLinkedPRsForIssueGraphQL(repo.owner, repo.name, issue.number, token);
+
+  if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
+    logger.log(`    ⏭️ No linked PRs found`);
+    return createEmptyCycleTimeEntry(issue, repo.fullName);
   }
 
-  return { success: true, data: { productionMergedAt, prChain } };
+  logger.log(
+    `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.map((p) => p.number).join(', ')}`
+  );
+
+  const trackResults = linkedPRsResult.data.map((linkedPR) => {
+    const trackResult = trackToProductionMergeGraphQL({
+      owner: repo.owner,
+      repo: repo.name,
+      initialPRNumber: linkedPR.number,
+      token,
+      productionPattern,
+    });
+    return trackResult.success && trackResult.data ? trackResult.data : null;
+  });
+
+  const { productionMergedAt, prChain } = selectBestTrackResult(trackResults);
+
+  const cycleTimeHours = productionMergedAt
+    ? calculateCycleTimeHours(issue.createdAt, productionMergedAt)
+    : null;
+
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository: repo.fullName,
+    issueCreatedAt: issue.createdAt,
+    productionMergedAt,
+    cycleTimeHours,
+    prChain,
+  };
 }
 
 /**
@@ -439,7 +512,6 @@ export function getCycleTimeDataGraphQL(
   for (const repo of repositories) {
     logger.log(`🔍 Processing ${repo.fullName}...`);
 
-    // Issueを取得
     const issuesResult = getIssuesGraphQL(repo, token, {
       dateRange: options.dateRange,
       labels: options.labels,
@@ -450,74 +522,86 @@ export function getCycleTimeDataGraphQL(
       continue;
     }
 
-    const issues = issuesResult.data;
-    logger.log(`  📋 Found ${issues.length} issues to process`);
+    logger.log(`  📋 Found ${issuesResult.data.length} issues to process`);
 
-    for (const issue of issues) {
-      logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
-
-      // リンクPRを取得（GraphQLで詳細情報も同時取得）
-      const linkedPRsResult = getLinkedPRsForIssueGraphQL(
-        repo.owner,
-        repo.name,
-        issue.number,
-        token
-      );
-
-      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
-        logger.log(`    ⏭️ No linked PRs found`);
-        allCycleTimeData.push({
-          issueNumber: issue.number,
-          issueTitle: issue.title,
-          repository: repo.fullName,
-          issueCreatedAt: issue.createdAt,
-          productionMergedAt: null,
-          cycleTimeHours: null,
-          prChain: [],
-        });
-        continue;
-      }
-
-      logger.log(
-        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.map((p) => p.number).join(', ')}`
-      );
-
-      // 最初のリンクPRからproductionマージを追跡
-      const trackResults = linkedPRsResult.data.map((linkedPR) => {
-        const trackResult = trackToProductionMergeGraphQL({
-          owner: repo.owner,
-          repo: repo.name,
-          initialPRNumber: linkedPR.number,
-          token,
-          productionPattern,
-        });
-        return trackResult.success && trackResult.data ? trackResult.data : null;
+    for (const issue of issuesResult.data) {
+      const cycleTimeEntry = processIssueForCycleTime({
+        issue,
+        repo,
+        token,
+        productionPattern,
+        logger,
       });
-
-      const { productionMergedAt, prChain } = selectBestTrackResult(trackResults);
-
-      // サイクルタイム計算
-      let cycleTimeHours: number | null = null;
-      if (productionMergedAt) {
-        const startTime = new Date(issue.createdAt).getTime();
-        const endTime = new Date(productionMergedAt).getTime();
-        cycleTimeHours = Math.round(((endTime - startTime) / MS_TO_HOURS) * 10) / 10;
-      }
-
-      allCycleTimeData.push({
-        issueNumber: issue.number,
-        issueTitle: issue.title,
-        repository: repo.fullName,
-        issueCreatedAt: issue.createdAt,
-        productionMergedAt,
-        cycleTimeHours,
-        prChain,
-      });
+      allCycleTimeData.push(cycleTimeEntry);
     }
   }
 
   logger.log(`✅ Total: ${allCycleTimeData.length} issues processed`);
   return { success: true, data: allCycleTimeData };
+}
+
+/**
+ * リンクPRがない場合の空コーディングタイムエントリを作成
+ */
+function createEmptyCodingTimeEntry(issue: GitHubIssue, repository: string): IssueCodingTime {
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository,
+    issueCreatedAt: issue.createdAt,
+    prCreatedAt: null,
+    prNumber: null,
+    codingTimeHours: null,
+  };
+}
+
+/**
+ * コーディングタイム（Issue作成→PR作成）を時間で計算
+ */
+function calculateCodingTime(issueCreatedAt: string, prCreatedAt: string): number {
+  const issueCreatedTime = new Date(issueCreatedAt).getTime();
+  const prCreatedTime = new Date(prCreatedAt).getTime();
+  return Math.round(((prCreatedTime - issueCreatedTime) / MS_TO_HOURS) * 10) / 10;
+}
+
+/**
+ * 1つのIssueを処理してコーディングタイムを計算
+ */
+function processIssueForCodingTime(
+  issue: GitHubIssue,
+  repo: GitHubRepository,
+  token: string,
+  logger: { log: (msg: string) => void }
+): IssueCodingTime {
+  logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
+
+  const linkedPRsResult = getLinkedPRsForIssueGraphQL(repo.owner, repo.name, issue.number, token);
+
+  if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
+    logger.log(`    ⏭️ No linked PRs found`);
+    return createEmptyCodingTimeEntry(issue, repo.fullName);
+  }
+
+  logger.log(`    🔗 Found ${linkedPRsResult.data.length} linked PRs`);
+
+  const sortedPRs = [...linkedPRsResult.data].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const earliestPR = sortedPRs[0];
+
+  const codingTimeHours = calculateCodingTime(issue.createdAt, earliestPR.createdAt);
+
+  logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`);
+
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository: repo.fullName,
+    issueCreatedAt: issue.createdAt,
+    prCreatedAt: earliestPR.createdAt,
+    prNumber: earliestPR.number,
+    codingTimeHours,
+  };
 }
 
 /**
@@ -537,7 +621,6 @@ export function getCodingTimeDataGraphQL(
   for (const repo of repositories) {
     logger.log(`🔍 Processing ${repo.fullName} for coding time...`);
 
-    // Issueを取得
     const issuesResult = getIssuesGraphQL(repo, token, {
       dateRange: options.dateRange,
       labels: options.labels,
@@ -548,59 +631,11 @@ export function getCodingTimeDataGraphQL(
       continue;
     }
 
-    const issues = issuesResult.data;
-    logger.log(`  📋 Found ${issues.length} issues to process`);
+    logger.log(`  📋 Found ${issuesResult.data.length} issues to process`);
 
-    for (const issue of issues) {
-      logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
-
-      // リンクPRを取得（createdAtも含む）
-      const linkedPRsResult = getLinkedPRsForIssueGraphQL(
-        repo.owner,
-        repo.name,
-        issue.number,
-        token
-      );
-
-      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
-        logger.log(`    ⏭️ No linked PRs found`);
-        allCodingTimeData.push({
-          issueNumber: issue.number,
-          issueTitle: issue.title,
-          repository: repo.fullName,
-          issueCreatedAt: issue.createdAt,
-          prCreatedAt: null,
-          prNumber: null,
-          codingTimeHours: null,
-        });
-        continue;
-      }
-
-      logger.log(`    🔗 Found ${linkedPRsResult.data.length} linked PRs`);
-
-      // 最も早く作成されたPRを使用
-      const sortedPRs = [...linkedPRsResult.data].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-      const earliestPR = sortedPRs[0];
-
-      // コーディングタイム計算
-      const issueCreatedTime = new Date(issue.createdAt).getTime();
-      const prCreatedTime = new Date(earliestPR.createdAt).getTime();
-      const codingTimeHours =
-        Math.round(((prCreatedTime - issueCreatedTime) / MS_TO_HOURS) * 10) / 10;
-
-      logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`);
-
-      allCodingTimeData.push({
-        issueNumber: issue.number,
-        issueTitle: issue.title,
-        repository: repo.fullName,
-        issueCreatedAt: issue.createdAt,
-        prCreatedAt: earliestPR.createdAt,
-        prNumber: earliestPR.number,
-        codingTimeHours,
-      });
+    for (const issue of issuesResult.data) {
+      const codingTimeEntry = processIssueForCodingTime(issue, repo, token, logger);
+      allCodingTimeData.push(codingTimeEntry);
     }
   }
 

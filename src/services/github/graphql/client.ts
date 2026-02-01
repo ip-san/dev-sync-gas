@@ -8,6 +8,7 @@
  */
 
 import type { ApiResponse } from '../../../types';
+import type { HttpRequestOptions } from '../../../interfaces';
 import { getContainer } from '../../../container';
 import { DEFAULT_PAGE_SIZE, MAX_RETRIES, RETRY_DELAY_MS } from '../../../config/apiConfig';
 
@@ -68,6 +69,55 @@ export interface RateLimitInfo {
 // =============================================================================
 
 /**
+ * GraphQLリクエストオプションを構築
+ */
+function buildGraphQLRequestOptions(
+  query: string,
+  variables: Record<string, unknown>,
+  token: string
+): HttpRequestOptions {
+  return {
+    method: 'post',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'DevSyncGAS',
+    },
+    payload: JSON.stringify({ query, variables }),
+    muteHttpExceptions: true,
+  };
+}
+
+/**
+ * GraphQLエラーを処理
+ */
+function handleGraphQLErrors<T>(
+  errors: GraphQLError[],
+  data: T | null | undefined,
+  logger: { log: (msg: string) => void }
+): ApiResponse<T> {
+  const errorMessages = errors.map((e) => e.message).join('; ');
+
+  const rateLimitError = errors.find((e) => e.type === 'RATE_LIMITED');
+  if (rateLimitError) {
+    return {
+      success: false,
+      error: `Rate limited: ${rateLimitError.message}`,
+    };
+  }
+
+  if (data) {
+    logger.log(`⚠️ GraphQL partial error: ${errorMessages}`);
+    return { success: true, data };
+  }
+
+  return {
+    success: false,
+    error: `GraphQL error: ${errorMessages}`,
+  };
+}
+
+/**
  * GraphQL クエリを実行
  *
  * @param query - GraphQL クエリ文字列
@@ -83,16 +133,8 @@ export function executeGraphQL<T>(
   const { httpClient, logger } = getContainer();
 
   try {
-    const response = httpClient.fetch<GraphQLResponse<T>>(GITHUB_GRAPHQL_ENDPOINT, {
-      method: 'post',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'DevSyncGAS',
-      },
-      payload: JSON.stringify({ query, variables }),
-      muteHttpExceptions: true,
-    });
+    const options = buildGraphQLRequestOptions(query, variables, token);
+    const response = httpClient.fetch<GraphQLResponse<T>>(GITHUB_GRAPHQL_ENDPOINT, options);
 
     if (response.statusCode !== 200) {
       return {
@@ -110,29 +152,8 @@ export function executeGraphQL<T>(
       };
     }
 
-    // GraphQL エラーをチェック
     if (result.errors && result.errors.length > 0) {
-      const errorMessages = result.errors.map((e) => e.message).join('; ');
-
-      // RATE_LIMITED エラーの場合は特別処理
-      const rateLimitError = result.errors.find((e) => e.type === 'RATE_LIMITED');
-      if (rateLimitError) {
-        return {
-          success: false,
-          error: `Rate limited: ${rateLimitError.message}`,
-        };
-      }
-
-      // NOT_FOUND などの場合、部分的なデータが返る可能性がある
-      if (result.data) {
-        logger.log(`⚠️ GraphQL partial error: ${errorMessages}`);
-        return { success: true, data: result.data };
-      }
-
-      return {
-        success: false,
-        error: `GraphQL error: ${errorMessages}`,
-      };
+      return handleGraphQLErrors(result.errors, result.data, logger);
     }
 
     if (!result.data) {

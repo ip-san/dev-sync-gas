@@ -15,6 +15,7 @@ import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { DEPLOYMENTS_QUERY } from './queries';
 import type { DeploymentsQueryResponse, GraphQLDeployment } from './types';
 import type { DateRange } from '../api';
+import { validatePaginatedResponse } from './errorHelpers.js';
 
 // =============================================================================
 // 型定義
@@ -29,6 +30,62 @@ export interface GetDeploymentsOptions {
   environmentMatchMode?: EnvironmentMatchMode;
   dateRange?: DateRange;
   maxPages?: number;
+}
+
+// =============================================================================
+// ヘルパー関数
+// =============================================================================
+
+/**
+ * デプロイメントが環境フィルタを通過するかチェック
+ */
+function passesEnvironmentFilter(
+  deployment: GraphQLDeployment,
+  environment: string | undefined,
+  environmentMatchMode: EnvironmentMatchMode
+): boolean {
+  if (!environment || environmentMatchMode !== 'partial') {
+    return true;
+  }
+
+  const envLower = deployment.environment?.toLowerCase() ?? '';
+  const filterLower = environment.toLowerCase();
+  return envLower.includes(filterLower);
+}
+
+/**
+ * デプロイメントが日付範囲内かチェック
+ */
+function passesDateRangeFilter(createdAt: Date, dateRange?: DateRange): boolean {
+  if (dateRange?.until && createdAt > dateRange.until) {
+    return false;
+  }
+  if (dateRange?.since && createdAt < dateRange.since) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * デプロイメント1件が全てのフィルタを通過するかチェック
+ */
+function shouldIncludeDeployment(
+  deployment: GraphQLDeployment,
+  environment: string | undefined,
+  environmentMatchMode: EnvironmentMatchMode,
+  dateRange?: DateRange
+): boolean {
+  const createdAt = new Date(deployment.createdAt);
+
+  if (!passesDateRangeFilter(createdAt, dateRange)) {
+    return false;
+  }
+
+  if (!passesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
+    return false;
+  }
+
+  return true;
 }
 
 // =============================================================================
@@ -71,38 +128,22 @@ export function getDeploymentsGraphQL(
         token
       );
 
-    if (!queryResult.success || !queryResult.data?.repository?.deployments) {
-      if (page === 0) {
-        return { success: false, error: queryResult.error };
-      }
-      break;
+    const validationError = validatePaginatedResponse(queryResult, page, 'repository.deployments');
+    if (validationError) {
+      return validationError;
+    }
+    if (!queryResult.success) {
+      break; // 2ページ目以降のエラー
     }
 
-    const deploymentsData = queryResult.data.repository.deployments;
+    const deploymentsData = queryResult.data!.repository!.deployments;
     const nodes: GraphQLDeployment[] = deploymentsData.nodes;
     const pageInfo = deploymentsData.pageInfo;
 
     for (const deployment of nodes) {
-      const createdAt = new Date(deployment.createdAt);
-
-      // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) {
-        continue;
+      if (shouldIncludeDeployment(deployment, environment, environmentMatchMode, dateRange)) {
+        allDeployments.push(convertToDeployment(deployment, repo.fullName));
       }
-      if (dateRange?.since && createdAt < dateRange.since) {
-        continue;
-      }
-
-      // 部分一致モードの場合、クライアント側でフィルタ
-      if (environment && environmentMatchMode === 'partial') {
-        const envLower = deployment.environment?.toLowerCase() ?? '';
-        const filterLower = environment.toLowerCase();
-        if (!envLower.includes(filterLower)) {
-          continue;
-        }
-      }
-
-      allDeployments.push(convertToDeployment(deployment, repo.fullName));
     }
 
     if (!pageInfo.hasNextPage) {
@@ -135,6 +176,38 @@ function convertToDeployment(deployment: GraphQLDeployment, repository: string):
 }
 
 /**
+ * 文字列が有効なデプロイメントステータスかをチェックする型ガード
+ */
+function isValidDeploymentStatus(value: string): value is NonNullable<GitHubDeployment['status']> {
+  const validStatuses: Array<NonNullable<GitHubDeployment['status']>> = [
+    'success',
+    'failure',
+    'error',
+    'inactive',
+    'in_progress',
+    'queued',
+    'pending',
+  ];
+  return validStatuses.includes(value as NonNullable<GitHubDeployment['status']>);
+}
+
+/**
+ * GraphQL DeploymentState のマッピングテーブル
+ */
+const DEPLOYMENT_STATE_MAP: Record<string, GitHubDeployment['status']> = {
+  ACTIVE: 'success',
+  ERROR: 'failure',
+  FAILURE: 'failure',
+  IN_PROGRESS: 'pending',
+  PENDING: 'pending',
+  QUEUED: 'pending',
+  WAITING: 'pending',
+  INACTIVE: 'inactive',
+  DESTROYED: 'inactive',
+  ABANDONED: 'inactive',
+};
+
+/**
  * GraphQL DeploymentState/DeploymentStatusState を REST API互換のステータスに変換
  */
 function mapDeploymentStatus(
@@ -143,40 +216,13 @@ function mapDeploymentStatus(
 ): GitHubDeployment['status'] {
   // latestStatus がある場合はそちらを優先
   if (statusState) {
-    const mapped = statusState.toLowerCase() as GitHubDeployment['status'];
-    // 有効なステータス値かチェック
-    const validStatuses = [
-      'success',
-      'failure',
-      'error',
-      'inactive',
-      'in_progress',
-      'queued',
-      'pending',
-    ];
-    if (validStatuses.includes(mapped as string)) {
+    const mapped = statusState.toLowerCase();
+    if (isValidDeploymentStatus(mapped)) {
       return mapped;
     }
     return null;
   }
 
   // state から推測
-  switch (state) {
-    case 'ACTIVE':
-      return 'success';
-    case 'ERROR':
-    case 'FAILURE':
-      return 'failure';
-    case 'IN_PROGRESS':
-    case 'PENDING':
-    case 'QUEUED':
-    case 'WAITING':
-      return 'pending';
-    case 'INACTIVE':
-    case 'DESTROYED':
-    case 'ABANDONED':
-      return 'inactive';
-    default:
-      return null;
-  }
+  return DEPLOYMENT_STATE_MAP[state] ?? null;
 }

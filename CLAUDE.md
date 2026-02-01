@@ -73,6 +73,7 @@ bun run check:all      # 全チェックを一括実行
 - [x] リポジトリ別シート構造
 - [x] Dashboardシート（全リポジトリ×全指標の俯瞰 + ステータス表示）
 - [x] 週次トレンドシート
+- [x] 除外ラベル機能（計測から除外するIssue/PRのラベル設定）
 
 ## TODO / 拡張案
 - [ ] 拡張指標（サイクルタイム等）のリポジトリ別シート対応
@@ -118,6 +119,30 @@ syncDailyBackfill(30);      // 過去30日分をバックフィル
 syncAllProjects();          // 全プロジェクトを同期
 ```
 
+## 除外ラベル設定
+
+特定のラベルが付いたIssue/PRを計測から除外できます（例: Dependabot、Bot生成PR等）。
+
+### 設定方法
+```javascript
+// 除外ラベルを設定（デフォルト: 'exclude-metrics'）
+configureExcludeLabels(['exclude-metrics', 'dependencies', 'bot']);
+
+// 現在の設定を確認
+showExcludeLabels();
+
+// デフォルトに戻す
+resetExcludeLabelsConfig();
+
+// 除外しない（空配列）
+configureExcludeLabels([]);
+```
+
+### 動作
+- 設定したラベルが**1つでも**付いているIssue/PRは計測対象外
+- 除外されたアイテム数はログに表示
+- デフォルト値: `['exclude-metrics']`
+
 ## コードの理解に困ったら
 
 Claude Codeに以下のように質問してください：
@@ -155,7 +180,9 @@ bun run check:all      # 全品質チェック実行（推奨）
 - 必要に応じてドキュメントを更新したか
 - 複雑度警告が出た場合はリファクタリングを検討
 
-詳細は [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) を参照。
+詳細は以下を参照：
+- [docs/CODE_QUALITY.md](docs/CODE_QUALITY.md) - コード品質管理
+- [docs/REFACTORING_GUIDE.md](docs/REFACTORING_GUIDE.md) - リファクタリングの実践的ガイド
 
 ## 設計判断の記録
 

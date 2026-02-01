@@ -15,10 +15,9 @@ import type {
 } from '../../types';
 import { fetchGitHub, DEFAULT_MAX_PAGES, PER_PAGE, type DateRange } from './api';
 import {
-  isWithinDateRange,
-  matchesEnvironmentFilter,
   fetchDeploymentStatuses,
-  convertToGitHubDeployment,
+  buildDeploymentEndpoint,
+  processDeploymentPage,
 } from './deploymentHelpers.js';
 
 // =============================================================================
@@ -51,6 +50,37 @@ interface GetDeploymentsOptions {
 // =============================================================================
 // ワークフロー実行取得
 // =============================================================================
+
+/**
+ * ワークフロー実行が日付範囲内かチェック
+ */
+function passesWorkflowDateRange(createdAt: Date, dateRange?: DateRange): boolean {
+  if (dateRange?.until && createdAt > dateRange.until) {
+    return false;
+  }
+  if (dateRange?.since && createdAt < dateRange.since) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * ワークフロー実行をGitHubWorkflowRun形式に変換
+ */
+function convertToWorkflowRun(
+  run: GitHubWorkflowRunsResponse['workflow_runs'][0],
+  repoFullName: string
+): GitHubWorkflowRun {
+  return {
+    id: run.id,
+    name: run.name,
+    status: run.status,
+    conclusion: run.conclusion,
+    createdAt: run.created_at,
+    updatedAt: run.updated_at,
+    repository: repoFullName,
+  };
+}
 
 /**
  * リポジトリのワークフロー実行履歴を取得
@@ -89,23 +119,9 @@ export function getWorkflowRuns(
     for (const run of response.data.workflow_runs) {
       const createdAt = new Date(run.created_at);
 
-      // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) {
-        continue;
+      if (passesWorkflowDateRange(createdAt, dateRange)) {
+        allRuns.push(convertToWorkflowRun(run, repo.fullName));
       }
-      if (dateRange?.since && createdAt < dateRange.since) {
-        continue;
-      }
-
-      allRuns.push({
-        id: run.id,
-        name: run.name,
-        status: run.status,
-        conclusion: run.conclusion,
-        createdAt: run.created_at,
-        updatedAt: run.updated_at,
-        repository: repo.fullName,
-      });
     }
 
     page++;
@@ -138,41 +154,35 @@ export function getDeployments(
   let page = 1;
 
   // 部分一致の場合はAPIフィルタを使用せず、クライアント側でフィルタする
-  const useApiFilter = environment && environmentMatchMode === 'exact';
+  const useApiFilter = !!(environment && environmentMatchMode === 'exact');
 
   // Phase 1: デプロイメント一覧を取得
   while (page <= maxPages) {
-    let endpoint = `/repos/${repo.fullName}/deployments?per_page=${PER_PAGE}&page=${page}`;
-    if (useApiFilter) {
-      endpoint += `&environment=${encodeURIComponent(environment)}`;
-    }
+    const endpoint = buildDeploymentEndpoint({
+      repoFullName: repo.fullName,
+      page,
+      perPage: PER_PAGE,
+      environment,
+      useApiFilter,
+    });
 
     const response = fetchGitHub<GitHubDeploymentResponse[]>(endpoint, token);
 
-    if (!response.success || !response.data) {
-      if (page === 1) {
-        return { success: false, error: response.error };
+    const result = processDeploymentPage({
+      response,
+      page,
+      repoFullName: repo.fullName,
+      environment,
+      environmentMatchMode,
+      dateRange,
+      allDeployments,
+    });
+
+    if (!result.shouldContinue) {
+      if (result.error) {
+        return { success: false, error: result.error };
       }
       break;
-    }
-
-    if (response.data.length === 0) {
-      break;
-    }
-
-    for (const deployment of response.data) {
-      // 期間フィルタリング
-      const createdAt = new Date(deployment.created_at);
-      if (!isWithinDateRange(createdAt, dateRange)) {
-        continue;
-      }
-
-      // 環境フィルタリング（部分一致モードのみ）
-      if (!matchesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
-        continue;
-      }
-
-      allDeployments.push(convertToGitHubDeployment(deployment, repo.fullName));
     }
 
     page++;

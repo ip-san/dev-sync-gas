@@ -5,6 +5,7 @@
  */
 
 import type { DevOpsMetrics } from '../../types';
+import { DECIMAL_PRECISION_MULTIPLIER } from '../../config/apiConfig';
 
 // =============================================================================
 // 型定義
@@ -42,6 +43,87 @@ export interface AggregatedSummary {
 // =============================================================================
 
 /**
+ * 小数点を指定精度で丸める
+ */
+function roundToDecimalPrecision(value: number): number {
+  return Math.round(value * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER;
+}
+
+/**
+ * リポジトリごとにメトリクスをグループ化
+ */
+function groupMetricsByRepository(metrics: DevOpsMetrics[]): Map<string, DevOpsMetrics[]> {
+  const byRepository = new Map<string, DevOpsMetrics[]>();
+  for (const m of metrics) {
+    const existing = byRepository.get(m.repository) ?? [];
+    existing.push(m);
+    byRepository.set(m.repository, existing);
+  }
+  return byRepository;
+}
+
+/**
+ * 1リポジトリのサマリーを計算
+ */
+function calculateRepositorySummary(
+  repository: string,
+  repoMetrics: DevOpsMetrics[]
+): RepositorySummary {
+  const deploymentCounts = repoMetrics.map((m) => m.deploymentCount);
+  const leadTimes = repoMetrics.map((m) => m.leadTimeForChangesHours);
+  const cfrs = repoMetrics.map((m) => m.changeFailureRate);
+  const mttrs = repoMetrics
+    .map((m) => m.meanTimeToRecoveryHours)
+    .filter((v): v is number => v !== null);
+
+  const avgDeployment = deploymentCounts.reduce((a, b) => a + b, 0) / deploymentCounts.length;
+  const avgLeadTime = leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length;
+  const avgCfr = cfrs.reduce((a, b) => a + b, 0) / cfrs.length;
+  const avgMttr = mttrs.length > 0 ? mttrs.reduce((a, b) => a + b, 0) / mttrs.length : null;
+
+  const dates = repoMetrics.map((m) => m.date).sort();
+  const lastUpdated = dates[dates.length - 1];
+
+  return {
+    repository,
+    dataPointCount: repoMetrics.length,
+    avgDeploymentCount: roundToDecimalPrecision(avgDeployment),
+    avgLeadTimeHours: roundToDecimalPrecision(avgLeadTime),
+    avgChangeFailureRate: roundToDecimalPrecision(avgCfr),
+    avgMttrHours: avgMttr !== null ? roundToDecimalPrecision(avgMttr) : null,
+    lastUpdated,
+  };
+}
+
+/**
+ * 全リポジトリの横断サマリーを計算
+ */
+function calculateOverallSummary(
+  repositorySummaries: RepositorySummary[]
+): AggregatedSummary['overallSummary'] {
+  const allDeployments = repositorySummaries.map((s) => s.avgDeploymentCount);
+  const allLeadTimes = repositorySummaries.map((s) => s.avgLeadTimeHours);
+  const allCfrs = repositorySummaries.map((s) => s.avgChangeFailureRate);
+  const allMttrs = repositorySummaries
+    .map((s) => s.avgMttrHours)
+    .filter((v): v is number => v !== null);
+
+  const overallAvgDeployment = allDeployments.reduce((a, b) => a + b, 0) / allDeployments.length;
+  const overallAvgLeadTime = allLeadTimes.reduce((a, b) => a + b, 0) / allLeadTimes.length;
+  const overallAvgCfr = allCfrs.reduce((a, b) => a + b, 0) / allCfrs.length;
+  const overallAvgMttr =
+    allMttrs.length > 0 ? allMttrs.reduce((a, b) => a + b, 0) / allMttrs.length : null;
+
+  return {
+    totalRepositories: repositorySummaries.length,
+    avgDeploymentCount: roundToDecimalPrecision(overallAvgDeployment),
+    avgLeadTimeHours: roundToDecimalPrecision(overallAvgLeadTime),
+    avgChangeFailureRate: roundToDecimalPrecision(overallAvgCfr),
+    avgMttrHours: overallAvgMttr !== null ? roundToDecimalPrecision(overallAvgMttr) : null,
+  };
+}
+
+/**
  * 複数リポジトリのDevOps指標を集計
  *
  * @param metrics - 各リポジトリ・各日のDevOpsMetrics配列
@@ -61,66 +143,15 @@ export function aggregateMultiRepoMetrics(metrics: DevOpsMetrics[]): AggregatedS
     };
   }
 
-  // リポジトリごとにグループ化
-  const byRepository = new Map<string, DevOpsMetrics[]>();
-  for (const m of metrics) {
-    const existing = byRepository.get(m.repository) ?? [];
-    existing.push(m);
-    byRepository.set(m.repository, existing);
-  }
+  const byRepository = groupMetricsByRepository(metrics);
 
-  // 各リポジトリのサマリーを計算
   const repositorySummaries: RepositorySummary[] = [];
   for (const [repository, repoMetrics] of byRepository) {
-    const deploymentCounts = repoMetrics.map((m) => m.deploymentCount);
-    const leadTimes = repoMetrics.map((m) => m.leadTimeForChangesHours);
-    const cfrs = repoMetrics.map((m) => m.changeFailureRate);
-    const mttrs = repoMetrics
-      .map((m) => m.meanTimeToRecoveryHours)
-      .filter((v): v is number => v !== null);
-
-    const avgDeployment = deploymentCounts.reduce((a, b) => a + b, 0) / deploymentCounts.length;
-    const avgLeadTime = leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length;
-    const avgCfr = cfrs.reduce((a, b) => a + b, 0) / cfrs.length;
-    const avgMttr = mttrs.length > 0 ? mttrs.reduce((a, b) => a + b, 0) / mttrs.length : null;
-
-    // 最終更新日を取得（最新の日付）
-    const dates = repoMetrics.map((m) => m.date).sort();
-    const lastUpdated = dates[dates.length - 1];
-
-    repositorySummaries.push({
-      repository,
-      dataPointCount: repoMetrics.length,
-      avgDeploymentCount: Math.round(avgDeployment * 10) / 10,
-      avgLeadTimeHours: Math.round(avgLeadTime * 10) / 10,
-      avgChangeFailureRate: Math.round(avgCfr * 10) / 10,
-      avgMttrHours: avgMttr !== null ? Math.round(avgMttr * 10) / 10 : null,
-      lastUpdated,
-    });
+    repositorySummaries.push(calculateRepositorySummary(repository, repoMetrics));
   }
-
-  // 全リポジトリ横断の平均を計算
-  const allDeployments = repositorySummaries.map((s) => s.avgDeploymentCount);
-  const allLeadTimes = repositorySummaries.map((s) => s.avgLeadTimeHours);
-  const allCfrs = repositorySummaries.map((s) => s.avgChangeFailureRate);
-  const allMttrs = repositorySummaries
-    .map((s) => s.avgMttrHours)
-    .filter((v): v is number => v !== null);
-
-  const overallAvgDeployment = allDeployments.reduce((a, b) => a + b, 0) / allDeployments.length;
-  const overallAvgLeadTime = allLeadTimes.reduce((a, b) => a + b, 0) / allLeadTimes.length;
-  const overallAvgCfr = allCfrs.reduce((a, b) => a + b, 0) / allCfrs.length;
-  const overallAvgMttr =
-    allMttrs.length > 0 ? allMttrs.reduce((a, b) => a + b, 0) / allMttrs.length : null;
 
   return {
     repositorySummaries,
-    overallSummary: {
-      totalRepositories: repositorySummaries.length,
-      avgDeploymentCount: Math.round(overallAvgDeployment * 10) / 10,
-      avgLeadTimeHours: Math.round(overallAvgLeadTime * 10) / 10,
-      avgChangeFailureRate: Math.round(overallAvgCfr * 10) / 10,
-      avgMttrHours: overallAvgMttr !== null ? Math.round(overallAvgMttr * 10) / 10 : null,
-    },
+    overallSummary: calculateOverallSummary(repositorySummaries),
   };
 }

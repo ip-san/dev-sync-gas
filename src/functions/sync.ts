@@ -4,16 +4,11 @@
  * GitHub APIからDevOps指標を取得し、スプレッドシートに書き出す
  * メインの同期処理を提供。
  *
- * GraphQL API（デフォルト）を使用してAPI呼び出し回数を削減。
- * REST APIにフォールバック可能（setGitHubApiMode('rest')）
+ * GraphQL APIを使用してAPI呼び出し回数を削減。
  */
 
-import { getConfig, getGitHubToken, getProjects, getGitHubApiMode } from '../config/settings';
-import {
-  getAllRepositoriesData,
-  getAllRepositoriesDataGraphQL,
-  type DateRange,
-} from '../services/github';
+import { getConfig, getGitHubToken, getProjects } from '../config/settings';
+import { getAllRepositoriesDataGraphQL, type DateRange } from '../services/github';
 import {
   // リポジトリ別シート構造
   writeMetricsToAllRepositorySheets,
@@ -39,22 +34,15 @@ interface RepositoriesData {
 }
 
 /**
- * APIモードに応じたデータ取得関数を選択
+ * GraphQL APIを使用してリポジトリデータを取得
  */
 function fetchRepositoriesData(
   repositories: GitHubRepository[],
   token: string,
   options: { dateRange?: DateRange } = {}
 ): RepositoriesData {
-  const apiMode = getGitHubApiMode();
-
-  if (apiMode === 'graphql') {
-    Logger.log('🚀 Using GraphQL API (efficient mode)');
-    return getAllRepositoriesDataGraphQL(repositories, token, options);
-  } else {
-    Logger.log('📡 Using REST API (legacy mode)');
-    return getAllRepositoriesData(repositories, token, options);
-  }
+  Logger.log('🚀 Using GraphQL API');
+  return getAllRepositoriesDataGraphQL(repositories, token, options);
 }
 
 // =============================================================================
@@ -95,7 +83,12 @@ export function syncDevOpsMetrics(dateRange?: DateRange): void {
   );
 
   const metrics: DevOpsMetrics[] = config.github.repositories.map((repo) =>
-    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+    calculateMetricsForRepository({
+      repository: repo.fullName,
+      prs: pullRequests,
+      runs: workflowRuns,
+      deployments,
+    })
   );
 
   Logger.log(`📈 Calculated ${metrics.length} metrics`);
@@ -158,7 +151,12 @@ export function syncAllProjects(dateRange?: DateRange): void {
     );
 
     const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
-      calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+      calculateMetricsForRepository({
+        repository: repo.fullName,
+        prs: pullRequests,
+        runs: workflowRuns,
+        deployments,
+      })
     );
 
     // リポジトリ別シートに書き込み
@@ -209,7 +207,12 @@ export function syncProject(projectName: string, dateRange?: DateRange): void {
   );
 
   const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
-    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+    calculateMetricsForRepository({
+      repository: repo.fullName,
+      prs: pullRequests,
+      runs: workflowRuns,
+      deployments,
+    })
   );
 
   // リポジトリ別シートに書き込み
@@ -308,13 +311,13 @@ export function syncDailyBackfill(days = 30): void {
   );
 
   // 3. 日別メトリクス計算
-  const dailyMetrics = calculateDailyMetrics(
-    config.github.repositories,
-    pullRequests,
-    workflowRuns,
+  const dailyMetrics = calculateDailyMetrics({
+    repositories: config.github.repositories,
+    prs: pullRequests,
+    runs: workflowRuns,
     deployments,
-    { since, until }
-  );
+    dateRange: { since, until },
+  });
 
   Logger.log(`📊 Generated ${dailyMetrics.length} daily records`);
 
@@ -378,13 +381,13 @@ export function backfillAllProjectsDaily(days = 30): void {
       `   📥 Fetched ${pullRequests.length} PRs, ${workflowRuns.length} workflow runs, ${deployments.length} deployments`
     );
 
-    const dailyMetrics = calculateDailyMetrics(
-      project.repositories,
-      pullRequests,
-      workflowRuns,
+    const dailyMetrics = calculateDailyMetrics({
+      repositories: project.repositories,
+      prs: pullRequests,
+      runs: workflowRuns,
       deployments,
-      { since, until }
-    );
+      dateRange: { since, until },
+    });
 
     Logger.log(`   📊 Generated ${dailyMetrics.length} daily records`);
 

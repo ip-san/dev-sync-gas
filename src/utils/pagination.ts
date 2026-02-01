@@ -27,6 +27,39 @@ export interface PaginationOptions<T, R> {
 }
 
 /**
+ * ページネーション結果のレスポンスを構築
+ */
+function buildPaginationResponse<R>(
+  results: R[],
+  pagesRetrieved: number,
+  pagesFailed: number,
+  partialFailureError: string | undefined
+): ApiResponse<R[]> {
+  if (pagesFailed > 0) {
+    return {
+      success: true,
+      data: results,
+      warning: `Partial failure: Retrieved ${pagesRetrieved} page(s), but ${pagesFailed} page(s) failed. Last error: ${partialFailureError}`,
+      metadata: {
+        pagesRetrieved,
+        pagesFailed,
+        itemsRetrieved: results.length,
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: results,
+    metadata: {
+      pagesRetrieved,
+      pagesFailed: 0,
+      itemsRetrieved: results.length,
+    },
+  };
+}
+
+/**
  * GitHubのページネーションAPIを処理する汎用関数
  *
  * @template T - APIレスポンスの型
@@ -84,27 +117,36 @@ export function paginateAPI<T, R>(options: PaginationOptions<T, R>): ApiResponse
     page++;
   }
 
-  // 部分的な失敗があった場合は警告を含める
+  return buildPaginationResponse(results, pagesRetrieved, pagesFailed, partialFailureError);
+}
+
+/**
+ * Reduce処理のレスポンスを構築
+ */
+function buildReduceResponse<A>(
+  accumulator: A,
+  pagesRetrieved: number,
+  pagesFailed: number,
+  partialFailureError: string | undefined
+): ApiResponse<A> {
   if (pagesFailed > 0) {
     return {
       success: true,
-      data: results,
+      data: accumulator,
       warning: `Partial failure: Retrieved ${pagesRetrieved} page(s), but ${pagesFailed} page(s) failed. Last error: ${partialFailureError}`,
       metadata: {
         pagesRetrieved,
         pagesFailed,
-        itemsRetrieved: results.length,
       },
     };
   }
 
   return {
     success: true,
-    data: results,
+    data: accumulator,
     metadata: {
       pagesRetrieved,
       pagesFailed: 0,
-      itemsRetrieved: results.length,
     },
   };
 }
@@ -172,25 +214,5 @@ export function paginateAndReduce<T, R, A>(
     page++;
   }
 
-  // 部分的な失敗があった場合は警告を含める
-  if (pagesFailed > 0) {
-    return {
-      success: true,
-      data: accumulator,
-      warning: `Partial failure: Retrieved ${pagesRetrieved} page(s), but ${pagesFailed} page(s) failed. Last error: ${partialFailureError}`,
-      metadata: {
-        pagesRetrieved,
-        pagesFailed,
-      },
-    };
-  }
-
-  return {
-    success: true,
-    data: accumulator,
-    metadata: {
-      pagesRetrieved,
-      pagesFailed: 0,
-    },
-  };
+  return buildReduceResponse(accumulator, pagesRetrieved, pagesFailed, partialFailureError);
 }

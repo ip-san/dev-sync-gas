@@ -37,78 +37,118 @@ export class GasHttpClient implements HttpClient {
     options: HttpRequestOptions,
     retryCount: number
   ): HttpResponse<T> {
+    const gasOptions = this.buildGasOptions(options);
+
+    try {
+      const response = UrlFetchApp.fetch(url, gasOptions);
+      const statusCode = response.getResponseCode();
+      const context = { statusCode, retryCount, url, options };
+
+      const rateLimitResult = this.handleRateLimitRetry<T>(response, context);
+      if (rateLimitResult) {
+        return rateLimitResult;
+      }
+
+      const serverErrorResult = this.handleServerErrorRetry<T>(context);
+      if (serverErrorResult) {
+        return serverErrorResult;
+      }
+
+      return this.parseResponse<T>(response);
+    } catch (error) {
+      this.handleFetchError(error, url);
+      throw error;
+    }
+  }
+
+  private buildGasOptions(
+    options: HttpRequestOptions
+  ): GoogleAppsScript.URL_Fetch.URLFetchRequestOptions {
     const gasOptions: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
       method: options.method ?? 'get',
       headers: options.headers,
       payload: options.payload,
       muteHttpExceptions: options.muteHttpExceptions ?? true,
-      // タイムアウト設定（GAS実行時間制限6分を考慮）
-      validateHttpsCertificates: true, // セキュリティ: SSL証明書を検証
+      validateHttpsCertificates: true,
       followRedirects: true,
-      // GASのfetchはミリ秒ではなく秒単位
-      // ただし、型定義上は存在しないため any でキャスト
     };
 
-    // タイムアウトを設定（GAS環境のみ）
     if (typeof UrlFetchApp !== 'undefined') {
-      // GASの型定義に存在しないプロパティを安全に設定
       const gasOptionsWithMute: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions & {
         muteHttpExceptions?: boolean;
       } = gasOptions;
       gasOptionsWithMute.muteHttpExceptions = true;
     }
 
+    return gasOptions;
+  }
+
+  private handleRateLimitRetry<T>(
+    response: GoogleAppsScript.URL_Fetch.HTTPResponse,
+    context: { statusCode: number; retryCount: number; url: string; options: HttpRequestOptions }
+  ): HttpResponse<T> | null {
+    if (context.statusCode !== 429 || context.retryCount >= this.MAX_RETRIES) {
+      return null;
+    }
+
+    const retryAfter = this.getRetryAfter(response);
+    const backoffMs = retryAfter ?? this.calculateBackoff(context.retryCount);
+
+    Logger.log(
+      `⚠️ Rate limit exceeded (429). Retrying after ${backoffMs / 1000}s (attempt ${context.retryCount + 1}/${this.MAX_RETRIES})`
+    );
+
+    Utilities.sleep(backoffMs);
+    return this.fetchWithRetry<T>(context.url, context.options, context.retryCount + 1);
+  }
+
+  private handleServerErrorRetry<T>(context: {
+    statusCode: number;
+    retryCount: number;
+    url: string;
+    options: HttpRequestOptions;
+  }): HttpResponse<T> | null {
+    if (
+      context.statusCode < 500 ||
+      context.statusCode >= 600 ||
+      context.retryCount >= this.MAX_RETRIES
+    ) {
+      return null;
+    }
+
+    const backoffMs = this.calculateBackoff(context.retryCount);
+
+    Logger.log(
+      `⚠️ Server error (${context.statusCode}). Retrying after ${backoffMs / 1000}s (attempt ${context.retryCount + 1}/${this.MAX_RETRIES})`
+    );
+
+    Utilities.sleep(backoffMs);
+    return this.fetchWithRetry<T>(context.url, context.options, context.retryCount + 1);
+  }
+
+  private parseResponse<T>(response: GoogleAppsScript.URL_Fetch.HTTPResponse): HttpResponse<T> {
+    const statusCode = response.getResponseCode();
+    const content = response.getContentText();
+
+    let data: T | undefined;
     try {
-      const response = UrlFetchApp.fetch(url, gasOptions);
-      const statusCode = response.getResponseCode();
-      const content = response.getContentText();
-
-      // レート制限（429）の場合はリトライ
-      if (statusCode === 429 && retryCount < this.MAX_RETRIES) {
-        const retryAfter = this.getRetryAfter(response);
-        const backoffMs = retryAfter ?? this.calculateBackoff(retryCount);
-
-        Logger.log(
-          `⚠️ Rate limit exceeded (429). Retrying after ${backoffMs / 1000}s (attempt ${retryCount + 1}/${this.MAX_RETRIES})`
-        );
-
-        Utilities.sleep(backoffMs);
-        return this.fetchWithRetry<T>(url, options, retryCount + 1);
-      }
-
-      // サーバーエラー（5xx）の場合もリトライ
-      if (statusCode >= 500 && statusCode < 600 && retryCount < this.MAX_RETRIES) {
-        const backoffMs = this.calculateBackoff(retryCount);
-
-        Logger.log(
-          `⚠️ Server error (${statusCode}). Retrying after ${backoffMs / 1000}s (attempt ${retryCount + 1}/${this.MAX_RETRIES})`
-        );
-
-        Utilities.sleep(backoffMs);
-        return this.fetchWithRetry<T>(url, options, retryCount + 1);
-      }
-
-      let data: T | undefined;
-      try {
-        data = JSON.parse(content) as T;
-      } catch (error) {
-        // JSONでない場合はundefined（エラーログを記録）
-        Logger.log(
-          `⚠️ Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-
-      return { statusCode, content, data };
+      data = JSON.parse(content) as T;
     } catch (error) {
-      // タイムアウトエラーの場合は明示的なメッセージ
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
-        throw new Error(
-          `Request to ${url} timed out after ${this.DEFAULT_TIMEOUT_MS / 1000} seconds. ` +
-            'This may indicate network issues or slow API response.'
-        );
-      }
-      throw error;
+      Logger.log(
+        `⚠️ Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    return { statusCode, content, data };
+  }
+
+  private handleFetchError(error: unknown, url: string): void {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+      throw new Error(
+        `Request to ${url} timed out after ${this.DEFAULT_TIMEOUT_MS / 1000} seconds. ` +
+          'This may indicate network issues or slow API response.'
+      );
     }
   }
 

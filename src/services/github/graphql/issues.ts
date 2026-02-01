@@ -21,7 +21,10 @@ import type {
 import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { ISSUES_QUERY, ISSUE_WITH_LINKED_PRS_QUERY, COMMIT_ASSOCIATED_PRS_QUERY } from './queries';
-import { trackToProductionMerge as trackToProductionMergeShared } from '../shared/prTracking.js';
+import {
+  trackToProductionMerge as trackToProductionMergeShared,
+  selectBestTrackResult,
+} from '../shared/prTracking.js';
 import type { PRFetcher, MinimalPRInfo } from '../shared/prTracking.js';
 import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
 import type {
@@ -32,7 +35,6 @@ import type {
   CrossReferencedEvent,
 } from './types';
 import type { IssueDateRange } from '../api';
-import { selectBestTrackResult } from '../cycleTimeHelpers.js';
 import { MS_TO_HOURS } from '../../../utils/timeConstants.js';
 import { isWithinDateRange } from './issueHelpers.js';
 import { validatePaginatedResponse, validateSingleResponse } from './errorHelpers.js';

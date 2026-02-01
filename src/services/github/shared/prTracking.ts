@@ -157,3 +157,41 @@ export function trackToProductionMerge(
 
   return { success: true, data: { productionMergedAt, prChain } };
 }
+
+/**
+ * 複数のPR追跡結果から最良のものを選択
+ *
+ * 優先順位:
+ * 1. productionにマージされた結果（最も早い日時）
+ * 2. マージされていない場合は最初の結果
+ */
+export function selectBestTrackResult(
+  results: Array<{
+    productionMergedAt: string | null;
+    prChain: PRChainItem[];
+  } | null>
+): { productionMergedAt: string | null; prChain: PRChainItem[] } {
+  let bestResult: { productionMergedAt: string | null; prChain: PRChainItem[] } | null = null;
+
+  for (const result of results) {
+    if (!result) {
+      continue;
+    }
+
+    // productionにマージされたものを優先
+    if (result.productionMergedAt) {
+      const shouldUpdate =
+        !bestResult?.productionMergedAt ||
+        new Date(result.productionMergedAt) < new Date(bestResult.productionMergedAt);
+
+      if (shouldUpdate) {
+        bestResult = result;
+      }
+    } else if (!bestResult) {
+      // productionマージがない場合は最初の結果を使用
+      bestResult = result;
+    }
+  }
+
+  return bestResult ?? { productionMergedAt: null, prChain: [] };
+}

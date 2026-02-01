@@ -4,16 +4,11 @@
  * GitHub APIからDevOps指標を取得し、スプレッドシートに書き出す
  * メインの同期処理を提供。
  *
- * GraphQL API（デフォルト）を使用してAPI呼び出し回数を削減。
- * REST APIにフォールバック可能（setGitHubApiMode('rest')）
+ * GraphQL APIを使用してAPI呼び出し回数を削減。
  */
 
-import { getConfig, getGitHubToken, getProjects, getGitHubApiMode } from '../config/settings';
-import {
-  getAllRepositoriesData,
-  getAllRepositoriesDataGraphQL,
-  type DateRange,
-} from '../services/github';
+import { getConfig, getGitHubToken, getProjects } from '../config/settings';
+import { getAllRepositoriesDataGraphQL, type DateRange } from '../services/github';
 import {
   // リポジトリ別シート構造
   writeMetricsToAllRepositorySheets,
@@ -39,22 +34,15 @@ interface RepositoriesData {
 }
 
 /**
- * APIモードに応じたデータ取得関数を選択
+ * GraphQL APIを使用してリポジトリデータを取得
  */
 function fetchRepositoriesData(
   repositories: GitHubRepository[],
   token: string,
   options: { dateRange?: DateRange } = {}
 ): RepositoriesData {
-  const apiMode = getGitHubApiMode();
-
-  if (apiMode === 'graphql') {
-    Logger.log('🚀 Using GraphQL API (efficient mode)');
-    return getAllRepositoriesDataGraphQL(repositories, token, options);
-  } else {
-    Logger.log('📡 Using REST API (legacy mode)');
-    return getAllRepositoriesData(repositories, token, options);
-  }
+  Logger.log('🚀 Using GraphQL API');
+  return getAllRepositoriesDataGraphQL(repositories, token, options);
 }
 
 // =============================================================================

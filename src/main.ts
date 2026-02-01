@@ -66,12 +66,6 @@ import {
   migrateSheet,
   updateHeadersOnly,
   showBackupCleanupHelp,
-  // デバッグ
-  showCycleTimeDetails,
-  showCodingTimeDetails,
-  showReworkRateDetails,
-  showReviewEfficiencyDetails,
-  showPRSizeDetails,
 } from './functions';
 
 // =============================================================================
@@ -147,10 +141,3 @@ global.migrateAllSchemas = migrateAllSchemas;
 global.migrateSheet = migrateSheet;
 global.updateHeadersOnly = updateHeadersOnly;
 global.showBackupCleanupHelp = showBackupCleanupHelp;
-
-// デバッグ用詳細表示
-global.showCycleTimeDetails = showCycleTimeDetails;
-global.showCodingTimeDetails = showCodingTimeDetails;
-global.showReworkRateDetails = showReworkRateDetails;
-global.showReviewEfficiencyDetails = showReviewEfficiencyDetails;
-global.showPRSizeDetails = showPRSizeDetails;

@@ -1,4 +1,5 @@
 import { getContainer } from '../container';
+import { PRODUCTION_KEYS, LABEL_KEYS } from './propertyKeys';
 
 // ============================================================
 // サイクルタイム設定
@@ -16,7 +17,7 @@ const DEFAULT_PRODUCTION_BRANCH_PATTERN = 'production';
 export function getProductionBranchPattern(): string {
   const { storageClient } = getContainer();
   return (
-    storageClient.getProperty('PRODUCTION_BRANCH_PATTERN') ?? DEFAULT_PRODUCTION_BRANCH_PATTERN
+    storageClient.getProperty(PRODUCTION_KEYS.BRANCH_PATTERN) ?? DEFAULT_PRODUCTION_BRANCH_PATTERN
   );
 }
 
@@ -32,7 +33,7 @@ export function getProductionBranchPattern(): string {
  */
 export function setProductionBranchPattern(pattern: string): void {
   const { storageClient } = getContainer();
-  storageClient.setProperty('PRODUCTION_BRANCH_PATTERN', pattern);
+  storageClient.setProperty(PRODUCTION_KEYS.BRANCH_PATTERN, pattern);
 }
 
 /**
@@ -40,7 +41,7 @@ export function setProductionBranchPattern(pattern: string): void {
  */
 export function resetProductionBranchPattern(): void {
   const { storageClient } = getContainer();
-  storageClient.deleteProperty('PRODUCTION_BRANCH_PATTERN');
+  storageClient.deleteProperty(PRODUCTION_KEYS.BRANCH_PATTERN);
 }
 
 /**
@@ -96,7 +97,7 @@ function deleteProperty(key: string): void {
  * @returns ラベル配列（デフォルト: []）
  */
 export function getCycleTimeIssueLabels(): string[] {
-  return getPropertyAsStringArray('CYCLE_TIME_ISSUE_LABELS');
+  return getPropertyAsStringArray(LABEL_KEYS.CYCLE_TIME);
 }
 
 /**
@@ -110,14 +111,14 @@ export function getCycleTimeIssueLabels(): string[] {
  * setCycleTimeIssueLabels([]);
  */
 export function setCycleTimeIssueLabels(labels: string[]): void {
-  setPropertyAsStringArray('CYCLE_TIME_ISSUE_LABELS', labels);
+  setPropertyAsStringArray(LABEL_KEYS.CYCLE_TIME, labels);
 }
 
 /**
  * サイクルタイムIssueラベル設定をリセット（全Issue対象に戻す）
  */
 export function resetCycleTimeIssueLabels(): void {
-  deleteProperty('CYCLE_TIME_ISSUE_LABELS');
+  deleteProperty(LABEL_KEYS.CYCLE_TIME);
 }
 
 // ============================================================
@@ -131,7 +132,7 @@ export function resetCycleTimeIssueLabels(): void {
  * @returns ラベル配列（デフォルト: []）
  */
 export function getCodingTimeIssueLabels(): string[] {
-  return getPropertyAsStringArray('CODING_TIME_ISSUE_LABELS');
+  return getPropertyAsStringArray(LABEL_KEYS.CODING_TIME);
 }
 
 /**
@@ -145,14 +146,14 @@ export function getCodingTimeIssueLabels(): string[] {
  * setCodingTimeIssueLabels([]);
  */
 export function setCodingTimeIssueLabels(labels: string[]): void {
-  setPropertyAsStringArray('CODING_TIME_ISSUE_LABELS', labels);
+  setPropertyAsStringArray(LABEL_KEYS.CODING_TIME, labels);
 }
 
 /**
  * コーディングタイムIssueラベル設定をリセット（全Issue対象に戻す）
  */
 export function resetCodingTimeIssueLabels(): void {
-  deleteProperty('CODING_TIME_ISSUE_LABELS');
+  deleteProperty(LABEL_KEYS.CODING_TIME);
 }
 
 // ============================================================
@@ -165,7 +166,7 @@ export function resetCodingTimeIssueLabels(): void {
  * @returns ラベル配列（デフォルト: ['exclude-metrics']）
  */
 export function getExcludeMetricsLabels(): string[] {
-  const labels = getPropertyAsStringArray('EXCLUDE_METRICS_LABELS');
+  const labels = getPropertyAsStringArray(LABEL_KEYS.EXCLUDE_METRICS);
   return labels.length > 0 ? labels : ['exclude-metrics'];
 }
 
@@ -180,14 +181,14 @@ export function getExcludeMetricsLabels(): string[] {
  * setExcludeMetricsLabels([]);
  */
 export function setExcludeMetricsLabels(labels: string[]): void {
-  setPropertyAsStringArray('EXCLUDE_METRICS_LABELS', labels);
+  setPropertyAsStringArray(LABEL_KEYS.EXCLUDE_METRICS, labels);
 }
 
 /**
  * 除外ラベル設定をリセット（デフォルトに戻す）
  */
 export function resetExcludeMetricsLabels(): void {
-  deleteProperty('EXCLUDE_METRICS_LABELS');
+  deleteProperty(LABEL_KEYS.EXCLUDE_METRICS);
 }
 
 // ============================================================
@@ -200,7 +201,7 @@ export function resetExcludeMetricsLabels(): void {
  * @returns ラベル配列（デフォルト: ['incident']）
  */
 export function getIncidentLabels(): string[] {
-  const labels = getPropertyAsStringArray('INCIDENT_LABELS');
+  const labels = getPropertyAsStringArray(LABEL_KEYS.INCIDENT);
   return labels.length > 0 ? labels : ['incident'];
 }
 
@@ -215,12 +216,12 @@ export function getIncidentLabels(): string[] {
  * setIncidentLabels([]);
  */
 export function setIncidentLabels(labels: string[]): void {
-  setPropertyAsStringArray('INCIDENT_LABELS', labels);
+  setPropertyAsStringArray(LABEL_KEYS.INCIDENT, labels);
 }
 
 /**
  * インシデントラベル設定をリセット（デフォルトに戻す）
  */
 export function resetIncidentLabels(): void {
-  deleteProperty('INCIDENT_LABELS');
+  deleteProperty(LABEL_KEYS.INCIDENT);
 }

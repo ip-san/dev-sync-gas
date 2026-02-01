@@ -56,16 +56,10 @@ export const PRODUCTION_KEYS = {
  * ラベル設定キー
  */
 export const LABEL_KEYS = {
-  /** Hotfixラベルパターン（正規表現文字列） */
-  HOTFIX_PATTERN: 'LABEL_HOTFIX_PATTERN',
-  /** Feature変更ラベル名 */
-  FEATURE_CHANGE: 'LABEL_FEATURE_CHANGE',
-  /** Bug修正ラベル名 */
-  BUG_FIX: 'LABEL_BUG_FIX',
-  /** リファクタリングラベル名 */
-  REFACTORING: 'LABEL_REFACTORING',
-  /** ドキュメントラベル名 */
-  DOCUMENTATION: 'LABEL_DOCUMENTATION',
+  /** サイクルタイム計測対象のIssueラベル（JSON配列） */
+  CYCLE_TIME: 'CYCLE_TIME_ISSUE_LABELS',
+  /** コーディングタイム計測対象のIssueラベル（JSON配列） */
+  CODING_TIME: 'CODING_TIME_ISSUE_LABELS',
   /** 計測から除外するラベル（JSON配列） */
   EXCLUDE_METRICS: 'EXCLUDE_METRICS_LABELS',
   /** インシデント判定ラベル（JSON配列） */

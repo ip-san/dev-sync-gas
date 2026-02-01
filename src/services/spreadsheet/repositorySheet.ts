@@ -206,6 +206,25 @@ export function writeMetricsToAllRepositorySheets(
 }
 
 /**
+ * 行データをDevOpsMetricsにパース（リポジトリ別シート用）
+ */
+function parseRepositoryMetricRow(row: unknown[], repository: string): DevOpsMetrics {
+  const frequency = isValidDeploymentFrequency(row[2]) ? row[2] : 'daily';
+
+  return {
+    date: String(row[0]),
+    repository: repository,
+    deploymentCount: Number(row[1]) || 0,
+    deploymentFrequency: frequency,
+    leadTimeForChangesHours: Number(row[3]) || 0,
+    totalDeployments: Number(row[4]) || 0,
+    failedDeployments: Number(row[5]) || 0,
+    changeFailureRate: Number(row[6]) || 0,
+    meanTimeToRecoveryHours: row[7] === 'N/A' ? null : Number(row[7]) || null,
+  };
+}
+
+/**
  * 指定されたリポジトリのシートからメトリクスを読み取る
  *
  * @param spreadsheetId - スプレッドシートID
@@ -233,19 +252,7 @@ export function readMetricsFromRepositorySheet(
   const metrics: DevOpsMetrics[] = [];
 
   for (const row of data) {
-    const frequency = isValidDeploymentFrequency(row[2]) ? row[2] : 'daily';
-
-    metrics.push({
-      date: String(row[0]),
-      repository: repository,
-      deploymentCount: Number(row[1]) || 0,
-      deploymentFrequency: frequency,
-      leadTimeForChangesHours: Number(row[3]) || 0,
-      totalDeployments: Number(row[4]) || 0,
-      failedDeployments: Number(row[5]) || 0,
-      changeFailureRate: Number(row[6]) || 0,
-      meanTimeToRecoveryHours: row[7] === 'N/A' ? null : Number(row[7]) || null,
-    });
+    metrics.push(parseRepositoryMetricRow(row, repository));
   }
 
   return metrics;

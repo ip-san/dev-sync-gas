@@ -20,6 +20,7 @@ import {
 import { DASHBOARD_SCHEMA, getHeadersFromSchema } from '../../schemas';
 import { evaluateMetric, selectWorstStatus } from '../../utils/healthStatus';
 import { getExtendedMetricSheetName } from './extendedMetricsRepositorySheet';
+import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
 
 const DASHBOARD_HEADERS = getHeadersFromSchema(DASHBOARD_SCHEMA);
 
@@ -157,30 +158,41 @@ export function enrichWithExtendedMetrics(
   spreadsheetId: string,
   latestByRepo: Map<string, RepositoryLatestData>
 ): void {
-  const spreadsheet = openSpreadsheet(spreadsheetId);
+  try {
+    const spreadsheet = openSpreadsheet(spreadsheetId);
 
-  for (const [repository, data] of latestByRepo) {
-    // サイクルタイム (6列目: コーディング時間 (時間))
-    const cycleTimeSheetName = getExtendedMetricSheetName(repository, 'サイクルタイム');
-    data.cycleTimeHours = calculateAverageFromSheet(spreadsheet, cycleTimeSheetName, 5);
+    for (const [repository, data] of latestByRepo) {
+      // サイクルタイム (6列目: コーディング時間 (時間))
+      const cycleTimeSheetName = getExtendedMetricSheetName(repository, 'サイクルタイム');
+      data.cycleTimeHours = calculateAverageFromSheet(spreadsheet, cycleTimeSheetName, 5);
 
-    // コーディング時間 (6列目: コーディング時間 (時間))
-    const codingTimeSheetName = getExtendedMetricSheetName(repository, 'コーディング時間');
-    data.codingTimeHours = calculateAverageFromSheet(spreadsheet, codingTimeSheetName, 6);
+      // コーディング時間 (6列目: コーディング時間 (時間))
+      const codingTimeSheetName = getExtendedMetricSheetName(repository, 'コーディング時間');
+      data.codingTimeHours = calculateAverageFromSheet(spreadsheet, codingTimeSheetName, 6);
 
-    // レビュー効率 (8列目: レビュー待ち時間、9列目: レビュー時間)
-    const reviewEffSheetName = getExtendedMetricSheetName(repository, 'レビュー効率');
-    data.timeToFirstReviewHours = calculateAverageFromSheet(spreadsheet, reviewEffSheetName, 8);
-    data.reviewDurationHours = calculateAverageFromSheet(spreadsheet, reviewEffSheetName, 9);
+      // レビュー効率 (8列目: レビュー待ち時間、9列目: レビュー時間)
+      const reviewEffSheetName = getExtendedMetricSheetName(repository, 'レビュー効率');
+      data.timeToFirstReviewHours = calculateAverageFromSheet(spreadsheet, reviewEffSheetName, 8);
+      data.reviewDurationHours = calculateAverageFromSheet(spreadsheet, reviewEffSheetName, 9);
 
-    // PRサイズ (7列目: 変更行数)
-    const prSizeSheetName = getExtendedMetricSheetName(repository, 'PRサイズ');
-    data.avgLinesOfCode = calculateAverageFromSheet(spreadsheet, prSizeSheetName, 7);
+      // PRサイズ (7列目: 変更行数)
+      const prSizeSheetName = getExtendedMetricSheetName(repository, 'PRサイズ');
+      data.avgLinesOfCode = calculateAverageFromSheet(spreadsheet, prSizeSheetName, 7);
 
-    // 手戻り率 (7列目: 追加コミット数、8列目: Force Push回数)
-    const reworkRateSheetName = getExtendedMetricSheetName(repository, '手戻り率');
-    data.avgAdditionalCommits = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 7);
-    data.avgForcePushCount = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 8);
+      // 手戻り率 (7列目: 追加コミット数、8列目: Force Push回数)
+      const reworkRateSheetName = getExtendedMetricSheetName(repository, '手戻り率');
+      data.avgAdditionalCommits = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 7);
+      data.avgForcePushCount = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 8);
+    }
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new SpreadsheetError('Failed to enrich with extended metrics', {
+      code: ErrorCode.SPREADSHEET_READ_FAILED,
+      context: { spreadsheetId, repositoryCount: latestByRepo.size },
+      cause: error as Error,
+    });
   }
 }
 

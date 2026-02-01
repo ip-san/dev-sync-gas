@@ -13,6 +13,7 @@ import {
   groupReworkRateDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
+import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
 
 const SHEET_NAME = '手戻り率';
 
@@ -68,10 +69,21 @@ const REPOSITORY_DETAIL_HEADERS = [
 export function writeReworkRateToSheet(spreadsheetId: string, metrics: ReworkRateMetrics): void {
   const { logger } = getContainer();
 
-  // リポジトリ別シートに書き込み
-  writeReworkRateToAllRepositorySheets(spreadsheetId, metrics);
+  try {
+    // リポジトリ別シートに書き込み
+    writeReworkRateToAllRepositorySheets(spreadsheetId, metrics);
 
-  logger.log(`📝 Wrote rework rate metrics to repository sheets`);
+    logger.log(`📝 Wrote rework rate metrics to repository sheets`);
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new SpreadsheetError('Failed to write rework rate metrics', {
+      code: ErrorCode.SPREADSHEET_WRITE_FAILED,
+      context: { spreadsheetId, period: metrics.period, prCount: metrics.prCount },
+      cause: error as Error,
+    });
+  }
 }
 
 /**
@@ -189,46 +201,58 @@ export function writeReworkRateToRepositorySheet(
   options: { skipDuplicates?: boolean } = {}
 ): { written: number; skipped: number } {
   const { logger } = getContainer();
-  const spreadsheet = openSpreadsheet(spreadsheetId);
-  const sheetName = getExtendedMetricSheetName(repository, SHEET_NAME);
-  const sheet = getOrCreateSheet(spreadsheet, sheetName, REPOSITORY_DETAIL_HEADERS);
 
-  if (details.length === 0) {
-    return { written: 0, skipped: 0 };
+  try {
+    const spreadsheet = openSpreadsheet(spreadsheetId);
+    const sheetName = getExtendedMetricSheetName(repository, SHEET_NAME);
+    const sheet = getOrCreateSheet(spreadsheet, sheetName, REPOSITORY_DETAIL_HEADERS);
+
+    if (details.length === 0) {
+      return { written: 0, skipped: 0 };
+    }
+
+    const skipDuplicates = options.skipDuplicates !== false;
+    let detailsToWrite = details;
+    let skippedCount = 0;
+
+    if (skipDuplicates) {
+      const existingKeys = getExistingPRKeys(sheet);
+      const originalCount = details.length;
+      detailsToWrite = details.filter((d) => !existingKeys.has(d.prNumber));
+      skippedCount = originalCount - detailsToWrite.length;
+    }
+
+    if (detailsToWrite.length === 0) {
+      return { written: 0, skipped: skippedCount };
+    }
+
+    const rows = detailsToWrite.map((pr) => [
+      pr.prNumber,
+      pr.title,
+      pr.createdAt,
+      pr.mergedAt ?? 'Not merged',
+      pr.totalCommits,
+      pr.additionalCommits,
+      pr.forcePushCount,
+    ]);
+
+    const lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
+
+    formatRepositoryReworkRateSheet(sheet);
+    logger.log(`✅ [${repository}] Wrote ${detailsToWrite.length} rework rate records`);
+
+    return { written: detailsToWrite.length, skipped: skippedCount };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new SpreadsheetError('Failed to write rework rate to repository sheet', {
+      code: ErrorCode.SPREADSHEET_WRITE_FAILED,
+      context: { spreadsheetId, repository, sheetName: SHEET_NAME, detailCount: details.length },
+      cause: error as Error,
+    });
   }
-
-  const skipDuplicates = options.skipDuplicates !== false;
-  let detailsToWrite = details;
-  let skippedCount = 0;
-
-  if (skipDuplicates) {
-    const existingKeys = getExistingPRKeys(sheet);
-    const originalCount = details.length;
-    detailsToWrite = details.filter((d) => !existingKeys.has(d.prNumber));
-    skippedCount = originalCount - detailsToWrite.length;
-  }
-
-  if (detailsToWrite.length === 0) {
-    return { written: 0, skipped: skippedCount };
-  }
-
-  const rows = detailsToWrite.map((pr) => [
-    pr.prNumber,
-    pr.title,
-    pr.createdAt,
-    pr.mergedAt ?? 'Not merged',
-    pr.totalCommits,
-    pr.additionalCommits,
-    pr.forcePushCount,
-  ]);
-
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
-
-  formatRepositoryReworkRateSheet(sheet);
-  logger.log(`✅ [${repository}] Wrote ${detailsToWrite.length} rework rate records`);
-
-  return { written: detailsToWrite.length, skipped: skippedCount };
 }
 
 /**

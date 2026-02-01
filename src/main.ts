@@ -66,6 +66,10 @@ import {
   migrateSheet,
   updateHeadersOnly,
   showBackupCleanupHelp,
+  // ログレベル設定
+  showLogLevel,
+  configureLogLevel,
+  resetLogLevelConfig,
 } from './functions';
 
 // =============================================================================
@@ -141,3 +145,8 @@ global.migrateAllSchemas = migrateAllSchemas;
 global.migrateSheet = migrateSheet;
 global.updateHeadersOnly = updateHeadersOnly;
 global.showBackupCleanupHelp = showBackupCleanupHelp;
+
+// ログレベル設定
+global.showLogLevel = showLogLevel;
+global.configureLogLevel = configureLogLevel;
+global.resetLogLevelConfig = resetLogLevelConfig;

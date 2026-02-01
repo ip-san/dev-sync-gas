@@ -165,6 +165,36 @@ resetIncidentLabelsConfig();
 - MTTR計算に使用される
 - デフォルト値: `['incident']`
 
+## ログレベル設定
+
+環境に応じてログの出力レベルを制御できます（セキュリティ強化・本番環境での機密情報露出リスク低減）。
+
+### 設定方法
+```javascript
+// 開発環境：すべてのログを表示
+configureLogLevel('DEBUG');
+
+// 本番環境：情報レベル以上のみ表示（デフォルト）
+configureLogLevel('INFO');
+
+// 本番環境（厳格）：警告とエラーのみ表示
+configureLogLevel('WARN');
+
+// 本番環境（最小）：エラーのみ表示
+configureLogLevel('ERROR');
+
+// 現在の設定を確認
+showLogLevel();
+
+// デフォルト（INFO）に戻す
+resetLogLevelConfig();
+```
+
+### ログレベルの優先順位
+- `DEBUG` < `INFO` < `WARN` < `ERROR`
+- 設定したレベル以上のログのみが出力される
+- デフォルト: `INFO`（本番環境想定）
+
 ## コードの理解に困ったら
 
 Claude Codeに以下のように質問してください：

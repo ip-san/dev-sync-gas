@@ -17,7 +17,7 @@ import type {
   TriggerBuilder,
   TimeTriggerBuilder,
   ServiceContainer,
-} from "../../src/interfaces";
+} from '../../src/interfaces';
 
 // Mock HTTP Client
 export interface MockHttpCall {
@@ -63,7 +63,7 @@ export class MockHttpClient implements HttpClient {
     // デフォルトは404
     return {
       statusCode: 404,
-      content: "Not Found",
+      content: 'Not Found',
     };
   }
 
@@ -77,12 +77,12 @@ export class MockHttpClient implements HttpClient {
 // Mock Sheet Range
 export class MockSheetRange implements SheetRange {
   private values: unknown[][] = [];
-  private fontWeight: string = "";
-  private numberFormat: string = "";
+  private fontWeight: string = '';
+  private numberFormat: string = '';
   private backgroundColor: string | null = null;
-  private fontColor: string = "";
-  private horizontalAlignment: string = "";
-  private verticalAlignment: string = "";
+  private fontColor: string = '';
+  private horizontalAlignment: string = '';
+  private verticalAlignment: string = '';
   private fontSize: number = 10;
   private wrap: boolean = false;
 
@@ -95,7 +95,7 @@ export class MockSheetRange implements SheetRange {
   }
 
   getValue(): unknown {
-    return this.values[0]?.[0] ?? "";
+    return this.values[0]?.[0] ?? '';
   }
 
   setValues(values: unknown[][]): void {
@@ -212,7 +212,7 @@ export class MockSheet implements Sheet {
       const rowData: unknown[] = [];
       for (let c = 0; c < cols; c++) {
         const dataRow = this.data[startRow + r];
-        rowData.push(dataRow?.[startCol + c] ?? "");
+        rowData.push(dataRow?.[startCol + c] ?? '');
       }
       rangeData.push(rowData);
     }
@@ -394,7 +394,23 @@ export class MockLoggerClient implements LoggerClient {
   public logs: string[] = [];
 
   log(message: string): void {
-    this.logs.push(message);
+    this.logs.push(`[INFO] ${message}`);
+  }
+
+  debug(message: string): void {
+    this.logs.push(`[DEBUG] ${message}`);
+  }
+
+  info(message: string): void {
+    this.logs.push(`[INFO] ${message}`);
+  }
+
+  warn(message: string): void {
+    this.logs.push(`[WARN] ${message}`);
+  }
+
+  error(message: string): void {
+    this.logs.push(`[ERROR] ${message}`);
   }
 
   clear(): void {
@@ -420,7 +436,10 @@ export class MockTimeTriggerBuilder implements TimeTriggerBuilder {
   private days: number = 1;
   private hour: number = 0;
 
-  constructor(private functionName: string, private client: MockTriggerClient) {}
+  constructor(
+    private functionName: string,
+    private client: MockTriggerClient
+  ) {}
 
   everyDays(days: number): TimeTriggerBuilder {
     this.days = days;
@@ -440,7 +459,10 @@ export class MockTimeTriggerBuilder implements TimeTriggerBuilder {
 }
 
 export class MockTriggerBuilder implements TriggerBuilder {
-  constructor(private functionName: string, private client: MockTriggerClient) {}
+  constructor(
+    private functionName: string,
+    private client: MockTriggerClient
+  ) {}
 
   timeBased(): TimeTriggerBuilder {
     return new MockTimeTriggerBuilder(this.functionName, this.client);

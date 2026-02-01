@@ -171,7 +171,41 @@ migratePrivateKey();
 
 詳細は「[🔑 機密情報の取り扱い](#-機密情報の取り扱い)」セクションを参照。
 
-### 8. 🔍 スプレッドシートアクセス権限検証
+### 8. 📊 ログレベル制御
+
+**環境に応じてログの出力レベルを制御し、本番環境での機密情報露出リスクを低減します。**
+
+**機能:**
+- 4段階のログレベル（DEBUG < INFO < WARN < ERROR）
+- PropertiesServiceで設定を永続化
+- 設定レベル以上のログのみ出力
+
+**セキュリティ改善:**
+- 本番環境でDEBUGログを抑制（機密情報露出リスク低減）
+- エラーレベルのみに絞ることで重要な問題に集中
+- 開発環境ではDEBUGで詳細なトレース可能
+
+**使い方:**
+```javascript
+// 本番環境：情報レベル以上のみ表示（デフォルト）
+configureLogLevel('INFO');
+
+// 本番環境（厳格）：警告とエラーのみ表示
+configureLogLevel('WARN');
+
+// 開発環境：すべてのログを表示
+configureLogLevel('DEBUG');
+
+// 現在の設定を確認
+showLogLevel();
+```
+
+**推奨設定:**
+- 開発環境: `DEBUG` （全ログで問題をトレース）
+- ステージング環境: `INFO` （通常の動作ログ）
+- 本番環境: `WARN` または `ERROR` （問題のみに集中）
+
+### 9. 🔍 スプレッドシートアクセス権限検証
 
 **セットアップ時にスプレッドシートへのアクセス権限を事前検証します。**
 
@@ -193,7 +227,7 @@ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
 addProject({ name: 'project', spreadsheetId: 'id', ... });
 ```
 
-### 9. 🔄 API レート制限リトライ機構
+### 10. 🔄 API レート制限リトライ機構
 
 **GitHub APIのレート制限やサーバーエラーに自動対応します。**
 

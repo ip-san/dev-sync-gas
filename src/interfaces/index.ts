@@ -89,8 +89,14 @@ export interface StorageClient {
 }
 
 // ロガーの抽象化
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+
 export interface LoggerClient {
-  log(message: string): void;
+  log(message: string): void; // 後方互換性のため維持（INFOとして扱う）
+  debug(message: string): void;
+  info(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
 }
 
 // トリガーの抽象化

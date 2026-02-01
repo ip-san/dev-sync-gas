@@ -32,6 +32,13 @@ export interface Actor {
   login: string;
 }
 
+/**
+ * Label
+ */
+export interface Label {
+  name: string;
+}
+
 // =============================================================================
 // Pull Request 型
 // =============================================================================
@@ -63,6 +70,7 @@ export interface GraphQLPullRequest extends GraphQLNode {
   additions: number;
   deletions: number;
   changedFiles: number;
+  labels: Connection<Label>;
 }
 
 /**

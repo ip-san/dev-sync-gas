@@ -154,3 +154,38 @@ export function setCodingTimeIssueLabels(labels: string[]): void {
 export function resetCodingTimeIssueLabels(): void {
   deleteProperty('CODING_TIME_ISSUE_LABELS');
 }
+
+// ============================================================
+// 除外ラベル設定
+// ============================================================
+
+/**
+ * 計測から除外するIssue/PRラベルを取得
+ *
+ * @returns ラベル配列（デフォルト: ['exclude-metrics']）
+ */
+export function getExcludeMetricsLabels(): string[] {
+  const labels = getPropertyAsStringArray('EXCLUDE_METRICS_LABELS');
+  return labels.length > 0 ? labels : ['exclude-metrics'];
+}
+
+/**
+ * 計測から除外するIssue/PRラベルを設定
+ *
+ * @example
+ * // 特定ラベルを除外
+ * setExcludeMetricsLabels(['exclude-metrics', 'dependencies', 'bot']);
+ *
+ * // 除外しない（空配列）
+ * setExcludeMetricsLabels([]);
+ */
+export function setExcludeMetricsLabels(labels: string[]): void {
+  setPropertyAsStringArray('EXCLUDE_METRICS_LABELS', labels);
+}
+
+/**
+ * 除外ラベル設定をリセット（デフォルトに戻す）
+ */
+export function resetExcludeMetricsLabels(): void {
+  deleteProperty('EXCLUDE_METRICS_LABELS');
+}

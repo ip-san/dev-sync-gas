@@ -34,6 +34,8 @@ import { calculateReworkDataForPR, createDefaultReworkData } from './reworkHelpe
 import { calculatePRSizeData } from './prSizeHelpers.js';
 import { groupPRsByRepository, parseRepository } from './batchProcessing.js';
 import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
+import { shouldExcludeByLabels } from '../../../utils/labelFilter.js';
+import { getExcludeMetricsLabels } from '../../../config/settings.js';
 
 // =============================================================================
 // PR一覧取得
@@ -81,7 +83,7 @@ function buildPullRequestsQueryVariables(
 }
 
 /**
- * 日付範囲でPRをフィルタリング
+ * 日付範囲と除外ラベルでPRをフィルタリング
  */
 function filterPRsByDateRange(
   prs: GraphQLPullRequest[],
@@ -89,13 +91,28 @@ function filterPRsByDateRange(
   repository: string
 ): GitHubPullRequest[] {
   const filtered: GitHubPullRequest[] = [];
+  const excludeLabels = getExcludeMetricsLabels();
+  let excludedCount = 0;
 
   for (const pr of prs) {
     const createdAt = new Date(pr.createdAt);
 
-    if (isWithinPRDateRange(createdAt, dateRange)) {
-      filtered.push(convertToPullRequest(pr, repository));
+    if (!isWithinPRDateRange(createdAt, dateRange)) {
+      continue;
     }
+
+    const prLabels = pr.labels.nodes.map((l) => l.name);
+    if (shouldExcludeByLabels(prLabels, excludeLabels)) {
+      excludedCount++;
+      continue;
+    }
+
+    filtered.push(convertToPullRequest(pr, repository));
+  }
+
+  if (excludedCount > 0) {
+    const { logger } = getContainer();
+    logger.log(`  ℹ️ Excluded ${excludedCount} PRs by labels`);
   }
 
   return filtered;

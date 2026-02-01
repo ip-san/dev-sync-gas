@@ -38,6 +38,8 @@ import type { IssueDateRange } from '../api';
 import { MS_TO_HOURS } from '../../../utils/timeConstants.js';
 import { isWithinDateRange } from './issueHelpers.js';
 import { validatePaginatedResponse, validateSingleResponse } from './errorHelpers.js';
+import { shouldExcludeByLabels } from '../../../utils/labelFilter.js';
+import { getExcludeMetricsLabels } from '../../../config/settings.js';
 
 // =============================================================================
 // Issue一覧取得
@@ -62,7 +64,7 @@ function buildIssuesQueryVariables(
 }
 
 /**
- * 日付範囲でIssueをフィルタリング
+ * 日付範囲と除外ラベルでIssueをフィルタリング
  */
 function filterIssuesByDateRange(
   issues: GraphQLIssue[],
@@ -70,13 +72,28 @@ function filterIssuesByDateRange(
   repository: string
 ): GitHubIssue[] {
   const filtered: GitHubIssue[] = [];
+  const excludeLabels = getExcludeMetricsLabels();
+  let excludedCount = 0;
 
   for (const issue of issues) {
     const createdAt = new Date(issue.createdAt);
 
-    if (isWithinDateRange(createdAt, dateRange)) {
-      filtered.push(convertToIssue(issue, repository));
+    if (!isWithinDateRange(createdAt, dateRange)) {
+      continue;
     }
+
+    const issueLabels = issue.labels.nodes.map((l) => l.name);
+    if (shouldExcludeByLabels(issueLabels, excludeLabels)) {
+      excludedCount++;
+      continue;
+    }
+
+    filtered.push(convertToIssue(issue, repository));
+  }
+
+  if (excludedCount > 0) {
+    const { logger } = getContainer();
+    logger.log(`  ℹ️ Excluded ${excludedCount} issues by labels`);
   }
 
   return filtered;

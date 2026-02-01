@@ -96,89 +96,131 @@ function sanitizeErrorContent(content: string): string {
 }
 
 /**
- * Installation Access Tokenを取得
+ * キャッシュされたトークンを取得
  *
- * @param appConfig - GitHub App設定
- * @returns アクセストークン
+ * @returns キャッシュされたトークン、または null
  */
-export function getInstallationToken(appConfig: GitHubAppConfig): string {
-  const { httpClient, logger, storageClient } = getContainer();
-
-  // キャッシュが有効な場合はそれを返す（5分のマージンを持たせる）
+function getCachedToken(): string | null {
+  const { storageClient } = getContainer();
   const now = Date.now();
   const cachedToken = storageClient.getProperty(CACHE_TOKEN_KEY);
   const cachedExpiresStr = storageClient.getProperty(CACHE_EXPIRES_KEY);
 
   if (cachedToken && cachedExpiresStr) {
     const cachedExpiresAt = parseInt(cachedExpiresStr, 10);
+    // 5分のマージンを持たせる
     if (cachedExpiresAt > now + 5 * 60 * 1000) {
       return cachedToken;
     }
   }
 
-  logger.log('🔑 Fetching new GitHub App Installation Token...');
+  return null;
+}
 
-  // Private Keyを取得
-  // 優先順位: 1. appConfig.privateKey, 2. Secret Manager, 3. PropertiesService
-  let privateKey: string;
+/**
+ * Private Keyを解決
+ * 優先順位: 1. appConfig.privateKey, 2. Secret Manager, 3. PropertiesService
+ *
+ * @param appConfig - GitHub App設定
+ * @returns Private Key
+ */
+function resolvePrivateKey(appConfig: GitHubAppConfig): string {
   if (appConfig.privateKey && appConfig.privateKey !== '') {
-    privateKey = appConfig.privateKey;
-  } else {
-    privateKey = getGitHubPrivateKey();
+    return appConfig.privateKey;
+  }
+  return getGitHubPrivateKey();
+}
+
+/**
+ * Installation Access TokenをAPIから取得
+ *
+ * @param installationId - Installation ID
+ * @param jwt - JWT認証トークン
+ * @returns アクセストークン
+ */
+function fetchInstallationToken(installationId: string, jwt: string): string {
+  const { httpClient, logger, storageClient } = getContainer();
+  const url = `${GITHUB_API_BASE}/app/installations/${installationId}/access_tokens`;
+
+  const response = httpClient.fetch<{
+    token: string;
+    expires_at: string;
+  }>(url, {
+    method: 'post',
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'DevSyncGAS',
+    },
+    muteHttpExceptions: true,
+  });
+
+  if (response.statusCode >= 200 && response.statusCode < 300 && response.data) {
+    const expiresAt = new Date(response.data.expires_at).getTime();
+
+    // PropertiesServiceにキャッシュ（セキュリティ改善）
+    storageClient.setProperty(CACHE_TOKEN_KEY, response.data.token);
+    storageClient.setProperty(CACHE_EXPIRES_KEY, expiresAt.toString());
+
+    logger.log('✅ GitHub App Installation Token obtained successfully');
+    return response.data.token;
   }
 
-  // Private Keyの形式を検証
+  // エラーの場合はヒント付きでスロー
+  const hint = getErrorHint(response.statusCode);
+  const safeContent = sanitizeErrorContent(response.content);
+
+  throw new Error(
+    `Failed to get installation token: ${response.statusCode} - ${safeContent}${hint}`
+  );
+}
+
+/**
+ * HTTPステータスコードに応じたエラーヒントを取得
+ *
+ * @param statusCode - HTTPステータスコード
+ * @returns エラーヒント文字列
+ */
+function getErrorHint(statusCode: number): string {
+  if (statusCode === 401) {
+    return ' Hint: Check if the App ID and Private Key are correct.';
+  }
+  if (statusCode === 404) {
+    return ' Hint: Check if the Installation ID is correct and the App is installed on the repository.';
+  }
+  if (statusCode === 403) {
+    return ' Hint: Check if the App has the required permissions (Pull requests, Actions, Metadata).';
+  }
+  return '';
+}
+
+/**
+ * Installation Access Tokenを取得
+ *
+ * @param appConfig - GitHub App設定
+ * @returns アクセストークン
+ */
+export function getInstallationToken(appConfig: GitHubAppConfig): string {
+  const { logger } = getContainer();
+
+  // キャッシュが有効な場合はそれを返す
+  const cachedToken = getCachedToken();
+  if (cachedToken) {
+    return cachedToken;
+  }
+
+  logger.log('🔑 Fetching new GitHub App Installation Token...');
+
+  // Private Keyを取得・検証
+  const privateKey = resolvePrivateKey(appConfig);
   validatePrivateKey(privateKey);
 
   // JWTを生成
   const jwt = generateJWT(appConfig.appId, privateKey);
 
   // Installation Access Tokenを取得
-  const url = `${GITHUB_API_BASE}/app/installations/${appConfig.installationId}/access_tokens`;
-
   try {
-    const response = httpClient.fetch<{
-      token: string;
-      expires_at: string;
-    }>(url, {
-      method: 'post',
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'DevSyncGAS',
-      },
-      muteHttpExceptions: true,
-    });
-
-    if (response.statusCode >= 200 && response.statusCode < 300 && response.data) {
-      const expiresAt = new Date(response.data.expires_at).getTime();
-
-      // PropertiesServiceにキャッシュ（セキュリティ改善）
-      storageClient.setProperty(CACHE_TOKEN_KEY, response.data.token);
-      storageClient.setProperty(CACHE_EXPIRES_KEY, expiresAt.toString());
-
-      logger.log('✅ GitHub App Installation Token obtained successfully');
-      return response.data.token;
-    }
-
-    // よくあるエラーの原因をヒントとして追加
-    let hint = '';
-    if (response.statusCode === 401) {
-      hint = ' Hint: Check if the App ID and Private Key are correct.';
-    } else if (response.statusCode === 404) {
-      hint =
-        ' Hint: Check if the Installation ID is correct and the App is installed on the repository.';
-    } else if (response.statusCode === 403) {
-      hint =
-        ' Hint: Check if the App has the required permissions (Pull requests, Actions, Metadata).';
-    }
-
-    // セキュリティ: レスポンス内容から機密情報を除外
-    const safeContent = sanitizeErrorContent(response.content);
-
-    throw new Error(
-      `Failed to get installation token: ${response.statusCode} - ${safeContent}${hint}`
-    );
+    return fetchInstallationToken(appConfig.installationId, jwt);
   } catch (error) {
     throw new Error(
       `GitHub App authentication failed: ${error instanceof Error ? error.message : String(error)}`

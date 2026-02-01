@@ -11,6 +11,7 @@
 
 import { getContainer } from '../container';
 import { CONFIG_KEYS } from '../config/propertyKeys';
+import { SecretManagerError, ValidationError, ErrorCode } from './errors';
 
 const SECRET_MANAGER_API_BASE = 'https://secretmanager.googleapis.com/v1';
 const SECRET_MANAGER_PROJECT_ID_KEY = 'SECRET_MANAGER_PROJECT_ID';
@@ -24,14 +25,21 @@ export function setSecretManagerProjectId(projectId: string): void {
   const { storageClient } = getContainer();
 
   if (!projectId || typeof projectId !== 'string') {
-    throw new Error('GCP Project ID is required and must be a string');
+    throw new ValidationError('GCP Project ID is required and must be a string', {
+      code: ErrorCode.VALIDATION_FAILED,
+      context: { projectId },
+    });
   }
 
   // プロジェクトID形式の検証
   if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)) {
-    throw new Error(
+    throw new ValidationError(
       'Invalid GCP Project ID format. Must be 6-30 characters, ' +
-        'lowercase letters, digits, or hyphens, start with a letter, end with letter or digit.'
+        'lowercase letters, digits, or hyphens, start with a letter, end with letter or digit.',
+      {
+        code: ErrorCode.VALIDATION_FAILED,
+        context: { projectId },
+      }
     );
   }
 
@@ -71,15 +79,24 @@ export function storeSecretInSecretManager(
 ): void {
   const projectId = getSecretManagerProjectId();
   if (!projectId) {
-    throw new Error(
+    throw new SecretManagerError(
       'Secret Manager is not configured. ' +
-        'Run setSecretManagerProjectId("your-project-id") first.'
+        'Run setSecretManagerProjectId("your-project-id") first.',
+      {
+        code: ErrorCode.SECRET_MANAGER_NOT_CONFIGURED,
+      }
     );
   }
 
   // Secret IDの検証
   if (!/^[a-zA-Z0-9_-]+$/.test(secretId)) {
-    throw new Error('Secret ID must contain only letters, numbers, hyphens, or underscores');
+    throw new ValidationError(
+      'Secret ID must contain only letters, numbers, hyphens, or underscores',
+      {
+        code: ErrorCode.VALIDATION_FAILED,
+        context: { secretId },
+      }
+    );
   }
 
   const { logger } = getContainer();

@@ -3,6 +3,7 @@ import type { GitHubAppConfig } from '../types';
 import { getContainer } from '../container';
 import { getGitHubPrivateKey } from '../utils/secretManager';
 import { PRIVATE_KEY_PREVIEW_LENGTH } from '../config/apiConfig';
+import { GitHubAPIError, ErrorCode } from '../utils/errors';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
@@ -46,7 +47,10 @@ export function generateJWT(appId: string, privateKey: string): string {
  */
 function validatePrivateKey(privateKey: string): void {
   if (!privateKey) {
-    throw new Error('GitHub App Private Key is empty');
+    throw new GitHubAPIError('GitHub App Private Key is empty', {
+      code: ErrorCode.GITHUB_AUTH_FAILED,
+      context: { reason: 'empty_private_key' },
+    });
   }
 
   // RSA PRIVATE KEY または PRIVATE KEY のいずれかを許可
@@ -58,9 +62,13 @@ function validatePrivateKey(privateKey: string): void {
     privateKey.includes('-----END PRIVATE KEY-----');
 
   if (!hasValidHeader || !hasValidFooter) {
-    throw new Error(
+    throw new GitHubAPIError(
       'Invalid Private Key format. Expected PEM format with BEGIN/END markers. ' +
-        'Make sure to replace newlines with \\n when setting the key.'
+        'Make sure to replace newlines with \\n when setting the key.',
+      {
+        code: ErrorCode.GITHUB_AUTH_FAILED,
+        context: { reason: 'invalid_pem_format' },
+      }
     );
   }
 }

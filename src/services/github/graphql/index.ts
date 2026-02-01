@@ -102,6 +102,77 @@ export interface GetAllRepositoriesDataOptions {
 }
 
 /**
+ * 1リポジトリのPRを取得してログ出力
+ */
+function fetchPullRequestsForRepo(
+  repo: GitHubRepository,
+  token: string,
+  dateRange: DateRange | undefined,
+  logger: { log: (msg: string) => void }
+): GitHubPullRequest[] {
+  const prsResult = getPullRequestsGraphQL({
+    repo,
+    token,
+    state: 'all',
+    dateRange,
+  });
+
+  if (prsResult.success && prsResult.data) {
+    logger.log(`  PRs: ${prsResult.data.length}`);
+    return prsResult.data;
+  }
+
+  logger.log(`  ⚠️ PR fetch failed: ${prsResult.error}`);
+  return [];
+}
+
+/**
+ * 1リポジトリのワークフロー実行を取得してログ出力
+ */
+function fetchWorkflowRunsForRepo(
+  repo: GitHubRepository,
+  token: string,
+  dateRange: DateRange | undefined,
+  logger: { log: (msg: string) => void }
+): GitHubWorkflowRun[] {
+  const runsResult = getWorkflowRuns(repo, token, dateRange);
+
+  if (runsResult.success && runsResult.data) {
+    logger.log(`  Workflow runs: ${runsResult.data.length}`);
+    return runsResult.data;
+  }
+
+  logger.log(`  ⚠️ Workflow fetch failed: ${runsResult.error}`);
+  return [];
+}
+
+/**
+ * 1リポジトリのデプロイメントを取得してログ出力
+ */
+function fetchDeploymentsForRepo(
+  repo: GitHubRepository,
+  token: string,
+  environment: string,
+  environmentMatchMode: EnvironmentMatchMode,
+  dateRange: DateRange | undefined,
+  logger: { log: (msg: string) => void }
+): GitHubDeployment[] {
+  const deploymentsResult = getDeploymentsGraphQL(repo, token, {
+    environment,
+    environmentMatchMode,
+    dateRange,
+  });
+
+  if (deploymentsResult.success && deploymentsResult.data) {
+    logger.log(`  Deployments: ${deploymentsResult.data.length}`);
+    return deploymentsResult.data;
+  }
+
+  logger.log(`  ⚠️ Deployments fetch failed: ${deploymentsResult.error}`);
+  return [];
+}
+
+/**
  * 複数リポジトリのGitHubデータを一括取得（GraphQL版）
  *
  * REST API版と同じインターフェースを提供。
@@ -133,41 +204,21 @@ export function getAllRepositoriesDataGraphQL(
   for (const repo of repositories) {
     logger.log(`📡 Fetching data for ${repo.fullName} (GraphQL)...`);
 
-    // PRを取得（GraphQL）
-    const prsResult = getPullRequestsGraphQL({
+    const prs = fetchPullRequestsForRepo(repo, token, dateRange, logger);
+    allPRs.push(...prs);
+
+    const runs = fetchWorkflowRunsForRepo(repo, token, dateRange, logger);
+    allRuns.push(...runs);
+
+    const deployments = fetchDeploymentsForRepo(
       repo,
       token,
-      state: 'all',
+      deploymentEnvironment,
+      deploymentEnvironmentMatchMode,
       dateRange,
-    });
-    if (prsResult.success && prsResult.data) {
-      allPRs.push(...prsResult.data);
-      logger.log(`  PRs: ${prsResult.data.length}`);
-    } else {
-      logger.log(`  ⚠️ PR fetch failed: ${prsResult.error}`);
-    }
-
-    // ワークフロー実行を取得（REST API - GraphQL未サポート）
-    const runsResult = getWorkflowRuns(repo, token, dateRange);
-    if (runsResult.success && runsResult.data) {
-      allRuns.push(...runsResult.data);
-      logger.log(`  Workflow runs: ${runsResult.data.length}`);
-    } else {
-      logger.log(`  ⚠️ Workflow fetch failed: ${runsResult.error}`);
-    }
-
-    // デプロイメントを取得（GraphQL）
-    const deploymentsResult = getDeploymentsGraphQL(repo, token, {
-      environment: deploymentEnvironment,
-      environmentMatchMode: deploymentEnvironmentMatchMode,
-      dateRange,
-    });
-    if (deploymentsResult.success && deploymentsResult.data) {
-      allDeployments.push(...deploymentsResult.data);
-      logger.log(`  Deployments: ${deploymentsResult.data.length}`);
-    } else {
-      logger.log(`  ⚠️ Deployments fetch failed: ${deploymentsResult.error}`);
-    }
+      logger
+    );
+    allDeployments.push(...deployments);
   }
 
   return {

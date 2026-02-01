@@ -6,6 +6,7 @@
 
 import type { Sheet, Spreadsheet } from '../../interfaces';
 import { getContainer } from '../../container';
+import { SpreadsheetError, ErrorCode } from '../../utils/errors';
 
 // デザイン定数
 export const COLORS = {
@@ -38,9 +39,17 @@ export function getOrCreateSheet(
   let sheet = spreadsheet.getSheetByName(sheetName);
 
   if (!sheet) {
-    sheet = spreadsheet.insertSheet(sheetName);
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    styleHeaderRow(sheet, headers.length);
+    try {
+      sheet = spreadsheet.insertSheet(sheetName);
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      styleHeaderRow(sheet, headers.length);
+    } catch (error) {
+      throw new SpreadsheetError(`Failed to create sheet: ${sheetName}`, {
+        code: ErrorCode.SHEET_CREATION_FAILED,
+        context: { sheetName, spreadsheetName: spreadsheet.getName(), headerCount: headers.length },
+        cause: error as Error,
+      });
+    }
   }
 
   return sheet;
@@ -65,8 +74,19 @@ export function autoResizeColumns(sheet: Sheet, columnCount: number): void {
  * @returns スプレッドシートオブジェクト
  */
 export function openSpreadsheet(spreadsheetId: string): Spreadsheet {
-  const { spreadsheetClient } = getContainer();
-  return spreadsheetClient.openById(spreadsheetId);
+  const { spreadsheetClient, logger } = getContainer();
+  try {
+    return spreadsheetClient.openById(spreadsheetId);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to open spreadsheet (${spreadsheetId}): ${errorMessage}`);
+
+    throw new SpreadsheetError('Failed to open spreadsheet', {
+      code: ErrorCode.SPREADSHEET_ACCESS_DENIED,
+      context: { spreadsheetId },
+      cause: error as Error,
+    });
+  }
 }
 
 /**
@@ -77,9 +97,18 @@ export function openSpreadsheet(spreadsheetId: string): Spreadsheet {
  * @param columnCount - 列数
  */
 export function formatDecimalColumns(sheet: Sheet, startColumn: number, columnCount: number): void {
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat('#,##0.0');
+  const sheetName = sheet.getName();
+  try {
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat('#,##0.0');
+    }
+  } catch (error) {
+    throw new SpreadsheetError('Failed to format decimal columns', {
+      code: ErrorCode.SPREADSHEET_FORMAT_ERROR,
+      context: { startColumn, columnCount, sheetName },
+      cause: error as Error,
+    });
   }
 }
 
@@ -91,9 +120,18 @@ export function formatDecimalColumns(sheet: Sheet, startColumn: number, columnCo
  * @param columnCount - 列数
  */
 export function formatIntegerColumns(sheet: Sheet, startColumn: number, columnCount: number): void {
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat('#,##0');
+  const sheetName = sheet.getName();
+  try {
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, startColumn, lastRow - 1, columnCount).setNumberFormat('#,##0');
+    }
+  } catch (error) {
+    throw new SpreadsheetError('Failed to format integer columns', {
+      code: ErrorCode.SPREADSHEET_FORMAT_ERROR,
+      context: { startColumn, columnCount, sheetName },
+      cause: error as Error,
+    });
   }
 }
 

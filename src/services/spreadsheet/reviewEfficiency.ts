@@ -19,6 +19,7 @@ import {
   groupReviewEfficiencyDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
+import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
 
 const SHEET_NAME = 'レビュー効率';
 
@@ -94,10 +95,21 @@ export function writeReviewEfficiencyToSheet(
 ): void {
   const { logger } = getContainer();
 
-  // リポジトリ別シートに書き込み
-  writeReviewEfficiencyToAllRepositorySheets(spreadsheetId, metrics);
+  try {
+    // リポジトリ別シートに書き込み
+    writeReviewEfficiencyToAllRepositorySheets(spreadsheetId, metrics);
 
-  logger.log(`📝 Wrote review efficiency metrics to repository sheets`);
+    logger.log(`📝 Wrote review efficiency metrics to repository sheets`);
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error; // Re-throw custom errors
+    }
+    throw new SpreadsheetError('Failed to write review efficiency metrics', {
+      code: ErrorCode.SPREADSHEET_WRITE_FAILED,
+      context: { spreadsheetId, period: metrics.period, prCount: metrics.prCount },
+      cause: error as Error,
+    });
+  }
 }
 
 /**
@@ -240,50 +252,62 @@ export function writeReviewEfficiencyToRepositorySheet(
   options: { skipDuplicates?: boolean } = {}
 ): { written: number; skipped: number } {
   const { logger } = getContainer();
-  const spreadsheet = openSpreadsheet(spreadsheetId);
-  const sheetName = getExtendedMetricSheetName(repository, SHEET_NAME);
-  const sheet = getOrCreateSheet(spreadsheet, sheetName, REPOSITORY_DETAIL_HEADERS);
 
-  if (details.length === 0) {
-    return { written: 0, skipped: 0 };
+  try {
+    const spreadsheet = openSpreadsheet(spreadsheetId);
+    const sheetName = getExtendedMetricSheetName(repository, SHEET_NAME);
+    const sheet = getOrCreateSheet(spreadsheet, sheetName, REPOSITORY_DETAIL_HEADERS);
+
+    if (details.length === 0) {
+      return { written: 0, skipped: 0 };
+    }
+
+    const skipDuplicates = options.skipDuplicates !== false;
+    let detailsToWrite = details;
+    let skippedCount = 0;
+
+    if (skipDuplicates) {
+      const existingKeys = getExistingPRKeys(sheet);
+      const originalCount = details.length;
+      detailsToWrite = details.filter((d) => !existingKeys.has(d.prNumber));
+      skippedCount = originalCount - detailsToWrite.length;
+    }
+
+    if (detailsToWrite.length === 0) {
+      return { written: 0, skipped: skippedCount };
+    }
+
+    const rows = detailsToWrite.map((pr) => [
+      pr.prNumber,
+      pr.title,
+      pr.createdAt,
+      pr.readyForReviewAt,
+      pr.firstReviewAt ?? 'N/A',
+      pr.approvedAt ?? 'N/A',
+      pr.mergedAt ?? 'Not merged',
+      pr.timeToFirstReviewHours ?? 'N/A',
+      pr.reviewDurationHours ?? 'N/A',
+      pr.timeToMergeHours ?? 'N/A',
+      pr.totalTimeHours ?? 'N/A',
+    ]);
+
+    const lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
+
+    formatRepositoryReviewEfficiencySheet(sheet);
+    logger.log(`✅ [${repository}] Wrote ${detailsToWrite.length} review efficiency records`);
+
+    return { written: detailsToWrite.length, skipped: skippedCount };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new SpreadsheetError('Failed to write review efficiency to repository sheet', {
+      code: ErrorCode.SPREADSHEET_WRITE_FAILED,
+      context: { spreadsheetId, repository, sheetName: SHEET_NAME, detailCount: details.length },
+      cause: error as Error,
+    });
   }
-
-  const skipDuplicates = options.skipDuplicates !== false;
-  let detailsToWrite = details;
-  let skippedCount = 0;
-
-  if (skipDuplicates) {
-    const existingKeys = getExistingPRKeys(sheet);
-    const originalCount = details.length;
-    detailsToWrite = details.filter((d) => !existingKeys.has(d.prNumber));
-    skippedCount = originalCount - detailsToWrite.length;
-  }
-
-  if (detailsToWrite.length === 0) {
-    return { written: 0, skipped: skippedCount };
-  }
-
-  const rows = detailsToWrite.map((pr) => [
-    pr.prNumber,
-    pr.title,
-    pr.createdAt,
-    pr.readyForReviewAt,
-    pr.firstReviewAt ?? 'N/A',
-    pr.approvedAt ?? 'N/A',
-    pr.mergedAt ?? 'Not merged',
-    pr.timeToFirstReviewHours ?? 'N/A',
-    pr.reviewDurationHours ?? 'N/A',
-    pr.timeToMergeHours ?? 'N/A',
-    pr.totalTimeHours ?? 'N/A',
-  ]);
-
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
-
-  formatRepositoryReviewEfficiencySheet(sheet);
-  logger.log(`✅ [${repository}] Wrote ${detailsToWrite.length} review efficiency records`);
-
-  return { written: detailsToWrite.length, skipped: skippedCount };
 }
 
 /**

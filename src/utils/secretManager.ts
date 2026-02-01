@@ -115,9 +115,11 @@ export function storeSecretInSecretManager(
     addSecretVersion(projectId, secretId, secretValue);
     logger.log(`✅ Stored secret version: ${secretId}`);
   } catch (error) {
-    throw new Error(
-      `Failed to store secret in Secret Manager: ${error instanceof Error ? error.message : String(error)}`
-    );
+    throw new SecretManagerError('Failed to store secret in Secret Manager', {
+      code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
+      context: { secretId, projectId },
+      cause: error as Error,
+    });
   }
 }
 
@@ -131,9 +133,12 @@ export function storeSecretInSecretManager(
 export function getSecretFromSecretManager(secretId: string, version = 'latest'): string {
   const projectId = getSecretManagerProjectId();
   if (!projectId) {
-    throw new Error(
+    throw new SecretManagerError(
       'Secret Manager is not configured. ' +
-        'Run setSecretManagerProjectId("your-project-id") first.'
+        'Run setSecretManagerProjectId("your-project-id") first.',
+      {
+        code: ErrorCode.SECRET_MANAGER_NOT_CONFIGURED,
+      }
     );
   }
 
@@ -150,9 +155,14 @@ export function getSecretFromSecretManager(secretId: string, version = 'latest')
     });
 
     if (response.getResponseCode() !== 200) {
-      throw new Error(
-        `Failed to access secret: ${response.getResponseCode()} - ${response.getContentText()}`
-      );
+      const statusCode = response.getResponseCode();
+      const errorCode =
+        statusCode === 404 ? ErrorCode.SECRET_NOT_FOUND : ErrorCode.SECRET_MANAGER_ACCESS_FAILED;
+
+      throw new SecretManagerError(`Failed to access secret: ${statusCode}`, {
+        code: errorCode,
+        context: { secretId, version, statusCode, response: response.getContentText() },
+      });
     }
 
     const data = JSON.parse(response.getContentText()) as {
@@ -166,9 +176,14 @@ export function getSecretFromSecretManager(secretId: string, version = 'latest')
 
     return secretValue;
   } catch (error) {
-    throw new Error(
-      `Failed to get secret from Secret Manager: ${error instanceof Error ? error.message : String(error)}`
-    );
+    if (error instanceof SecretManagerError) {
+      throw error;
+    }
+    throw new SecretManagerError('Failed to get secret from Secret Manager', {
+      code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
+      context: { secretId, version },
+      cause: error as Error,
+    });
   }
 }
 
@@ -221,9 +236,11 @@ function createSecret(projectId: string, secretId: string, labels?: Record<strin
   });
 
   if (response.getResponseCode() !== 200) {
-    throw new Error(
-      `Failed to create secret: ${response.getResponseCode()} - ${response.getContentText()}`
-    );
+    const statusCode = response.getResponseCode();
+    throw new SecretManagerError(`Failed to create secret: ${statusCode}`, {
+      code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
+      context: { secretId, projectId, statusCode, response: response.getContentText() },
+    });
   }
 }
 
@@ -257,9 +274,11 @@ function addSecretVersion(projectId: string, secretId: string, secretValue: stri
   });
 
   if (response.getResponseCode() !== 200) {
-    throw new Error(
-      `Failed to add secret version: ${response.getResponseCode()} - ${response.getContentText()}`
-    );
+    const statusCode = response.getResponseCode();
+    throw new SecretManagerError(`Failed to add secret version: ${statusCode}`, {
+      code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
+      context: { secretId, projectId, statusCode, response: response.getContentText() },
+    });
   }
 }
 
@@ -271,7 +290,9 @@ function addSecretVersion(projectId: string, secretId: string, secretValue: stri
 export function deleteSecretFromSecretManager(secretId: string): void {
   const projectId = getSecretManagerProjectId();
   if (!projectId) {
-    throw new Error('Secret Manager is not configured');
+    throw new SecretManagerError('Secret Manager is not configured', {
+      code: ErrorCode.SECRET_MANAGER_NOT_CONFIGURED,
+    });
   }
 
   const { logger } = getContainer();
@@ -288,16 +309,23 @@ export function deleteSecretFromSecretManager(secretId: string): void {
     });
 
     if (response.getResponseCode() !== 200) {
-      throw new Error(
-        `Failed to delete secret: ${response.getResponseCode()} - ${response.getContentText()}`
-      );
+      const statusCode = response.getResponseCode();
+      throw new SecretManagerError(`Failed to delete secret: ${statusCode}`, {
+        code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
+        context: { secretId, projectId, statusCode, response: response.getContentText() },
+      });
     }
 
     logger.log(`✅ Deleted secret: ${secretId}`);
   } catch (error) {
-    throw new Error(
-      `Failed to delete secret from Secret Manager: ${error instanceof Error ? error.message : String(error)}`
-    );
+    if (error instanceof SecretManagerError) {
+      throw error;
+    }
+    throw new SecretManagerError('Failed to delete secret from Secret Manager', {
+      code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
+      context: { secretId },
+      cause: error as Error,
+    });
   }
 }
 
@@ -311,7 +339,10 @@ export function migratePrivateKeyToSecretManager(): void {
   // PropertiesServiceからPrivate Keyを取得
   const privateKey = storageClient.getProperty(CONFIG_KEYS.GITHUB_AUTH.APP_PRIVATE_KEY);
   if (!privateKey) {
-    throw new Error('No GitHub App Private Key found in PropertiesService');
+    throw new ValidationError('No GitHub App Private Key found in PropertiesService', {
+      code: ErrorCode.SECRET_NOT_FOUND,
+      context: { key: CONFIG_KEYS.GITHUB_AUTH.APP_PRIVATE_KEY },
+    });
   }
 
   // Secret Managerに保存
@@ -351,7 +382,10 @@ export function getGitHubPrivateKey(): string {
   // Secret Managerが無効な場合はPropertiesServiceから取得
   const privateKey = storageClient.getProperty(CONFIG_KEYS.GITHUB_AUTH.APP_PRIVATE_KEY);
   if (!privateKey) {
-    throw new Error('GitHub App Private Key not found');
+    throw new ValidationError('GitHub App Private Key not found', {
+      code: ErrorCode.SECRET_NOT_FOUND,
+      context: { key: CONFIG_KEYS.GITHUB_AUTH.APP_PRIVATE_KEY },
+    });
   }
 
   return privateKey;

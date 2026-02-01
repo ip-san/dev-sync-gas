@@ -480,6 +480,25 @@ function getPropertyAsStringArray(key: string): string[] {
 }
 
 /**
+ * プロパティに文字列配列を設定する汎用ヘルパー関数
+ * @param key プロパティキー
+ * @param values 設定する文字列配列
+ */
+function setPropertyAsStringArray(key: string, values: string[]): void {
+  const { storageClient } = getContainer();
+  storageClient.setProperty(key, JSON.stringify(values));
+}
+
+/**
+ * プロパティを削除する汎用ヘルパー関数
+ * @param key プロパティキー
+ */
+function deleteProperty(key: string): void {
+  const { storageClient } = getContainer();
+  storageClient.deleteProperty(key);
+}
+
+/**
  * サイクルタイム計測対象のIssueラベルを取得
  * 空配列の場合は全Issueが対象
  *
@@ -500,16 +519,14 @@ export function getCycleTimeIssueLabels(): string[] {
  * setCycleTimeIssueLabels([]);
  */
 export function setCycleTimeIssueLabels(labels: string[]): void {
-  const { storageClient } = getContainer();
-  storageClient.setProperty('CYCLE_TIME_ISSUE_LABELS', JSON.stringify(labels));
+  setPropertyAsStringArray('CYCLE_TIME_ISSUE_LABELS', labels);
 }
 
 /**
  * サイクルタイムIssueラベル設定をリセット（全Issue対象に戻す）
  */
 export function resetCycleTimeIssueLabels(): void {
-  const { storageClient } = getContainer();
-  storageClient.deleteProperty('CYCLE_TIME_ISSUE_LABELS');
+  deleteProperty('CYCLE_TIME_ISSUE_LABELS');
 }
 
 // ============================================================
@@ -537,16 +554,14 @@ export function getCodingTimeIssueLabels(): string[] {
  * setCodingTimeIssueLabels([]);
  */
 export function setCodingTimeIssueLabels(labels: string[]): void {
-  const { storageClient } = getContainer();
-  storageClient.setProperty('CODING_TIME_ISSUE_LABELS', JSON.stringify(labels));
+  setPropertyAsStringArray('CODING_TIME_ISSUE_LABELS', labels);
 }
 
 /**
  * コーディングタイムIssueラベル設定をリセット（全Issue対象に戻す）
  */
 export function resetCodingTimeIssueLabels(): void {
-  const { storageClient } = getContainer();
-  storageClient.deleteProperty('CODING_TIME_ISSUE_LABELS');
+  deleteProperty('CODING_TIME_ISSUE_LABELS');
 }
 
 // ============================================================

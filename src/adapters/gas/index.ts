@@ -473,6 +473,16 @@ class GasTimeTriggerBuilder implements TimeTriggerBuilder {
     return this;
   }
 
+  everyWeeks(weeks: number): TimeTriggerBuilder {
+    this.builder.everyWeeks(weeks);
+    return this;
+  }
+
+  onWeekDay(day: GoogleAppsScript.Base.Weekday): TimeTriggerBuilder {
+    this.builder.onWeekDay(day);
+    return this;
+  }
+
   atHour(hour: number): TimeTriggerBuilder {
     this.builder.atHour(hour);
     return this;

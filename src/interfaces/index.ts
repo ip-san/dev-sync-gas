@@ -149,6 +149,8 @@ export interface TriggerBuilder {
 
 export interface TimeTriggerBuilder {
   everyDays(days: number): TimeTriggerBuilder;
+  everyWeeks(weeks: number): TimeTriggerBuilder;
+  onWeekDay(day: GoogleAppsScript.Base.Weekday): TimeTriggerBuilder;
   atHour(hour: number): TimeTriggerBuilder;
   create(): Trigger;
 }

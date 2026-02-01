@@ -9,8 +9,7 @@
  */
 
 import type { Sheet, EmbeddedChart } from '../../interfaces';
-import type { WeeklyTrendData } from './dashboard';
-import type { RepositoryLatestData } from './dashboard';
+import type { WeeklyTrendData, RepositoryLatestData } from './dashboardTypes';
 import { getContainer } from '../../container';
 
 /**

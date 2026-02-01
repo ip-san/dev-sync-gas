@@ -21,6 +21,7 @@ import { DASHBOARD_SCHEMA, getHeadersFromSchema } from '../../schemas';
 import { evaluateMetric, selectWorstStatus } from '../../utils/healthStatus';
 import { getExtendedMetricSheetName } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
+import type { WeeklyTrendData, RepositoryLatestData } from './dashboardTypes';
 
 const DASHBOARD_HEADERS = getHeadersFromSchema(DASHBOARD_SCHEMA);
 
@@ -63,23 +64,9 @@ function formatStatus(status: HealthStatus): string {
 
 /**
  * リポジトリ別の最新メトリクスを集計
+ *
+ * Note: 型定義は dashboardTypes.ts に移動
  */
-export interface RepositoryLatestData {
-  repository: string;
-  latestDate: string;
-  deploymentFrequency: string;
-  leadTimeHours: number | null;
-  changeFailureRate: number | null;
-  mttrHours: number | null;
-  // 拡張指標
-  cycleTimeHours: number | null;
-  codingTimeHours: number | null;
-  timeToFirstReviewHours: number | null;
-  reviewDurationHours: number | null;
-  avgLinesOfCode: number | null;
-  avgAdditionalCommits: number | null;
-  avgForcePushCount: number | null;
-}
 
 /**
  * メトリクスから各リポジトリの最新データを抽出
@@ -439,14 +426,9 @@ function formatDashboardSheet(sheet: Sheet, rowCount: number, hasOverallRow: boo
 
 /**
  * 週次トレンドデータを計算
+ *
+ * Note: 型定義は dashboardTypes.ts に移動
  */
-export interface WeeklyTrendData {
-  week: string;
-  totalDeployments: number;
-  avgLeadTimeHours: number | null;
-  avgChangeFailureRate: number | null;
-  avgCycleTimeHours: number | null;
-}
 
 /**
  * メトリクスから週次トレンドを計算

@@ -83,6 +83,66 @@ export function parseRepository(fullName: string): ParsedRepository {
 }
 
 /**
+ * 基本的な入力バリデーション
+ */
+function validateBasicInput(fullName: string): string | null {
+  if (!fullName || typeof fullName !== 'string') {
+    return 'Repository name is required and must be a string';
+  }
+
+  const trimmed = fullName.trim();
+  if (trimmed.length === 0) {
+    return 'Repository name cannot be empty';
+  }
+
+  return null;
+}
+
+/**
+ * リポジトリフォーマットの検証（スラッシュ分割）
+ */
+function validateRepositoryFormat(
+  fullName: string
+): { error: string } | { owner: string; repo: string } {
+  const trimmed = fullName.trim();
+  const parts = trimmed.split('/');
+
+  if (parts.length !== 2) {
+    return {
+      error: `Invalid repository format: "${fullName}". Expected "owner/repo"`,
+    };
+  }
+
+  const [owner, repo] = parts;
+  return { owner, repo };
+}
+
+/**
+ * オーナー名とリポジトリ名の個別検証
+ */
+function validateOwnerAndRepo(owner: string, repo: string, fullName: string): string | null {
+  // オーナー名チェック
+  if (!owner || owner.trim().length === 0) {
+    return `Owner name is missing in: "${fullName}"`;
+  }
+
+  if (!isValidOwnerName(owner)) {
+    return `Invalid owner name: "${owner}". Must be alphanumeric with hyphens, max 39 chars`;
+  }
+
+  // リポジトリ名チェック
+  if (!repo || repo.trim().length === 0) {
+    return `Repository name is missing in: "${fullName}"`;
+  }
+
+  if (!isValidRepositoryName(repo)) {
+    return `Invalid repository name: "${repo}". Must be alphanumeric with hyphens/underscores/dots, max 100 chars`;
+  }
+
+  return null;
+}
+
+/**
  * "owner/repo" 形式の文字列を安全にパースする（エラー時はApiResponseで返す）
  *
  * @param fullName - "owner/repo" 形式の文字列
@@ -98,67 +158,27 @@ export function parseRepository(fullName: string): ParsedRepository {
  * ```
  */
 export function parseRepositorySafe(fullName: string): ApiResponse<ParsedRepository> {
-  // 1. 基本的なバリデーション
-  if (!fullName || typeof fullName !== 'string') {
-    return {
-      success: false,
-      error: 'Repository name is required and must be a string',
-    };
+  // 1. 基本的な入力チェック
+  const basicError = validateBasicInput(fullName);
+  if (basicError) {
+    return { success: false, error: basicError };
   }
 
-  const trimmed = fullName.trim();
-
-  if (trimmed.length === 0) {
-    return {
-      success: false,
-      error: 'Repository name cannot be empty',
-    };
+  // 2. フォーマット検証（スラッシュ分割）
+  const formatResult = validateRepositoryFormat(fullName);
+  if ('error' in formatResult) {
+    return { success: false, error: formatResult.error };
   }
 
-  // 2. スラッシュで分割
-  const parts = trimmed.split('/');
+  const { owner, repo } = formatResult;
 
-  // 正確に2つのパートが必要（owner / repo）
-  if (parts.length !== 2) {
-    return {
-      success: false,
-      error: `Invalid repository format: "${fullName}". Expected "owner/repo"`,
-    };
+  // 3. オーナー名・リポジトリ名の個別検証
+  const validationError = validateOwnerAndRepo(owner, repo, fullName);
+  if (validationError) {
+    return { success: false, error: validationError };
   }
 
-  const [owner, repo] = parts;
-
-  // 3. オーナー名のバリデーション
-  if (!owner || owner.trim().length === 0) {
-    return {
-      success: false,
-      error: `Owner name is missing in: "${fullName}"`,
-    };
-  }
-
-  if (!isValidOwnerName(owner)) {
-    return {
-      success: false,
-      error: `Invalid owner name: "${owner}". Must be alphanumeric with hyphens, max 39 chars`,
-    };
-  }
-
-  // 4. リポジトリ名のバリデーション
-  if (!repo || repo.trim().length === 0) {
-    return {
-      success: false,
-      error: `Repository name is missing in: "${fullName}"`,
-    };
-  }
-
-  if (!isValidRepositoryName(repo)) {
-    return {
-      success: false,
-      error: `Invalid repository name: "${repo}". Must be alphanumeric with hyphens/underscores/dots, max 100 chars`,
-    };
-  }
-
-  // 5. 成功
+  // 4. 成功
   return {
     success: true,
     data: {

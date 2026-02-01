@@ -163,7 +163,9 @@ export function migrateToRepositorySheets(
     if (keepLegacySheet) {
       const spreadsheet = openSpreadsheet(spreadsheetId);
       const legacySheet = spreadsheet.getSheetByName(sourceSheetName);
-      if (legacySheet) {
+      if (!legacySheet) {
+        // 従来シートが見つからない場合は何もしない
+      } else {
         const newName = `${sourceSheetName} (Legacy)`;
         // 既に同名のシートがあれば削除
         const existingLegacy = spreadsheet.getSheetByName(newName);

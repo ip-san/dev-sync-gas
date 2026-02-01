@@ -238,9 +238,10 @@ export function getReworkDataForPRs(
       totalCommits = commitsResult.data.length;
       // PR作成後のコミットをカウント
       for (const commit of commitsResult.data) {
-        if (commit.date && new Date(commit.date) > prCreatedAt) {
-          additionalCommits++;
+        if (!commit.date || new Date(commit.date) <= prCreatedAt) {
+          continue;
         }
+        additionalCommits++;
       }
     } else {
       logger.log(`  ⚠️ Failed to fetch commits for PR #${pr.number}: ${commitsResult.error}`);

@@ -376,13 +376,12 @@ export function migrateSheetSchema(spreadsheet: Spreadsheet, schema: SheetSchema
     logger.log(`❌ Migration failed for ${schema.sheetName}: ${errorMessage}`);
 
     // バックアップからリストアを試みる
-    if (backup) {
+    if (!backup) {
+      // バックアップなしの場合はリストアできない
+    } else {
       const sheet = spreadsheet.getSheetByName(schema.sheetName);
-      if (sheet) {
-        const restored = restoreFromBackup(sheet, backup.backupSheet);
-        if (restored) {
-          logger.log(`🔄 Restored ${schema.sheetName} from backup`);
-        }
+      if (sheet && restoreFromBackup(sheet, backup.backupSheet)) {
+        logger.log(`🔄 Restored ${schema.sheetName} from backup`);
       }
     }
 

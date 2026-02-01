@@ -133,6 +133,20 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
  * @param limit - 取得件数
  * @returns 監査ログエントリの配列
  */
+/**
+ * 監査ログの1行をパース
+ */
+function parseAuditLogLine(line: string): AuditLogEntry | null {
+  try {
+    const jsonStr = line.substring(line.indexOf('{'));
+    const parsed: unknown = JSON.parse(jsonStr);
+    return AuditLogEntrySchema.parse(parsed);
+  } catch {
+    // パースエラーは無視
+    return null;
+  }
+}
+
 export function getAuditLogs(limit = 100): AuditLogEntry[] {
   try {
     if (!Logger?.getLog?.()) {
@@ -148,17 +162,14 @@ export function getAuditLogs(limit = 100): AuditLogEntry[] {
         continue;
       }
 
-      try {
-        const jsonStr = line.substring(line.indexOf('{'));
-        const parsed: unknown = JSON.parse(jsonStr);
-        const entry = AuditLogEntrySchema.parse(parsed);
-        auditEntries.push(entry);
+      const entry = parseAuditLogLine(line);
+      if (!entry) {
+        continue;
+      }
 
-        if (auditEntries.length >= limit) {
-          break;
-        }
-      } catch {
-        // パースエラーは無視
+      auditEntries.push(entry);
+      if (auditEntries.length >= limit) {
+        break;
       }
     }
 

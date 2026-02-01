@@ -32,6 +32,27 @@ export interface GetDeploymentsOptions {
 }
 
 // =============================================================================
+// ヘルパー関数
+// =============================================================================
+
+/**
+ * デプロイメントが環境フィルタを通過するかチェック
+ */
+function passesEnvironmentFilter(
+  deployment: GraphQLDeployment,
+  environment: string | undefined,
+  environmentMatchMode: EnvironmentMatchMode
+): boolean {
+  if (!environment || environmentMatchMode !== 'partial') {
+    return true;
+  }
+
+  const envLower = deployment.environment?.toLowerCase() ?? '';
+  const filterLower = environment.toLowerCase();
+  return envLower.includes(filterLower);
+}
+
+// =============================================================================
 // デプロイメント一覧取得
 // =============================================================================
 
@@ -93,13 +114,9 @@ export function getDeploymentsGraphQL(
         continue;
       }
 
-      // 部分一致モードの場合、クライアント側でフィルタ
-      if (environment && environmentMatchMode === 'partial') {
-        const envLower = deployment.environment?.toLowerCase() ?? '';
-        const filterLower = environment.toLowerCase();
-        if (!envLower.includes(filterLower)) {
-          continue;
-        }
+      // 環境フィルタリング（部分一致モードの場合）
+      if (!passesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
+        continue;
       }
 
       allDeployments.push(convertToDeployment(deployment, repo.fullName));

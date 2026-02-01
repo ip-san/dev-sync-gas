@@ -157,12 +157,10 @@ export function getIssues(
       }
 
       // 日付範囲チェック（endのみ、sinceはAPIで処理）
-      if (options?.dateRange?.end) {
-        const createdAt = new Date(item.created_at);
-        const endDate = new Date(options.dateRange.end);
-        if (createdAt > endDate) {
-          continue;
-        }
+      const createdAt = new Date(item.created_at);
+      const endDate = options?.dateRange?.end ? new Date(options.dateRange.end) : null;
+      if (endDate && createdAt > endDate) {
+        continue;
       }
 
       allIssues.push({

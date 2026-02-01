@@ -476,6 +476,8 @@ export class MockTrigger implements Trigger {
 // Mock Trigger Builder
 export class MockTimeTriggerBuilder implements TimeTriggerBuilder {
   private days: number = 1;
+  private weeks: number = 1;
+  private weekDay: GoogleAppsScript.Base.Weekday | null = null;
   private hour: number = 0;
 
   constructor(
@@ -485,6 +487,16 @@ export class MockTimeTriggerBuilder implements TimeTriggerBuilder {
 
   everyDays(days: number): TimeTriggerBuilder {
     this.days = days;
+    return this;
+  }
+
+  everyWeeks(weeks: number): TimeTriggerBuilder {
+    this.weeks = weeks;
+    return this;
+  }
+
+  onWeekDay(day: GoogleAppsScript.Base.Weekday): TimeTriggerBuilder {
+    this.weekDay = day;
     return this;
   }
 

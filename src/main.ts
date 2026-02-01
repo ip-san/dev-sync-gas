@@ -77,6 +77,13 @@ import {
   removeSlackWebhook,
   showSlackConfig,
 } from './functions/slackConfig';
+import {
+  // Slack週次レポート
+  sendWeeklyReport,
+  setupWeeklyReportTrigger,
+  removeWeeklyReportTrigger,
+  showWeeklyReportTrigger,
+} from './functions/slackWeekly';
 
 // =============================================================================
 // GASグローバルスコープにエクスポート
@@ -161,3 +168,9 @@ global.resetLogLevelConfig = resetLogLevelConfig;
 global.configureSlackWebhook = configureSlackWebhook;
 global.removeSlackWebhook = removeSlackWebhook;
 global.showSlackConfig = showSlackConfig;
+
+// Slack週次レポート
+global.sendWeeklyReport = sendWeeklyReport;
+global.setupWeeklyReportTrigger = setupWeeklyReportTrigger;
+global.removeWeeklyReportTrigger = removeWeeklyReportTrigger;
+global.showWeeklyReportTrigger = showWeeklyReportTrigger;

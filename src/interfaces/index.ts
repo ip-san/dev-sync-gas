@@ -22,6 +22,19 @@ export interface HttpClient {
 }
 
 // スプレッドシートの抽象化
+
+/** Border設定オプション */
+export interface BorderOptions {
+  top?: boolean | null;
+  left?: boolean | null;
+  bottom?: boolean | null;
+  right?: boolean | null;
+  vertical?: boolean | null;
+  horizontal?: boolean | null;
+  color?: string | null;
+  style?: BorderStyle | null;
+}
+
 export interface SheetRange {
   getValues(): unknown[][];
   getValue(): unknown;
@@ -32,16 +45,7 @@ export interface SheetRange {
   // デザイン用メソッド
   setBackground(color: string | null): void;
   setFontColor(color: string): void;
-  setBorder(
-    top: boolean | null,
-    left: boolean | null,
-    bottom: boolean | null,
-    right: boolean | null,
-    vertical: boolean | null,
-    horizontal: boolean | null,
-    color?: string | null,
-    style?: BorderStyle | null
-  ): void;
+  setBorder(options: BorderOptions): void;
   setHorizontalAlignment(alignment: 'left' | 'center' | 'right'): void;
   setVerticalAlignment(alignment: 'top' | 'middle' | 'bottom'): void;
   setFontSize(size: number): void;

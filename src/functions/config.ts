@@ -18,6 +18,9 @@ import {
   getExcludeMetricsLabels,
   setExcludeMetricsLabels,
   resetExcludeMetricsLabels,
+  getIncidentLabels,
+  setIncidentLabels,
+  resetIncidentLabels,
   getGitHubApiMode,
   setGitHubApiMode,
   resetGitHubApiMode,
@@ -234,4 +237,43 @@ export function resetExcludeLabelsConfig(): void {
   ensureContainerInitialized();
   resetExcludeMetricsLabels();
   Logger.log('✅ Exclude labels reset to: "exclude-metrics"');
+}
+
+// =============================================================================
+// インシデントラベル設定
+// =============================================================================
+
+/**
+ * インシデント判定に使用するラベルを設定
+ *
+ * @example
+ * configureIncidentLabels(['incident', 'bug', 'p0']);
+ * configureIncidentLabels([]);  // デフォルトの 'incident' に戻す
+ */
+export function configureIncidentLabels(labels: string[]): void {
+  ensureContainerInitialized();
+  setIncidentLabels(labels);
+  if (labels.length > 0) {
+    Logger.log(`✅ Incident labels set to: ${labels.join(', ')}`);
+  } else {
+    Logger.log('✅ Incident labels cleared (default: "incident")');
+  }
+}
+
+/**
+ * 現在のインシデントラベルを表示
+ */
+export function showIncidentLabels(): void {
+  ensureContainerInitialized();
+  const labels = getIncidentLabels();
+  Logger.log(`📋 Incident labels: ${labels.join(', ')}`);
+}
+
+/**
+ * インシデントラベル設定をリセット
+ */
+export function resetIncidentLabelsConfig(): void {
+  ensureContainerInitialized();
+  resetIncidentLabels();
+  Logger.log('✅ Incident labels reset to: "incident"');
 }

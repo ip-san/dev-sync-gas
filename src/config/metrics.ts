@@ -189,3 +189,38 @@ export function setExcludeMetricsLabels(labels: string[]): void {
 export function resetExcludeMetricsLabels(): void {
   deleteProperty('EXCLUDE_METRICS_LABELS');
 }
+
+// ============================================================
+// インシデントラベル設定
+// ============================================================
+
+/**
+ * インシデント判定に使用するラベルを取得
+ *
+ * @returns ラベル配列（デフォルト: ['incident']）
+ */
+export function getIncidentLabels(): string[] {
+  const labels = getPropertyAsStringArray('INCIDENT_LABELS');
+  return labels.length > 0 ? labels : ['incident'];
+}
+
+/**
+ * インシデント判定に使用するラベルを設定
+ *
+ * @example
+ * // カスタムラベルを設定
+ * setIncidentLabels(['incident', 'bug', 'p0']);
+ *
+ * // デフォルトに戻す（空配列を設定するとデフォルトの 'incident' が使われる）
+ * setIncidentLabels([]);
+ */
+export function setIncidentLabels(labels: string[]): void {
+  setPropertyAsStringArray('INCIDENT_LABELS', labels);
+}
+
+/**
+ * インシデントラベル設定をリセット（デフォルトに戻す）
+ */
+export function resetIncidentLabels(): void {
+  deleteProperty('INCIDENT_LABELS');
+}

@@ -286,10 +286,10 @@ After: MTTR 1時間
 
 #### 優先（推奨）: GitHub Issues（Incident）
 
-DORA公式定義に最も近い計測方法として、"incident"ラベルのIssueを使用：
+DORA公式定義に最も近い計測方法として、設定されたインシデントラベル（デフォルト: `"incident"`）のIssueを使用：
 
 ```
-GET /repos/{owner}/{repo}/issues?labels=incident
+GET /repos/{owner}/{repo}/issues?labels=<configured-labels>
 ```
 
 ```
@@ -301,6 +301,7 @@ MTTR = Issue close日時 - Issue作成日時
 ```
 
 デフォルト設定: DevSyncGASはIncident Issueを優先的に使用します。
+インシデント判定ラベルは `configureIncidentLabels()` でカスタマイズ可能です。
 
 #### フォールバック1: GitHub Deployments API
 
@@ -420,21 +421,30 @@ resetProductionBranch();
 
 ### MTTR（Incident）ラベル設定
 
+インシデント判定に使用するラベルをカスタマイズできます（デフォルト: `"incident"`）。
+
 ```javascript
-// デフォルト: "incident"ラベルのIssueを自動取得
-// 特別な設定は不要です
+// インシデントラベルを設定（プロジェクトのルールに合わせて）
+configureIncidentLabels(['incident', 'bug', 'p0']);
+
+// 現在の設定を確認
+showIncidentLabels();
+
+// デフォルトに戻す
+resetIncidentLabelsConfig();
 
 // 障害Issueを作成する場合の例
 // 1. GitHubでIssueを作成
-// 2. ラベル "incident" を付与
+// 2. 設定したラベル（例: "incident"）を付与
 // 3. 復旧後にIssueをクローズ
 // → syncDevOpsMetrics() で自動的にMTTRが計算されます
 ```
 
 推奨運用:
-- 本番障害が発生したら "incident" ラベル付きIssueを作成
+- 本番障害が発生したら設定したインシデントラベル付きIssueを作成
 - 復旧完了後にIssueをクローズ
 - より正確なMTTRが自動計測されます
+- プロジェクトのラベル運用ルールに合わせてカスタマイズ可能
 
 ### GraphQL vs REST API
 
@@ -457,7 +467,7 @@ resetProductionBranch();
 | **デプロイ頻度** | GitHub Deployments API または "deploy" ワークフロー |
 | **リードタイム** | PR運用（マージ必須） |
 | **変更障害率** | デプロイメントステータス取得 |
-| **MTTR** | "incident" ラベル付きIssue（推奨） または デプロイメントステータス |
+| **MTTR** | インシデントラベル付きIssue（推奨、デフォルト: "incident"） または デプロイメントステータス |
 
 ## 計測思想
 
@@ -497,7 +507,8 @@ DevSyncGASは、DORA指標に加えて**拡張指標**も提供します。
 ### MTTRがnull
 
 - 復旧パターン（失敗→成功）が存在しない場合、nullになります
-- "incident"ラベル付きIssueを作成すると、より正確なMTTRを計測できます
+- インシデントラベル付きIssueを作成すると、より正確なMTTRを計測できます
+- インシデントラベルは `configureIncidentLabels()` でカスタマイズ可能（デフォルト: `"incident"`）
 
 ## 参考資料
 

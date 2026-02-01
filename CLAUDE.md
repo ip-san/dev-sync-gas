@@ -74,6 +74,7 @@ bun run check:all      # 全チェックを一括実行
 - [x] Dashboardシート（全リポジトリ×全指標の俯瞰 + ステータス表示）
 - [x] 週次トレンドシート
 - [x] 除外ラベル機能（計測から除外するIssue/PRのラベル設定）
+- [x] インシデントラベル機能（MTTR計算用のインシデント判定ラベル設定）
 
 ## TODO / 拡張案
 - [ ] 拡張指標（サイクルタイム等）のリポジトリ別シート対応
@@ -142,6 +143,27 @@ configureExcludeLabels([]);
 - 設定したラベルが**1つでも**付いているIssue/PRは計測対象外
 - 除外されたアイテム数はログに表示
 - デフォルト値: `['exclude-metrics']`
+
+## インシデントラベル設定
+
+MTTR（Mean Time To Recovery）計算に使用するインシデント判定ラベルをカスタマイズできます。
+
+### 設定方法
+```javascript
+// インシデントラベルを設定（デフォルト: 'incident'）
+configureIncidentLabels(['incident', 'bug', 'p0']);
+
+// 現在の設定を確認
+showIncidentLabels();
+
+// デフォルトに戻す
+resetIncidentLabelsConfig();
+```
+
+### 動作
+- 設定したラベルが**1つでも**付いているIssueをインシデントとして扱う
+- MTTR計算に使用される
+- デフォルト値: `['incident']`
 
 ## コードの理解に困ったら
 

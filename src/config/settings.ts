@@ -61,6 +61,9 @@ export {
   getExcludeMetricsLabels,
   setExcludeMetricsLabels,
   resetExcludeMetricsLabels,
+  getIncidentLabels,
+  setIncidentLabels,
+  resetIncidentLabels,
 } from './metrics.js';
 
 // =============================================================================

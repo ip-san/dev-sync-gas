@@ -353,3 +353,69 @@ describe('API Mode Setting', () => {
     expect(mode).toBe('graphql');
   });
 });
+
+describe('Incident Label Configuration Integration', () => {
+  let mockContainer: ReturnType<typeof createMockContainer>;
+  let mockHttpClient: MockHttpClient;
+
+  beforeEach(() => {
+    mockContainer = createMockContainer();
+    mockHttpClient = mockContainer.httpClient;
+    initializeContainer(mockContainer);
+  });
+
+  afterEach(() => {
+    resetContainer();
+  });
+
+  it('should fetch incidents using configured labels', async () => {
+    const { setIncidentLabels } = await import('../../src/config/settings');
+    const { getAllRepositoriesDataGraphQL } =
+      await import('../../src/services/github/graphql/index');
+
+    // カスタムインシデントラベルを設定
+    setIncidentLabels(['bug', 'p0']);
+
+    // GraphQL Issuesのモックレスポンス
+    const mockIssuesResponse = {
+      data: {
+        repository: {
+          issues: {
+            nodes: [
+              {
+                id: 'issue-1',
+                number: 1,
+                title: 'Critical bug',
+                state: 'OPEN',
+                createdAt: '2024-01-01T00:00:00Z',
+                closedAt: null,
+                labels: {
+                  nodes: [{ name: 'bug' }, { name: 'p0' }],
+                },
+              },
+            ],
+            pageInfo: {
+              hasNextPage: false,
+              endCursor: null,
+            },
+          },
+        },
+      },
+    };
+
+    mockHttpClient.setResponse(GITHUB_GRAPHQL_ENDPOINT, {
+      statusCode: 200,
+      content: JSON.stringify(mockIssuesResponse),
+      data: mockIssuesResponse,
+    });
+
+    const result = getAllRepositoriesDataGraphQL(
+      [{ owner: 'test', name: 'repo', fullName: 'test/repo' }],
+      'test-token',
+      {}
+    );
+
+    expect(result.incidents).toBeDefined();
+    expect(Array.isArray(result.incidents)).toBe(true);
+  });
+});

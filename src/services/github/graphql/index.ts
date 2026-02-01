@@ -84,11 +84,14 @@ import type {
   GitHubWorkflowRun,
   GitHubDeployment,
   GitHubRepository,
+  GitHubIncident,
 } from '../../../types';
 import { getContainer } from '../../../container';
 import { getPullRequestsGraphQL } from './pullRequests';
 import { getDeploymentsGraphQL } from './deployments';
+import { getIssuesGraphQL } from './issues';
 import { getWorkflowRuns } from '../deployments'; // ワークフローはREST APIを継続使用
+import { getIncidentLabels } from '../../../config/settings';
 import type { DateRange } from '../api';
 import type { EnvironmentMatchMode } from './deployments';
 
@@ -180,6 +183,33 @@ function fetchDeploymentsForRepo(params: FetchDeploymentsParams): GitHubDeployme
 }
 
 /**
+ * 1リポジトリのインシデントを取得してログ出力
+ */
+function fetchIncidentsForRepo(
+  repo: GitHubRepository,
+  token: string,
+  dateRange: DateRange | undefined,
+  logger: { log: (msg: string) => void }
+): GitHubIncident[] {
+  const incidentLabels = getIncidentLabels();
+  const incidentsResult = getIssuesGraphQL(repo, token, {
+    labels: incidentLabels,
+    dateRange: dateRange
+      ? { start: dateRange.since?.toISOString(), end: dateRange.until?.toISOString() }
+      : undefined,
+  });
+
+  if (incidentsResult.success && incidentsResult.data) {
+    const incidents = incidentsResult.data;
+    logger.log(`  Incidents: ${incidents.length}`);
+    return incidents;
+  }
+
+  logger.log(`  ⚠️ Incidents fetch failed: ${incidentsResult.error}`);
+  return [];
+}
+
+/**
  * 複数リポジトリのGitHubデータを一括取得（GraphQL版）
  *
  * REST API版と同じインターフェースを提供。
@@ -196,6 +226,7 @@ export function getAllRepositoriesDataGraphQL(
   pullRequests: GitHubPullRequest[];
   workflowRuns: GitHubWorkflowRun[];
   deployments: GitHubDeployment[];
+  incidents: GitHubIncident[];
 } {
   const {
     dateRange,
@@ -207,6 +238,7 @@ export function getAllRepositoriesDataGraphQL(
   const allPRs: GitHubPullRequest[] = [];
   const allRuns: GitHubWorkflowRun[] = [];
   const allDeployments: GitHubDeployment[] = [];
+  const allIncidents: GitHubIncident[] = [];
 
   for (const repo of repositories) {
     logger.log(`📡 Fetching data for ${repo.fullName} (GraphQL)...`);
@@ -226,11 +258,15 @@ export function getAllRepositoriesDataGraphQL(
       logger,
     });
     allDeployments.push(...deployments);
+
+    const incidents = fetchIncidentsForRepo(repo, token, dateRange, logger);
+    allIncidents.push(...incidents);
   }
 
   return {
     pullRequests: allPRs,
     workflowRuns: allRuns,
     deployments: allDeployments,
+    incidents: allIncidents,
   };
 }

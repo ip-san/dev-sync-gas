@@ -38,6 +38,32 @@ export interface SheetMigrationResult {
 }
 
 /**
+ * 行データが有効かをチェックする
+ */
+function isValidRow(row: unknown[]): boolean {
+  return !!(row[0] && row[1]);
+}
+
+/**
+ * 行データをDevOpsMetricsにパースする
+ */
+function parseMetricRow(row: unknown[]): DevOpsMetrics {
+  const frequency = isValidDeploymentFrequency(row[3]) ? row[3] : 'daily';
+
+  return {
+    date: String(row[0]),
+    repository: String(row[1]),
+    deploymentCount: Number(row[2]) || 0,
+    deploymentFrequency: frequency,
+    leadTimeForChangesHours: Number(row[4]) || 0,
+    totalDeployments: Number(row[5]) || 0,
+    failedDeployments: Number(row[6]) || 0,
+    changeFailureRate: Number(row[7]) || 0,
+    meanTimeToRecoveryHours: row[8] === 'N/A' ? null : Number(row[8]) || null,
+  };
+}
+
+/**
  * 従来型シートからDevOpsMetricsを読み取る
  */
 function parseDevOpsMetricsFromLegacySheet(
@@ -60,24 +86,11 @@ function parseDevOpsMetricsFromLegacySheet(
   const metrics: DevOpsMetrics[] = [];
 
   for (const row of data) {
-    // 空行をスキップ
-    if (!row[0] || !row[1]) {
+    if (!isValidRow(row)) {
       continue;
     }
 
-    const frequency = isValidDeploymentFrequency(row[3]) ? row[3] : 'daily';
-
-    metrics.push({
-      date: String(row[0]),
-      repository: String(row[1]),
-      deploymentCount: Number(row[2]) || 0,
-      deploymentFrequency: frequency,
-      leadTimeForChangesHours: Number(row[4]) || 0,
-      totalDeployments: Number(row[5]) || 0,
-      failedDeployments: Number(row[6]) || 0,
-      changeFailureRate: Number(row[7]) || 0,
-      meanTimeToRecoveryHours: row[8] === 'N/A' ? null : Number(row[8]) || null,
-    });
+    metrics.push(parseMetricRow(row));
   }
 
   return metrics;

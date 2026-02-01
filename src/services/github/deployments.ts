@@ -12,16 +12,14 @@ import type {
   ApiResponse,
   GitHubWorkflowRunsResponse,
   GitHubDeploymentResponse,
-  GitHubDeploymentStatusResponse,
 } from '../../types';
-import { getContainer } from '../../container';
+import { fetchGitHub, DEFAULT_MAX_PAGES, PER_PAGE, type DateRange } from './api';
 import {
-  fetchGitHub,
-  DEFAULT_MAX_PAGES,
-  PER_PAGE,
-  STATUS_FETCH_WARNING_THRESHOLD,
-  type DateRange,
-} from './api';
+  isWithinDateRange,
+  matchesEnvironmentFilter,
+  fetchDeploymentStatuses,
+  convertToGitHubDeployment,
+} from './deploymentHelpers.js';
 
 // =============================================================================
 // 型定義
@@ -163,55 +161,26 @@ export function getDeployments(
     }
 
     for (const deployment of response.data) {
-      const createdAt = new Date(deployment.created_at);
-
       // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) {
-        continue;
-      }
-      if (dateRange?.since && createdAt < dateRange.since) {
+      const createdAt = new Date(deployment.created_at);
+      if (!isWithinDateRange(createdAt, dateRange)) {
         continue;
       }
 
-      // 部分一致モードの場合、クライアント側で環境名をフィルタ
-      if (environment && environmentMatchMode === 'partial') {
-        const envLower = deployment.environment?.toLowerCase() ?? '';
-        const filterLower = environment.toLowerCase();
-        if (!envLower.includes(filterLower)) {
-          continue;
-        }
+      // 環境フィルタリング（部分一致モードのみ）
+      if (!matchesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
+        continue;
       }
 
-      allDeployments.push({
-        id: deployment.id,
-        sha: deployment.sha,
-        environment: deployment.environment,
-        createdAt: deployment.created_at,
-        updatedAt: deployment.updated_at,
-        status: null, // Phase 2で取得
-        repository: repo.fullName,
-      });
+      allDeployments.push(convertToGitHubDeployment(deployment, repo.fullName));
     }
 
     page++;
   }
 
   // Phase 2: ステータスを取得（オプション）
-  if (!skipStatusFetch && allDeployments.length > 0) {
-    const { logger } = getContainer();
-    if (allDeployments.length > STATUS_FETCH_WARNING_THRESHOLD) {
-      logger.log(`  ⚠️ Fetching status for ${allDeployments.length} deployments (may be slow)`);
-    }
-
-    for (const deployment of allDeployments) {
-      const statusResponse = fetchGitHub<GitHubDeploymentStatusResponse[]>(
-        `/repos/${repo.fullName}/deployments/${deployment.id}/statuses?per_page=1`,
-        token
-      );
-      if (statusResponse.success && statusResponse.data?.[0]) {
-        deployment.status = statusResponse.data[0].state as typeof deployment.status;
-      }
-    }
+  if (!skipStatusFetch) {
+    fetchDeploymentStatuses(allDeployments, repo.fullName, token);
   }
 
   return { success: true, data: allDeployments };

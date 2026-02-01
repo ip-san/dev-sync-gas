@@ -26,8 +26,11 @@ import type {
   GraphQLPullRequestDetail,
 } from './types';
 import type { DateRange } from '../api';
-import { parseRepositorySafe } from '../../../utils/repositoryParser';
 import { DEFAULT_BATCH_SIZE } from '../../../config/apiConfig';
+import { calculateReviewDataForPR, createDefaultReviewData } from './reviewEfficiencyHelpers.js';
+import { calculateReworkDataForPR, createDefaultReworkData } from './reworkHelpers.js';
+import { calculatePRSizeData } from './prSizeHelpers.js';
+import { groupPRsByRepository, parseRepository } from './batchProcessing.js';
 import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
 
 // =============================================================================
@@ -87,9 +90,8 @@ export function getPullRequestsGraphQL(
     const pageInfo = prsData.pageInfo;
 
     for (const pr of nodes) {
+      // 期間フィルタリング（Early Return）
       const createdAt = new Date(pr.createdAt);
-
-      // 期間フィルタリング
       if (dateRange?.until && createdAt > dateRange.until) {
         continue;
       }
@@ -224,20 +226,14 @@ export function getReworkDataForPRsGraphQL(
   const reworkData: PRReworkData[] = [];
 
   // リポジトリごとにグループ化
-  const prsByRepo = new Map<string, GitHubPullRequest[]>();
-  for (const pr of pullRequests) {
-    const existing = prsByRepo.get(pr.repository) ?? [];
-    existing.push(pr);
-    prsByRepo.set(pr.repository, existing);
-  }
+  const prsByRepo = groupPRsByRepository(pullRequests);
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const parseResult = parseRepositorySafe(repoFullName);
-    if (!parseResult.success || !parseResult.data) {
-      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
+    const parsed = parseRepository(repoFullName);
+    if (!parsed) {
       continue;
     }
-    const { owner, repo } = parseResult.data;
+    const { owner, repo } = parsed;
 
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
@@ -253,16 +249,7 @@ export function getReworkDataForPRsGraphQL(
         logger.log(`  ⚠️ Failed to fetch batch PR details: ${result.error}`);
         // フォールバック: 空データを追加
         for (const pr of batch) {
-          reworkData.push({
-            prNumber: pr.number,
-            title: pr.title,
-            repository: pr.repository,
-            createdAt: pr.createdAt,
-            mergedAt: pr.mergedAt,
-            additionalCommits: 0,
-            forcePushCount: 0,
-            totalCommits: 0,
-          });
+          reworkData.push(createDefaultReworkData(pr));
         }
         continue;
       }
@@ -273,47 +260,11 @@ export function getReworkDataForPRsGraphQL(
         const prData = result.data.repository[`pr${j}`];
 
         if (!prData) {
-          reworkData.push({
-            prNumber: pr.number,
-            title: pr.title,
-            repository: pr.repository,
-            createdAt: pr.createdAt,
-            mergedAt: pr.mergedAt,
-            additionalCommits: 0,
-            forcePushCount: 0,
-            totalCommits: 0,
-          });
+          reworkData.push(createDefaultReworkData(pr));
           continue;
         }
 
-        const prCreatedAt = new Date(pr.createdAt);
-        const commits = prData.commits?.nodes ?? [];
-        const timeline = prData.timelineItems?.nodes ?? [];
-
-        // 追加コミット数を計算
-        let additionalCommits = 0;
-        for (const commitNode of commits) {
-          const commitDate = new Date(commitNode.commit.committedDate);
-          if (commitDate > prCreatedAt) {
-            additionalCommits++;
-          }
-        }
-
-        // Force Push回数を計算
-        const forcePushCount = timeline.filter(
-          (event) => event.__typename === 'HeadRefForcePushedEvent'
-        ).length;
-
-        reworkData.push({
-          prNumber: pr.number,
-          title: prData.title,
-          repository: pr.repository,
-          createdAt: prData.createdAt,
-          mergedAt: prData.mergedAt,
-          additionalCommits,
-          forcePushCount,
-          totalCommits: commits.length,
-        });
+        reworkData.push(calculateReworkDataForPR(prData, pr));
       }
     }
   }
@@ -339,20 +290,14 @@ export function getPRSizeDataForPRsGraphQL(
   const sizeData: PRSizeData[] = [];
 
   // リポジトリごとにグループ化
-  const prsByRepo = new Map<string, GitHubPullRequest[]>();
-  for (const pr of pullRequests) {
-    const existing = prsByRepo.get(pr.repository) ?? [];
-    existing.push(pr);
-    prsByRepo.set(pr.repository, existing);
-  }
+  const prsByRepo = groupPRsByRepository(pullRequests);
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const parseResult = parseRepositorySafe(repoFullName);
-    if (!parseResult.success || !parseResult.data) {
-      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
+    const parsed = parseRepository(repoFullName);
+    if (!parsed) {
       continue;
     }
-    const { owner, repo } = parseResult.data;
+    const { owner, repo } = parsed;
 
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
@@ -409,17 +354,7 @@ export function getPRSizeDataForPRsGraphQL(
           continue;
         }
 
-        sizeData.push({
-          prNumber: prData.number,
-          title: prData.title,
-          repository: repoFullName,
-          createdAt: prData.createdAt,
-          mergedAt: prData.mergedAt,
-          additions: prData.additions,
-          deletions: prData.deletions,
-          linesOfCode: prData.additions + prData.deletions,
-          filesChanged: prData.changedFiles,
-        });
+        sizeData.push(calculatePRSizeData(prData, repoFullName));
       }
     }
   }
@@ -443,23 +378,16 @@ export function getReviewEfficiencyDataForPRsGraphQL(
 ): PRReviewData[] {
   const { logger } = getContainer();
   const reviewData: PRReviewData[] = [];
-  const msToHours = 1000 * 60 * 60;
 
   // リポジトリごとにグループ化
-  const prsByRepo = new Map<string, GitHubPullRequest[]>();
-  for (const pr of pullRequests) {
-    const existing = prsByRepo.get(pr.repository) ?? [];
-    existing.push(pr);
-    prsByRepo.set(pr.repository, existing);
-  }
+  const prsByRepo = groupPRsByRepository(pullRequests);
 
   for (const [repoFullName, prs] of prsByRepo) {
-    const parseResult = parseRepositorySafe(repoFullName);
-    if (!parseResult.success || !parseResult.data) {
-      logger.log(`  ⚠️ ${parseResult.success ? 'No data returned' : parseResult.error}`);
+    const parsed = parseRepository(repoFullName);
+    if (!parsed) {
       continue;
     }
-    const { owner, repo } = parseResult.data;
+    const { owner, repo } = parsed;
 
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
@@ -481,89 +409,11 @@ export function getReviewEfficiencyDataForPRsGraphQL(
         const prData = result.data.repository[`pr${j}`];
 
         if (!prData) {
-          reviewData.push({
-            prNumber: pr.number,
-            title: pr.title,
-            repository: pr.repository,
-            createdAt: pr.createdAt,
-            readyForReviewAt: pr.createdAt,
-            firstReviewAt: null,
-            approvedAt: null,
-            mergedAt: pr.mergedAt,
-            timeToFirstReviewHours: null,
-            reviewDurationHours: null,
-            timeToMergeHours: null,
-            totalTimeHours: null,
-          });
+          reviewData.push(createDefaultReviewData(pr));
           continue;
         }
 
-        const reviews = prData.reviews?.nodes ?? [];
-        const timeline = prData.timelineItems?.nodes ?? [];
-
-        // Ready for Review時刻を取得
-        let readyForReviewAt = prData.createdAt;
-        const readyEvent = timeline.find((e) => e.__typename === 'ReadyForReviewEvent');
-        if (readyEvent?.createdAt) {
-          readyForReviewAt = readyEvent.createdAt;
-        }
-
-        // レビュー情報を処理
-        const validReviews = reviews
-          .filter((r) => r.state !== 'PENDING' && r.submittedAt)
-          .sort((a, b) => new Date(a.submittedAt!).getTime() - new Date(b.submittedAt!).getTime());
-
-        const firstReviewAt = validReviews.length > 0 ? validReviews[0].submittedAt : null;
-        const approvedReview = validReviews.find((r) => r.state === 'APPROVED');
-        const approvedAt = approvedReview?.submittedAt ?? null;
-
-        // 各時間を計算
-        const readyAt = new Date(readyForReviewAt).getTime();
-        let timeToFirstReviewHours: number | null = null;
-        let reviewDurationHours: number | null = null;
-        let timeToMergeHours: number | null = null;
-        let totalTimeHours: number | null = null;
-
-        if (firstReviewAt) {
-          timeToFirstReviewHours =
-            Math.round(((new Date(firstReviewAt).getTime() - readyAt) / msToHours) * 10) / 10;
-        }
-
-        if (firstReviewAt && approvedAt) {
-          reviewDurationHours =
-            Math.round(
-              ((new Date(approvedAt).getTime() - new Date(firstReviewAt).getTime()) / msToHours) *
-                10
-            ) / 10;
-        }
-
-        if (approvedAt && prData.mergedAt) {
-          timeToMergeHours =
-            Math.round(
-              ((new Date(prData.mergedAt).getTime() - new Date(approvedAt).getTime()) / msToHours) *
-                10
-            ) / 10;
-        }
-
-        if (prData.mergedAt) {
-          totalTimeHours =
-            Math.round(((new Date(prData.mergedAt).getTime() - readyAt) / msToHours) * 10) / 10;
-        }
-
-        reviewData.push({
-          prNumber: prData.number,
-          title: prData.title,
-          repository: repoFullName,
-          createdAt: prData.createdAt,
-          readyForReviewAt,
-          firstReviewAt,
-          approvedAt,
-          mergedAt: prData.mergedAt,
-          timeToFirstReviewHours,
-          reviewDurationHours,
-          timeToMergeHours,
-          totalTimeHours,
-        });
+        reviewData.push(calculateReviewDataForPR(prData, repoFullName));
       }
     }
   }

@@ -44,6 +44,45 @@ import { validatePaginatedResponse, validateSingleResponse } from './errorHelper
 // =============================================================================
 
 /**
+ * GraphQL Issues Query用の変数を構築
+ */
+function buildIssuesQueryVariables(
+  repo: GitHubRepository,
+  cursor: string | null,
+  labels?: string[]
+): Record<string, unknown> {
+  return {
+    owner: repo.owner,
+    name: repo.name,
+    first: DEFAULT_PAGE_SIZE,
+    after: cursor,
+    labels: labels?.length ? labels : null,
+    states: ['OPEN', 'CLOSED'],
+  };
+}
+
+/**
+ * 日付範囲でIssueをフィルタリング
+ */
+function filterIssuesByDateRange(
+  issues: GraphQLIssue[],
+  dateRange: IssueDateRange | undefined,
+  repository: string
+): GitHubIssue[] {
+  const filtered: GitHubIssue[] = [];
+
+  for (const issue of issues) {
+    const createdAt = new Date(issue.createdAt);
+
+    if (isWithinDateRange(createdAt, dateRange)) {
+      filtered.push(convertToIssue(issue, repository));
+    }
+  }
+
+  return filtered;
+}
+
+/**
  * リポジトリのIssue一覧を取得（GraphQL版）
  *
  * REST APIとの違い:
@@ -67,47 +106,30 @@ export function getIssuesGraphQL(
   logger.log(`  📋 Fetching issues from ${repo.fullName}...`);
 
   while (page < maxPages) {
+    const variables = buildIssuesQueryVariables(repo, cursor, options?.labels);
     const queryResult: ApiResponse<IssuesQueryResponse> =
-      executeGraphQLWithRetry<IssuesQueryResponse>(
-        ISSUES_QUERY,
-        {
-          owner: repo.owner,
-          name: repo.name,
-          first: DEFAULT_PAGE_SIZE,
-          after: cursor,
-          labels: options?.labels?.length ? options.labels : null,
-          states: ['OPEN', 'CLOSED'],
-        },
-        token
-      );
+      executeGraphQLWithRetry<IssuesQueryResponse>(ISSUES_QUERY, variables, token);
 
     const validationError = validatePaginatedResponse(queryResult, page, 'repository.issues');
     if (validationError) {
       return validationError;
     }
     if (!queryResult.success) {
-      break; // 2ページ目以降のエラー
+      break;
     }
 
     const issuesData = queryResult.data!.repository!.issues;
-    const nodes: GraphQLIssue[] = issuesData.nodes;
-    const pageInfo = issuesData.pageInfo;
+    const filteredIssues = filterIssuesByDateRange(
+      issuesData.nodes,
+      options?.dateRange,
+      repo.fullName
+    );
+    allIssues.push(...filteredIssues);
 
-    for (const issue of nodes) {
-      const createdAt = new Date(issue.createdAt);
-
-      // 日付範囲チェック
-      if (!isWithinDateRange(createdAt, options?.dateRange)) {
-        continue;
-      }
-
-      allIssues.push(convertToIssue(issue, repo.fullName));
-    }
-
-    if (!pageInfo.hasNextPage) {
+    if (!issuesData.pageInfo.hasNextPage) {
       break;
     }
-    cursor = pageInfo.endCursor;
+    cursor = issuesData.pageInfo.endCursor;
     page++;
   }
 

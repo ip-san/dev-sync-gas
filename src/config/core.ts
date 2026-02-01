@@ -6,7 +6,6 @@
 
 import type { Config, GitHubRepository, GitHubAppConfig, ProjectGroup } from '../types';
 import { getContainer } from '../container';
-import { resolveGitHubToken } from '../services/githubAuth';
 import { CONFIG_KEYS } from './propertyKeys';
 import {
   safeParseJSON,
@@ -137,16 +136,4 @@ export function setConfig(partialConfig: {
       JSON.stringify(partialConfig.projects)
     );
   }
-}
-
-/**
- * 設定からGitHubトークンを取得
- * - GitHub Apps設定がある場合: Installation Tokenを取得して返す
- * - PAT設定の場合: PATをそのまま返す
- *
- * @returns GitHub APIで使用するトークン
- */
-export function getGitHubToken(): string {
-  const config = getConfig();
-  return resolveGitHubToken(config.github.token, config.github.appConfig);
 }

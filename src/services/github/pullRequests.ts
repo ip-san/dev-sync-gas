@@ -1,8 +1,14 @@
 /**
- * GitHub Pull Request 関連モジュール
+ * GitHub Pull Request 関連モジュール（REST API版）
+ *
+ * @deprecated このファイルの関数はREST APIを使用しており、非推奨です。
+ * GraphQL版（src/services/github/graphql/pullRequests.ts）の使用を推奨します。
+ * GraphQL版はAPI呼び出し回数が大幅に少なく、レート制限対策として有効です。
  *
  * PR一覧取得、PR詳細取得、PRコミット取得など
  * Pull Requestに関するGitHub API操作を提供。
+ *
+ * 削除予定: Version 1.2.0
  */
 
 import type {
@@ -53,6 +59,11 @@ export interface GetPullRequestsOptions {
   maxPages?: number;
 }
 
+/**
+ * @deprecated REST API版は非推奨です。GraphQL版の getPullRequestsGraphQL() を使用してください。
+ * GraphQL版はAPI呼び出し回数が大幅に削減されています。
+ * 削除予定: Version 1.2.0
+ */
 export function getPullRequests(options: GetPullRequestsOptions): ApiResponse<GitHubPullRequest[]> {
   const { repo, token, state = 'all', dateRange, maxPages = DEFAULT_MAX_PAGES } = options;
   const { logger } = getContainer();
@@ -98,6 +109,9 @@ export function getPullRequests(options: GetPullRequestsOptions): ApiResponse<Gi
 
 /**
  * PRの詳細情報を取得（additions, deletions, changed_files を含む）
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getPullRequestDetailsGraphQL() を使用してください。
+ * 削除予定: Version 1.2.0
  */
 export function getPRDetails(
   owner: string,
@@ -211,6 +225,10 @@ function getPRForcePushCount(
 
 /**
  * 複数PRの手戻りデータを一括取得
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getReworkDataForPRsGraphQL() を使用してください。
+ * GraphQL版はバッチ処理により、API呼び出し回数が大幅に削減されています。
+ * 削除予定: Version 1.2.0
  */
 export function getReworkDataForPRs(
   pullRequests: GitHubPullRequest[],
@@ -560,6 +578,10 @@ function calculateReviewMetrics(
 
 /**
  * 複数PRのレビュー効率データを一括取得
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getReviewEfficiencyDataForPRsGraphQL() を使用してください。
+ * GraphQL版はバッチ処理により、API呼び出し回数が大幅に削減されています。
+ * 削除予定: Version 1.2.0
  */
 export function getReviewEfficiencyDataForPRs(
   pullRequests: GitHubPullRequest[],

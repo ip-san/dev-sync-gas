@@ -495,6 +495,70 @@ export function getCycleTimeDataGraphQL(
 }
 
 /**
+ * リンクPRがない場合の空コーディングタイムエントリを作成
+ */
+function createEmptyCodingTimeEntry(issue: GitHubIssue, repository: string): IssueCodingTime {
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository,
+    issueCreatedAt: issue.createdAt,
+    prCreatedAt: null,
+    prNumber: null,
+    codingTimeHours: null,
+  };
+}
+
+/**
+ * コーディングタイム（Issue作成→PR作成）を時間で計算
+ */
+function calculateCodingTime(issueCreatedAt: string, prCreatedAt: string): number {
+  const issueCreatedTime = new Date(issueCreatedAt).getTime();
+  const prCreatedTime = new Date(prCreatedAt).getTime();
+  return Math.round(((prCreatedTime - issueCreatedTime) / MS_TO_HOURS) * 10) / 10;
+}
+
+/**
+ * 1つのIssueを処理してコーディングタイムを計算
+ */
+function processIssueForCodingTime(
+  issue: GitHubIssue,
+  repo: GitHubRepository,
+  token: string,
+  logger: { log: (msg: string) => void }
+): IssueCodingTime {
+  logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
+
+  const linkedPRsResult = getLinkedPRsForIssueGraphQL(repo.owner, repo.name, issue.number, token);
+
+  if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
+    logger.log(`    ⏭️ No linked PRs found`);
+    return createEmptyCodingTimeEntry(issue, repo.fullName);
+  }
+
+  logger.log(`    🔗 Found ${linkedPRsResult.data.length} linked PRs`);
+
+  const sortedPRs = [...linkedPRsResult.data].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const earliestPR = sortedPRs[0];
+
+  const codingTimeHours = calculateCodingTime(issue.createdAt, earliestPR.createdAt);
+
+  logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`);
+
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository: repo.fullName,
+    issueCreatedAt: issue.createdAt,
+    prCreatedAt: earliestPR.createdAt,
+    prNumber: earliestPR.number,
+    codingTimeHours,
+  };
+}
+
+/**
  * コーディングタイムデータを取得（GraphQL版）
  */
 export function getCodingTimeDataGraphQL(
@@ -511,7 +575,6 @@ export function getCodingTimeDataGraphQL(
   for (const repo of repositories) {
     logger.log(`🔍 Processing ${repo.fullName} for coding time...`);
 
-    // Issueを取得
     const issuesResult = getIssuesGraphQL(repo, token, {
       dateRange: options.dateRange,
       labels: options.labels,
@@ -522,59 +585,11 @@ export function getCodingTimeDataGraphQL(
       continue;
     }
 
-    const issues = issuesResult.data;
-    logger.log(`  📋 Found ${issues.length} issues to process`);
+    logger.log(`  📋 Found ${issuesResult.data.length} issues to process`);
 
-    for (const issue of issues) {
-      logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
-
-      // リンクPRを取得（createdAtも含む）
-      const linkedPRsResult = getLinkedPRsForIssueGraphQL(
-        repo.owner,
-        repo.name,
-        issue.number,
-        token
-      );
-
-      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
-        logger.log(`    ⏭️ No linked PRs found`);
-        allCodingTimeData.push({
-          issueNumber: issue.number,
-          issueTitle: issue.title,
-          repository: repo.fullName,
-          issueCreatedAt: issue.createdAt,
-          prCreatedAt: null,
-          prNumber: null,
-          codingTimeHours: null,
-        });
-        continue;
-      }
-
-      logger.log(`    🔗 Found ${linkedPRsResult.data.length} linked PRs`);
-
-      // 最も早く作成されたPRを使用
-      const sortedPRs = [...linkedPRsResult.data].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-      const earliestPR = sortedPRs[0];
-
-      // コーディングタイム計算
-      const issueCreatedTime = new Date(issue.createdAt).getTime();
-      const prCreatedTime = new Date(earliestPR.createdAt).getTime();
-      const codingTimeHours =
-        Math.round(((prCreatedTime - issueCreatedTime) / MS_TO_HOURS) * 10) / 10;
-
-      logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`);
-
-      allCodingTimeData.push({
-        issueNumber: issue.number,
-        issueTitle: issue.title,
-        repository: repo.fullName,
-        issueCreatedAt: issue.createdAt,
-        prCreatedAt: earliestPR.createdAt,
-        prNumber: earliestPR.number,
-        codingTimeHours,
-      });
+    for (const issue of issuesResult.data) {
+      const codingTimeEntry = processIssueForCodingTime(issue, repo, token, logger);
+      allCodingTimeData.push(codingTimeEntry);
     }
   }
 

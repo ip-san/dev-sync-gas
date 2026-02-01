@@ -13,9 +13,9 @@ export function clearGitHubAppConfig(): void {
   const { storageClient, logger } = getContainer();
 
   // 削除前の確認メッセージ
-  logger.log('⚠️ Clearing GitHub App configuration...');
-  logger.log('   This will remove App ID, Private Key, and Installation ID');
-  logger.log('   Make sure to revoke the GitHub App access if no longer needed');
+  logger.warn('⚠️ Clearing GitHub App configuration...');
+  logger.warn('   This will remove App ID, Private Key, and Installation ID');
+  logger.warn('   Make sure to revoke the GitHub App access if no longer needed');
 
   try {
     storageClient.deleteProperty(CONFIG_KEYS.GITHUB_AUTH.APP_ID);
@@ -27,7 +27,7 @@ export function clearGitHubAppConfig(): void {
       message: 'GitHub App configuration cleared successfully',
     });
 
-    logger.log('✅ GitHub App configuration cleared');
+    logger.info('✅ GitHub App configuration cleared');
   } catch (error) {
     // 監査ログ（失敗）
     auditLog(

@@ -192,7 +192,7 @@ export function createDailyTrigger(): void {
       schedule: 'daily at 9:00 AM',
     });
 
-    logger.log('✅ Daily trigger created for 9:00 AM');
+    logger.info('✅ Daily trigger created for 9:00 AM');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     auditLog('trigger.create', { functionName: 'syncDevOpsMetrics' }, 'failure', errorMessage);

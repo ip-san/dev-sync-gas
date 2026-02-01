@@ -108,12 +108,12 @@ export function storeSecretInSecretManager(
     if (!secretExists) {
       // シークレットを作成
       createSecret(projectId, secretId, labels);
-      logger.log(`✅ Created secret: ${secretId}`);
+      logger.info(`✅ Created secret: ${secretId}`);
     }
 
     // 2. 新しいバージョンを追加
     addSecretVersion(projectId, secretId, secretValue);
-    logger.log(`✅ Stored secret version: ${secretId}`);
+    logger.info(`✅ Stored secret version: ${secretId}`);
   } catch (error) {
     throw new SecretManagerError('Failed to store secret in Secret Manager', {
       code: ErrorCode.SECRET_MANAGER_ACCESS_FAILED,
@@ -316,7 +316,7 @@ export function deleteSecretFromSecretManager(secretId: string): void {
       });
     }
 
-    logger.log(`✅ Deleted secret: ${secretId}`);
+    logger.info(`✅ Deleted secret: ${secretId}`);
   } catch (error) {
     if (error instanceof SecretManagerError) {
       throw error;
@@ -351,9 +351,9 @@ export function migratePrivateKeyToSecretManager(): void {
     type: 'github-private-key',
   });
 
-  logger.log('✅ Migrated Private Key to Secret Manager');
-  logger.log('⚠️ Original key is still in PropertiesService');
-  logger.log('   Run clearGitHubAppConfig() to remove it after verifying the migration');
+  logger.info('✅ Migrated Private Key to Secret Manager');
+  logger.warn('⚠️ Original key is still in PropertiesService');
+  logger.warn('   Run clearGitHubAppConfig() to remove it after verifying the migration');
 }
 
 /**

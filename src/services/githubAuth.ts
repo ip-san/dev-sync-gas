@@ -170,7 +170,7 @@ function fetchInstallationToken(installationId: string, jwt: string): string {
     storageClient.setProperty(CACHE_TOKEN_KEY, response.data.token);
     storageClient.setProperty(CACHE_EXPIRES_KEY, expiresAt.toString());
 
-    logger.log('✅ GitHub App Installation Token obtained successfully');
+    logger.info('✅ GitHub App Installation Token obtained successfully');
     return response.data.token;
   }
 
@@ -217,7 +217,7 @@ export function getInstallationToken(appConfig: GitHubAppConfig): string {
     return cachedToken;
   }
 
-  logger.log('🔑 Fetching new GitHub App Installation Token...');
+  logger.info('🔑 Fetching new GitHub App Installation Token...');
 
   // Private Keyを取得・検証
   const privateKey = resolvePrivateKey(appConfig);

@@ -131,7 +131,7 @@ export function getAllRepositoriesData(
     logger.log(`📡 Fetching data for ${repo.fullName}...`);
 
     // PRを取得
-    const prsResult = getPullRequests(repo, token, 'all', dateRange);
+    const prsResult = getPullRequests({ repo, token, state: 'all', dateRange });
     if (prsResult.success && prsResult.data) {
       allPRs.push(...prsResult.data);
       logger.log(`  PRs: ${prsResult.data.length}`);

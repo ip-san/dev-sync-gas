@@ -144,9 +144,14 @@ function fetchMergedPRsForDebug(days: number): GitHubPullRequest[] | null {
   const allPRs: GitHubPullRequest[] = [];
 
   for (const repo of config.github.repositories) {
-    const result = getPullRequests(repo, token, 'all', {
-      since: startDate,
-      until: endDate,
+    const result = getPullRequests({
+      repo,
+      token,
+      state: 'all',
+      dateRange: {
+        since: startDate,
+        until: endDate,
+      },
     });
 
     if (result.success && result.data) {

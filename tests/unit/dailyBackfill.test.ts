@@ -9,11 +9,7 @@ import {
   generateDateRange,
   isOnDate,
 } from '../../src/utils/metrics/dora';
-import type {
-  GitHubPullRequest,
-  GitHubWorkflowRun,
-  GitHubDeployment,
-} from '../../src/types';
+import type { GitHubPullRequest, GitHubWorkflowRun, GitHubDeployment } from '../../src/types';
 
 describe('generateDateRange', () => {
   it('同じ日付の場合は1要素を返す', () => {
@@ -77,7 +73,13 @@ describe('isOnDate', () => {
 
 describe('calculateMetricsForDate', () => {
   it('PRがない場合はゼロ値を返す', () => {
-    const result = calculateMetricsForDate('owner/repo', '2024-01-15', [], [], []);
+    const result = calculateMetricsForDate({
+      repository: 'owner/repo',
+      dateStr: '2024-01-15',
+      prs: [],
+      runs: [],
+      deployments: [],
+    });
 
     expect(result.date).toBe('2024-01-15');
     expect(result.repository).toBe('owner/repo');
@@ -115,7 +117,13 @@ describe('calculateMetricsForDate', () => {
       },
     ];
 
-    const result = calculateMetricsForDate('owner/repo', '2024-01-15', prs, [], deployments);
+    const result = calculateMetricsForDate({
+      repository: 'owner/repo',
+      dateStr: '2024-01-15',
+      prs: prs,
+      runs: [],
+      deployments: deployments,
+    });
 
     expect(result.date).toBe('2024-01-15');
     expect(result.repository).toBe('owner/repo');
@@ -167,13 +175,13 @@ describe('calculateDailyMetrics', () => {
       },
     ];
 
-    const result = calculateDailyMetrics(
-      repositories,
-      prs,
-      [],
-      [],
-      { since: new Date('2024-01-15'), until: new Date('2024-01-16') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: repositories,
+      prs: prs,
+      runs: [],
+      deployments: [],
+      dateRange: { since: new Date('2024-01-15'), until: new Date('2024-01-16') },
+    });
 
     expect(result).toHaveLength(2);
 
@@ -189,10 +197,7 @@ describe('calculateDailyMetrics', () => {
   });
 
   it('リポジトリごとに分離される', () => {
-    const multiRepoRepositories = [
-      { fullName: 'owner/repo1' },
-      { fullName: 'owner/repo2' },
-    ];
+    const multiRepoRepositories = [{ fullName: 'owner/repo1' }, { fullName: 'owner/repo2' }];
 
     const prs: GitHubPullRequest[] = [
       {
@@ -219,13 +224,13 @@ describe('calculateDailyMetrics', () => {
       },
     ];
 
-    const result = calculateDailyMetrics(
-      multiRepoRepositories,
-      prs,
-      [],
-      [],
-      { since: new Date('2024-01-15'), until: new Date('2024-01-15') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: multiRepoRepositories,
+      prs: prs,
+      runs: [],
+      deployments: [],
+      dateRange: { since: new Date('2024-01-15'), until: new Date('2024-01-15') },
+    });
 
     // 同じ日付でもリポジトリごとに別レコード
     expect(result).toHaveLength(2);
@@ -240,13 +245,13 @@ describe('calculateDailyMetrics', () => {
   });
 
   it('30日分で30×リポジトリ数のレコードを生成する', () => {
-    const result = calculateDailyMetrics(
-      repositories,
-      [],
-      [],
-      [],
-      { since: new Date('2024-01-01'), until: new Date('2024-01-30') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: repositories,
+      prs: [],
+      runs: [],
+      deployments: [],
+      dateRange: { since: new Date('2024-01-01'), until: new Date('2024-01-30') },
+    });
 
     // 30日間 × 1リポジトリ = 30レコード
     expect(result).toHaveLength(30);
@@ -259,13 +264,13 @@ describe('calculateDailyMetrics', () => {
       { fullName: 'owner/repo3' },
     ];
 
-    const result = calculateDailyMetrics(
-      threeRepos,
-      [],
-      [],
-      [],
-      { since: new Date('2024-01-01'), until: new Date('2024-01-30') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: threeRepos,
+      prs: [],
+      runs: [],
+      deployments: [],
+      dateRange: { since: new Date('2024-01-01'), until: new Date('2024-01-30') },
+    });
 
     // 30日間 × 3リポジトリ = 90レコード
     expect(result).toHaveLength(90);
@@ -286,13 +291,13 @@ describe('calculateDailyMetrics', () => {
       },
     ];
 
-    const result = calculateDailyMetrics(
-      repositories,
-      prs,
-      [],
-      [],
-      { since: new Date('2024-01-15'), until: new Date('2024-01-15') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: repositories,
+      prs: prs,
+      runs: [],
+      deployments: [],
+      dateRange: { since: new Date('2024-01-15'), until: new Date('2024-01-15') },
+    });
 
     expect(result).toHaveLength(1);
     expect(result[0].leadTimeForChangesHours).toBe(0);
@@ -320,13 +325,13 @@ describe('calculateDailyMetrics', () => {
       },
     ];
 
-    const result = calculateDailyMetrics(
-      repositories,
-      [],
-      [],
-      deployments,
-      { since: new Date('2024-01-15'), until: new Date('2024-01-16') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: repositories,
+      prs: [],
+      runs: [],
+      deployments: deployments,
+      dateRange: { since: new Date('2024-01-15'), until: new Date('2024-01-16') },
+    });
 
     const jan15 = result.find((m) => m.date === '2024-01-15');
     const jan16 = result.find((m) => m.date === '2024-01-16');
@@ -366,13 +371,13 @@ describe('calculateDailyMetrics', () => {
       },
     ];
 
-    const result = calculateDailyMetrics(
-      repositories,
-      [],
-      runs,
-      [],
-      { since: new Date('2024-01-15'), until: new Date('2024-01-16') }
-    );
+    const result = calculateDailyMetrics({
+      repositories: repositories,
+      prs: [],
+      runs: runs,
+      deployments: [],
+      dateRange: { since: new Date('2024-01-15'), until: new Date('2024-01-16') },
+    });
 
     const jan15 = result.find((m) => m.date === '2024-01-15');
     const jan16 = result.find((m) => m.date === '2024-01-16');

@@ -367,13 +367,19 @@ export function isOnDate(target: Date, date: Date): boolean {
  * @param dateRange - 期間
  * @returns 日別・リポジトリ別のメトリクス配列
  */
-export function calculateDailyMetrics(
-  repositories: { fullName: string }[],
-  prs: GitHubPullRequest[],
-  runs: GitHubWorkflowRun[],
-  deployments: GitHubDeployment[],
-  dateRange: { since: Date; until: Date }
-): DevOpsMetrics[] {
+/**
+ * calculateDailyMetrics のオプション
+ */
+export interface CalculateDailyMetricsOptions {
+  repositories: { fullName: string }[];
+  prs: GitHubPullRequest[];
+  runs: GitHubWorkflowRun[];
+  deployments: GitHubDeployment[];
+  dateRange: { since: Date; until: Date };
+}
+
+export function calculateDailyMetrics(options: CalculateDailyMetricsOptions): DevOpsMetrics[] {
+  const { repositories, prs, runs, deployments, dateRange } = options;
   const metrics: DevOpsMetrics[] = [];
 
   // 期間内の各日付を生成
@@ -402,13 +408,13 @@ export function calculateDailyMetrics(
       );
 
       // 日別メトリクス計算
-      const dayMetrics = calculateMetricsForDate(
-        repo.fullName,
+      const dayMetrics = calculateMetricsForDate({
+        repository: repo.fullName,
         dateStr,
-        dayPRs,
-        dayRuns,
-        dayDeployments
-      );
+        prs: dayPRs,
+        runs: dayRuns,
+        deployments: dayDeployments,
+      });
 
       metrics.push(dayMetrics);
     }
@@ -418,15 +424,21 @@ export function calculateDailyMetrics(
 }
 
 /**
+ * calculateMetricsForDate のオプション
+ */
+export interface CalculateMetricsForDateOptions {
+  repository: string;
+  dateStr: string;
+  prs: GitHubPullRequest[];
+  runs: GitHubWorkflowRun[];
+  deployments: GitHubDeployment[];
+}
+
+/**
  * 指定日付でメトリクスを計算
  */
-export function calculateMetricsForDate(
-  repository: string,
-  dateStr: string,
-  prs: GitHubPullRequest[],
-  runs: GitHubWorkflowRun[],
-  deployments: GitHubDeployment[]
-): DevOpsMetrics {
+export function calculateMetricsForDate(options: CalculateMetricsForDateOptions): DevOpsMetrics {
+  const { repository, dateStr, prs, runs, deployments } = options;
   // 1日あたりのメトリクス計算（periodDays = 1）
   const { count, frequency } = calculateDeploymentFrequency(deployments, runs, 1);
   const { total, failed, rate } = calculateChangeFailureRate(deployments, runs);
@@ -454,16 +466,24 @@ export function calculateMetricsForDate(
 // =============================================================================
 
 /**
+ * calculateMetricsForRepository のオプション
+ */
+export interface CalculateMetricsForRepositoryOptions {
+  repository: string;
+  prs: GitHubPullRequest[];
+  runs: GitHubWorkflowRun[];
+  deployments?: GitHubDeployment[];
+  periodDays?: number;
+  incidents?: GitHubIncident[];
+}
+
+/**
  * リポジトリ単位でDORA metricsを計算する
  */
 export function calculateMetricsForRepository(
-  repository: string,
-  prs: GitHubPullRequest[],
-  runs: GitHubWorkflowRun[],
-  deployments: GitHubDeployment[] = [],
-  periodDays = 30,
-  incidents: GitHubIncident[] = []
+  options: CalculateMetricsForRepositoryOptions
 ): DevOpsMetrics {
+  const { repository, prs, runs, deployments = [], periodDays = 30, incidents = [] } = options;
   const repoPRs = prs.filter((pr) => pr.repository === repository);
   const repoRuns = runs.filter((run) => run.repository === repository);
   const repoDeployments = deployments.filter((d) => d.repository === repository);

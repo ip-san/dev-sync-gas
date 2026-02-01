@@ -39,13 +39,19 @@ function checkProductionMerge(
 /**
  * 次のPRを検索
  */
-function findNextPR(
-  owner: string,
-  repo: string,
-  mergeCommitSha: string,
-  currentPRNumber: number,
-  token: string
-): number | null {
+/**
+ * findNextPR のオプション
+ */
+interface FindNextPROptions {
+  owner: string;
+  repo: string;
+  mergeCommitSha: string;
+  currentPRNumber: number;
+  token: string;
+}
+
+function findNextPR(options: FindNextPROptions): number | null {
+  const { owner, repo, mergeCommitSha, currentPRNumber, token } = options;
   const nextPRResult = findPRContainingCommit(owner, repo, mergeCommitSha, token);
 
   if (!nextPRResult.success || !nextPRResult.data) {
@@ -61,17 +67,23 @@ function findNextPR(
 }
 
 /**
+ * processTrackStep のオプション
+ */
+export interface ProcessTrackStepOptions {
+  owner: string;
+  repo: string;
+  currentPRNumber: number;
+  token: string;
+  productionPattern: string;
+  prChain: PRChainItem[];
+  logger: LoggerClient;
+}
+
+/**
  * PR追跡の1ステップを実行
  */
-export function processTrackStep(
-  owner: string,
-  repo: string,
-  currentPRNumber: number,
-  token: string,
-  productionPattern: string,
-  prChain: PRChainItem[],
-  logger: LoggerClient
-): TrackStepResult {
+export function processTrackStep(options: ProcessTrackStepOptions): TrackStepResult {
+  const { owner, repo, currentPRNumber, token, productionPattern, prChain, logger } = options;
   const prResult = getPullRequestWithBranches(owner, repo, currentPRNumber, token);
 
   if (!prResult.success || !prResult.data) {
@@ -99,7 +111,13 @@ export function processTrackStep(
   }
 
   // 次のPRを検索
-  const nextPRNumber = findNextPR(owner, repo, pr.mergeCommitSha, currentPRNumber, token);
+  const nextPRNumber = findNextPR({
+    owner,
+    repo,
+    mergeCommitSha: pr.mergeCommitSha,
+    currentPRNumber,
+    token,
+  });
   if (!nextPRNumber) {
     return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
   }

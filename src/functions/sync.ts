@@ -95,7 +95,12 @@ export function syncDevOpsMetrics(dateRange?: DateRange): void {
   );
 
   const metrics: DevOpsMetrics[] = config.github.repositories.map((repo) =>
-    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+    calculateMetricsForRepository({
+      repository: repo.fullName,
+      prs: pullRequests,
+      runs: workflowRuns,
+      deployments,
+    })
   );
 
   Logger.log(`📈 Calculated ${metrics.length} metrics`);
@@ -158,7 +163,12 @@ export function syncAllProjects(dateRange?: DateRange): void {
     );
 
     const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
-      calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+      calculateMetricsForRepository({
+        repository: repo.fullName,
+        prs: pullRequests,
+        runs: workflowRuns,
+        deployments,
+      })
     );
 
     // リポジトリ別シートに書き込み
@@ -209,7 +219,12 @@ export function syncProject(projectName: string, dateRange?: DateRange): void {
   );
 
   const metrics: DevOpsMetrics[] = project.repositories.map((repo) =>
-    calculateMetricsForRepository(repo.fullName, pullRequests, workflowRuns, deployments)
+    calculateMetricsForRepository({
+      repository: repo.fullName,
+      prs: pullRequests,
+      runs: workflowRuns,
+      deployments,
+    })
   );
 
   // リポジトリ別シートに書き込み
@@ -308,13 +323,13 @@ export function syncDailyBackfill(days = 30): void {
   );
 
   // 3. 日別メトリクス計算
-  const dailyMetrics = calculateDailyMetrics(
-    config.github.repositories,
-    pullRequests,
-    workflowRuns,
+  const dailyMetrics = calculateDailyMetrics({
+    repositories: config.github.repositories,
+    prs: pullRequests,
+    runs: workflowRuns,
     deployments,
-    { since, until }
-  );
+    dateRange: { since, until },
+  });
 
   Logger.log(`📊 Generated ${dailyMetrics.length} daily records`);
 
@@ -378,13 +393,13 @@ export function backfillAllProjectsDaily(days = 30): void {
       `   📥 Fetched ${pullRequests.length} PRs, ${workflowRuns.length} workflow runs, ${deployments.length} deployments`
     );
 
-    const dailyMetrics = calculateDailyMetrics(
-      project.repositories,
-      pullRequests,
-      workflowRuns,
+    const dailyMetrics = calculateDailyMetrics({
+      repositories: project.repositories,
+      prs: pullRequests,
+      runs: workflowRuns,
       deployments,
-      { since, until }
-    );
+      dateRange: { since, until },
+    });
 
     Logger.log(`   📊 Generated ${dailyMetrics.length} daily records`);
 

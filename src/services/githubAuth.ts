@@ -2,6 +2,7 @@ import { KJUR } from 'jsrsasign';
 import type { GitHubAppConfig } from '../types';
 import { getContainer } from '../container';
 import { getGitHubPrivateKey } from '../utils/secretManager';
+import { PRIVATE_KEY_PREVIEW_LENGTH } from '../config/apiConfig';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 
@@ -73,7 +74,7 @@ function validatePrivateKey(privateKey: string): void {
  */
 function sanitizeErrorContent(content: string): string {
   // 最初の100文字のみを使用（機密情報の露出を最小化）
-  let sanitized = content.substring(0, 100);
+  let sanitized = content.substring(0, PRIVATE_KEY_PREVIEW_LENGTH);
 
   // トークンやキーのパターンをマスク
   const sensitivePatterns = [

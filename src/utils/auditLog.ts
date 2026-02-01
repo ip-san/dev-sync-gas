@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { getContainer } from '../container';
+import { AUDIT_LOG_VALUE_MAX_LENGTH } from '../config/apiConfig';
 
 /**
  * 監査ログエントリのzodスキーマ
@@ -111,9 +112,9 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
 
     if (isSensitive) {
       sanitized[key] = '[REDACTED]';
-    } else if (typeof value === 'string' && value.length > 200) {
+    } else if (typeof value === 'string' && value.length > AUDIT_LOG_VALUE_MAX_LENGTH) {
       // 長い文字列は切り詰め
-      sanitized[key] = value.substring(0, 200) + '... (truncated)';
+      sanitized[key] = value.substring(0, AUDIT_LOG_VALUE_MAX_LENGTH) + '... (truncated)';
     } else if (typeof value === 'object' && value !== null) {
       // ネストされたオブジェクトは再帰的にサニタイズ
       sanitized[key] = sanitizeDetails(value as Record<string, unknown>);

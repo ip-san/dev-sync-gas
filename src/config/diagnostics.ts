@@ -8,6 +8,7 @@ import { getContainer } from '../container.js';
 import type { GitHubRepository } from '../types/index.js';
 import { getGitHubAuthMode } from './authMode.js';
 import { GitHubRepositoriesSchema } from '../utils/configSchemas.js';
+import { SPREADSHEET_ID_DISPLAY_LENGTH } from './apiConfig.js';
 
 export interface ConfigDiagnosticItem {
   name: string;
@@ -41,7 +42,7 @@ function diagnoseSpreadsheetId(): ConfigDiagnosticItem {
   return {
     name: 'Spreadsheet ID',
     status: 'ok',
-    message: `設定済み: ${spreadsheetId.substring(0, 10)}...`,
+    message: `設定済み: ${spreadsheetId.substring(0, SPREADSHEET_ID_DISPLAY_LENGTH)}...`,
   };
 }
 

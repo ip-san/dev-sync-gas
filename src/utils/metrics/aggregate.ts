@@ -5,6 +5,7 @@
  */
 
 import type { DevOpsMetrics } from '../../types';
+import { DECIMAL_PRECISION_MULTIPLIER } from '../../config/apiConfig';
 
 // =============================================================================
 // 型定義
@@ -91,10 +92,16 @@ export function aggregateMultiRepoMetrics(metrics: DevOpsMetrics[]): AggregatedS
     repositorySummaries.push({
       repository,
       dataPointCount: repoMetrics.length,
-      avgDeploymentCount: Math.round(avgDeployment * 10) / 10,
-      avgLeadTimeHours: Math.round(avgLeadTime * 10) / 10,
-      avgChangeFailureRate: Math.round(avgCfr * 10) / 10,
-      avgMttrHours: avgMttr !== null ? Math.round(avgMttr * 10) / 10 : null,
+      avgDeploymentCount:
+        Math.round(avgDeployment * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER,
+      avgLeadTimeHours:
+        Math.round(avgLeadTime * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER,
+      avgChangeFailureRate:
+        Math.round(avgCfr * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER,
+      avgMttrHours:
+        avgMttr !== null
+          ? Math.round(avgMttr * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER
+          : null,
       lastUpdated,
     });
   }
@@ -117,10 +124,18 @@ export function aggregateMultiRepoMetrics(metrics: DevOpsMetrics[]): AggregatedS
     repositorySummaries,
     overallSummary: {
       totalRepositories: repositorySummaries.length,
-      avgDeploymentCount: Math.round(overallAvgDeployment * 10) / 10,
-      avgLeadTimeHours: Math.round(overallAvgLeadTime * 10) / 10,
-      avgChangeFailureRate: Math.round(overallAvgCfr * 10) / 10,
-      avgMttrHours: overallAvgMttr !== null ? Math.round(overallAvgMttr * 10) / 10 : null,
+      avgDeploymentCount:
+        Math.round(overallAvgDeployment * DECIMAL_PRECISION_MULTIPLIER) /
+        DECIMAL_PRECISION_MULTIPLIER,
+      avgLeadTimeHours:
+        Math.round(overallAvgLeadTime * DECIMAL_PRECISION_MULTIPLIER) /
+        DECIMAL_PRECISION_MULTIPLIER,
+      avgChangeFailureRate:
+        Math.round(overallAvgCfr * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER,
+      avgMttrHours:
+        overallAvgMttr !== null
+          ? Math.round(overallAvgMttr * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER
+          : null,
     },
   };
 }

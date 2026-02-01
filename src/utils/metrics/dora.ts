@@ -12,7 +12,10 @@ import type {
   DevOpsMetrics,
 } from '../../types';
 import { getFrequencyCategory } from '../../config/doraThresholds';
-import { LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS } from '../../config/apiConfig';
+import {
+  LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS,
+  DECIMAL_PRECISION_MULTIPLIER,
+} from '../../config/apiConfig';
 
 // =============================================================================
 // 定数
@@ -143,7 +146,9 @@ export function calculateLeadTimeDetailed(
   }
 
   const totalHours = leadTimes.reduce((sum, hours) => sum + hours, 0);
-  const hours = Math.round((totalHours / leadTimes.length) * 10) / 10;
+  const hours =
+    Math.round((totalHours / leadTimes.length) * DECIMAL_PRECISION_MULTIPLIER) /
+    DECIMAL_PRECISION_MULTIPLIER;
 
   return { hours, mergeToDeployCount, createToMergeCount };
 }
@@ -213,7 +218,11 @@ export function calculateChangeFailureRate(
     const failed = deploymentsWithStatus.filter(
       (d) => d.status === 'failure' || d.status === 'error'
     ).length;
-    const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
+    const rate =
+      total > 0
+        ? Math.round((failed / total) * 100 * DECIMAL_PRECISION_MULTIPLIER) /
+          DECIMAL_PRECISION_MULTIPLIER
+        : 0;
     return { total, failed, rate };
   }
 
@@ -222,7 +231,11 @@ export function calculateChangeFailureRate(
 
   const total = deploymentRuns.length;
   const failed = deploymentRuns.filter((run) => run.conclusion === 'failure').length;
-  const rate = total > 0 ? Math.round((failed / total) * 100 * 10) / 10 : 0;
+  const rate =
+    total > 0
+      ? Math.round((failed / total) * 100 * DECIMAL_PRECISION_MULTIPLIER) /
+        DECIMAL_PRECISION_MULTIPLIER
+      : 0;
 
   return { total, failed, rate };
 }

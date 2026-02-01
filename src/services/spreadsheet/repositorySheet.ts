@@ -10,6 +10,7 @@ import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { getOrCreateSheet, autoResizeColumns, openSpreadsheet, applyDataBorders } from './helpers';
 import { REPOSITORY_DEVOPS_SCHEMA, getHeadersFromSchema } from '../../schemas';
+import { REPOSITORY_NAME_MAX_LENGTH } from '../../config/apiConfig';
 
 /**
  * 文字列が有効なデプロイメント頻度かをチェックする型ガード
@@ -33,7 +34,9 @@ const REPOSITORY_SHEET_HEADERS = getHeadersFromSchema(REPOSITORY_DEVOPS_SCHEMA);
 export function getRepositorySheetName(repository: string): string {
   // Google Sheetsのシート名制限: 100文字以内
   // owner/repo形式をそのまま使用（スラッシュはシート名に使用可能）
-  return repository.length > 100 ? repository.substring(0, 100) : repository;
+  return repository.length > REPOSITORY_NAME_MAX_LENGTH
+    ? repository.substring(0, REPOSITORY_NAME_MAX_LENGTH)
+    : repository;
 }
 
 /**

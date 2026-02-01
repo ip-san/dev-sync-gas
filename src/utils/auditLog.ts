@@ -131,18 +131,20 @@ export function getAuditLogs(limit = 100): AuditLogEntry[] {
     const auditEntries: AuditLogEntry[] = [];
 
     for (const line of lines) {
-      if (line.includes('[AUDIT]')) {
-        try {
-          const jsonStr = line.substring(line.indexOf('{'));
-          const entry = JSON.parse(jsonStr) as AuditLogEntry;
-          auditEntries.push(entry);
+      if (!line.includes('[AUDIT]')) {
+        continue;
+      }
 
-          if (auditEntries.length >= limit) {
-            break;
-          }
-        } catch {
-          // パースエラーは無視
+      try {
+        const jsonStr = line.substring(line.indexOf('{'));
+        const entry = JSON.parse(jsonStr) as AuditLogEntry;
+        auditEntries.push(entry);
+
+        if (auditEntries.length >= limit) {
+          break;
         }
+      } catch {
+        // パースエラーは無視
       }
     }
 

@@ -31,6 +31,7 @@ import type {
 } from './types';
 import type { IssueDateRange } from '../api';
 import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
+import { selectBestTrackResult } from '../cycleTimeHelpers.js';
 
 // =============================================================================
 // Issue一覧取得
@@ -481,12 +482,7 @@ export function getCycleTimeDataGraphQL(
       );
 
       // 最初のリンクPRからproductionマージを追跡
-      let bestResult: {
-        productionMergedAt: string | null;
-        prChain: PRChainItem[];
-      } | null = null;
-
-      for (const linkedPR of linkedPRsResult.data) {
+      const trackResults = linkedPRsResult.data.map((linkedPR) => {
         const trackResult = trackToProductionMergeGraphQL({
           owner: repo.owner,
           repo: repo.name,
@@ -494,24 +490,10 @@ export function getCycleTimeDataGraphQL(
           token,
           productionPattern,
         });
+        return trackResult.success && trackResult.data ? trackResult.data : null;
+      });
 
-        if (trackResult.success && trackResult.data) {
-          if (trackResult.data.productionMergedAt) {
-            if (
-              !bestResult?.productionMergedAt ||
-              new Date(trackResult.data.productionMergedAt) <
-                new Date(bestResult.productionMergedAt)
-            ) {
-              bestResult = trackResult.data;
-            }
-          } else if (!bestResult) {
-            bestResult = trackResult.data;
-          }
-        }
-      }
-
-      const prChain = bestResult?.prChain ?? [];
-      const productionMergedAt = bestResult?.productionMergedAt ?? null;
+      const { productionMergedAt, prChain } = selectBestTrackResult(trackResults);
 
       // サイクルタイム計算
       let cycleTimeHours: number | null = null;

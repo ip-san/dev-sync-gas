@@ -194,25 +194,25 @@ class GasSheetRange implements SheetRange {
     this.range.setFontColor(color);
   }
 
-  setBorder(
-    top: boolean | null,
-    left: boolean | null,
-    bottom: boolean | null,
-    right: boolean | null,
-    vertical: boolean | null,
-    horizontal: boolean | null,
-    color?: string | null,
-    style?: BorderStyle | null
-  ): void {
+  setBorder(options: {
+    top?: boolean | null;
+    left?: boolean | null;
+    bottom?: boolean | null;
+    right?: boolean | null;
+    vertical?: boolean | null;
+    horizontal?: boolean | null;
+    color?: string | null;
+    style?: BorderStyle | null;
+  }): void {
     this.range.setBorder(
-      top,
-      left,
-      bottom,
-      right,
-      vertical,
-      horizontal,
-      color ?? null,
-      toGasBorderStyle(style)
+      options.top ?? null,
+      options.left ?? null,
+      options.bottom ?? null,
+      options.right ?? null,
+      options.vertical ?? null,
+      options.horizontal ?? null,
+      options.color ?? null,
+      toGasBorderStyle(options.style)
     );
   }
 

@@ -109,7 +109,16 @@ export function styleHeaderRow(sheet: Sheet, columnCount: number): void {
   headerRange.setBackground(COLORS.headerBackground);
   headerRange.setFontColor(COLORS.headerText);
   headerRange.setHorizontalAlignment('center');
-  headerRange.setBorder(true, true, true, true, false, false, COLORS.border, 'solid');
+  headerRange.setBorder({
+    top: true,
+    left: true,
+    bottom: true,
+    right: true,
+    vertical: false,
+    horizontal: false,
+    color: COLORS.border,
+    style: 'solid',
+  });
   sheet.setFrozenRows(1);
 }
 
@@ -125,7 +134,16 @@ export function applyDataBorders(sheet: Sheet, rowCount: number, columnCount: nu
     return;
   }
   const dataRange = sheet.getRange(2, 1, rowCount, columnCount);
-  dataRange.setBorder(true, true, true, true, true, true, COLORS.border, 'solid');
+  dataRange.setBorder({
+    top: true,
+    left: true,
+    bottom: true,
+    right: true,
+    vertical: true,
+    horizontal: true,
+    color: COLORS.border,
+    style: 'solid',
+  });
 }
 
 /**

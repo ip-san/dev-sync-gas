@@ -15,63 +15,20 @@ import {
   GitHubRepositoriesSchema,
   ProjectGroupsSchema,
 } from '../utils/configSchemas';
+import { getGitHubAuthMode as getAuthMode } from './authMode.js';
 
 // =============================================================================
-// API モード設定
+// API モード設定（Re-export from apiMode.ts）
 // =============================================================================
 
-/** GitHub APIモード */
-export type GitHubApiMode = 'rest' | 'graphql';
+export type { GitHubApiMode } from './apiMode.js';
+export { getGitHubApiMode, setGitHubApiMode, resetGitHubApiMode } from './apiMode.js';
 
-/**
- * GitHub APIモードを取得
- * @returns "graphql" | "rest"（デフォルト: "graphql"）
- */
-export function getGitHubApiMode(): GitHubApiMode {
-  const { storageClient } = getContainer();
-  const mode = storageClient.getProperty(CONFIG_KEYS.GITHUB_API.API_MODE);
-  return mode === 'rest' ? 'rest' : 'graphql';
-}
+// =============================================================================
+// 認証モード（Re-export from authMode.ts）
+// =============================================================================
 
-/**
- * GitHub APIモードを設定
- * @param mode - "graphql" または "rest"
- */
-export function setGitHubApiMode(mode: GitHubApiMode): void {
-  const { storageClient } = getContainer();
-  storageClient.setProperty(CONFIG_KEYS.GITHUB_API.API_MODE, mode);
-}
-
-/**
- * GitHub APIモードをリセット（デフォルトのgraphqlに戻す）
- */
-export function resetGitHubApiMode(): void {
-  const { storageClient } = getContainer();
-  storageClient.deleteProperty(CONFIG_KEYS.GITHUB_API.API_MODE);
-}
-
-/**
- * GitHub認証モードを判定
- * @returns "app" | "pat" | "none"
- */
-export function getGitHubAuthMode(): 'app' | 'pat' | 'none' {
-  const { storageClient } = getContainer();
-
-  const appId = storageClient.getProperty(CONFIG_KEYS.GITHUB_AUTH.APP_ID);
-  const privateKey = storageClient.getProperty(CONFIG_KEYS.GITHUB_AUTH.APP_PRIVATE_KEY);
-  const installationId = storageClient.getProperty(CONFIG_KEYS.GITHUB_AUTH.APP_INSTALLATION_ID);
-
-  if (appId && privateKey && installationId) {
-    return 'app';
-  }
-
-  const token = storageClient.getProperty(CONFIG_KEYS.GITHUB_AUTH.TOKEN);
-  if (token) {
-    return 'pat';
-  }
-
-  return 'none';
-}
+export { getGitHubAuthMode } from './authMode.js';
 
 export function getConfig(): Config {
   const { storageClient, logger } = getContainer();
@@ -96,7 +53,7 @@ export function getConfig(): Config {
 
   const repositories = safeParseJSON(repositoriesJson, GitHubRepositoriesSchema, [], logger);
 
-  const authMode = getGitHubAuthMode();
+  const authMode = getAuthMode();
 
   if (authMode === 'none') {
     // 部分的に設定されているか確認して、より詳細なエラーを出す

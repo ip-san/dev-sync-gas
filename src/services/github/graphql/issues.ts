@@ -18,6 +18,7 @@ import type {
   IssueCycleTime,
   IssueCodingTime,
 } from '../../../types';
+import type { LoggerClient } from '../../../interfaces/index.js';
 import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { ISSUES_QUERY, ISSUE_WITH_LINKED_PRS_QUERY, COMMIT_ASSOCIATED_PRS_QUERY } from './queries';
@@ -29,7 +30,7 @@ import type {
   CommitAssociatedPRsQueryResponse,
 } from './types';
 import type { IssueDateRange } from '../api';
-import { getPullRequestWithBranchesGraphQL } from './pullRequests';
+import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
 
 // =============================================================================
 // Issue一覧取得
@@ -271,66 +272,147 @@ export function findPRContainingCommitGraphQL(
 /**
  * PRチェーンを追跡してproductionブランチへのマージを検出（GraphQL版）
  */
-export function trackToProductionMergeGraphQL(
+/**
+ * trackToProductionMergeGraphQL のオプション
+ */
+export interface TrackToProductionGraphQLOptions {
+  owner: string;
+  repo: string;
+  initialPRNumber: number;
+  token: string;
+  productionPattern?: string;
+}
+
+/**
+ * PR追跡の1ステップ処理結果
+ */
+interface TrackStepResult {
+  shouldContinue: boolean;
+  productionMergedAt: string | null;
+  nextPRNumber: number | null;
+}
+
+/**
+ * productionブランチへのマージを検出（内部ヘルパー）
+ */
+function checkProductionMergeGraphQL(
+  pr: { baseBranch?: string | null | undefined; mergedAt: string | null; number: number },
+  productionPattern: string,
+  logger: LoggerClient
+): TrackStepResult | null {
+  if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
+    if (pr.mergedAt) {
+      logger.log(
+        `    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`
+      );
+      return { shouldContinue: false, productionMergedAt: pr.mergedAt, nextPRNumber: null };
+    }
+  }
+  return null;
+}
+
+/**
+ * 次のPRを検索（内部ヘルパー）
+ */
+function findNextPRGraphQL(
   owner: string,
   repo: string,
-  initialPRNumber: number,
+  mergeCommitSha: string,
+  currentPRNumber: number,
+  token: string
+): number | null {
+  const nextPRResult = findPRContainingCommitGraphQL(owner, repo, mergeCommitSha, token);
+  if (!nextPRResult.success || !nextPRResult.data) {
+    return null;
+  }
+
+  // 同じPRの場合は無限ループを防止
+  if (nextPRResult.data.number === currentPRNumber) {
+    return null;
+  }
+
+  return nextPRResult.data.number;
+}
+
+/**
+ * PR追跡の1ステップを実行（内部ヘルパー）
+ */
+function processTrackStepGraphQL(
+  owner: string,
+  repo: string,
+  currentPRNumber: number,
   token: string,
-  productionPattern: string = 'production'
+  productionPattern: string,
+  prChain: PRChainItem[],
+  logger: LoggerClient
+): TrackStepResult {
+  const prResult = getPullRequestWithBranchesGraphQL(owner, repo, currentPRNumber, token);
+
+  if (!prResult.success || !prResult.data) {
+    logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
+    return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
+  }
+
+  const pr = prResult.data;
+  prChain.push({
+    prNumber: pr.number,
+    baseBranch: pr.baseBranch ?? 'unknown',
+    headBranch: pr.headBranch ?? 'unknown',
+    mergedAt: pr.mergedAt,
+  });
+
+  // productionブランチへのマージを検出
+  const productionResult = checkProductionMergeGraphQL(pr, productionPattern, logger);
+  if (productionResult) {
+    return productionResult;
+  }
+
+  // マージされていない場合は追跡終了
+  if (!pr.mergedAt || !pr.mergeCommitSha) {
+    return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
+  }
+
+  // 次のPRを検索
+  const nextPRNumber = findNextPRGraphQL(owner, repo, pr.mergeCommitSha, currentPRNumber, token);
+  if (!nextPRNumber) {
+    return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
+  }
+
+  return { shouldContinue: true, productionMergedAt: null, nextPRNumber };
+}
+
+export function trackToProductionMergeGraphQL(
+  options: TrackToProductionGraphQLOptions
 ): ApiResponse<{
   productionMergedAt: string | null;
   prChain: PRChainItem[];
 }> {
+  const { owner, repo, initialPRNumber, token, productionPattern = 'production' } = options;
   const { logger } = getContainer();
   const prChain: PRChainItem[] = [];
   let currentPRNumber = initialPRNumber;
   let productionMergedAt: string | null = null;
 
   for (let depth = 0; depth < MAX_PR_CHAIN_DEPTH; depth++) {
-    const prResult = getPullRequestWithBranchesGraphQL(owner, repo, currentPRNumber, token);
+    const result = processTrackStepGraphQL(
+      owner,
+      repo,
+      currentPRNumber,
+      token,
+      productionPattern,
+      prChain,
+      logger
+    );
 
-    if (!prResult.success || !prResult.data) {
-      logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
+    if (result.productionMergedAt) {
+      productionMergedAt = result.productionMergedAt;
+    }
+
+    if (!result.shouldContinue) {
       break;
     }
 
-    const pr = prResult.data;
-    prChain.push({
-      prNumber: pr.number,
-      baseBranch: pr.baseBranch ?? 'unknown',
-      headBranch: pr.headBranch ?? 'unknown',
-      mergedAt: pr.mergedAt,
-    });
-
-    // productionブランチへのマージを検出
-    if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
-      if (pr.mergedAt) {
-        productionMergedAt = pr.mergedAt;
-        logger.log(
-          `    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`
-        );
-      }
-      break;
-    }
-
-    // マージされていない場合は追跡終了
-    if (!pr.mergedAt || !pr.mergeCommitSha) {
-      break;
-    }
-
-    // マージコミットSHAから次のPRを検索
-    const nextPRResult = findPRContainingCommitGraphQL(owner, repo, pr.mergeCommitSha, token);
-
-    if (!nextPRResult.success || !nextPRResult.data) {
-      break;
-    }
-
-    // 同じPRの場合は無限ループを防止
-    if (nextPRResult.data.number === currentPRNumber) {
-      break;
-    }
-
-    currentPRNumber = nextPRResult.data.number;
+    currentPRNumber = result.nextPRNumber!;
   }
 
   return { success: true, data: { productionMergedAt, prChain } };
@@ -405,13 +487,13 @@ export function getCycleTimeDataGraphQL(
       } | null = null;
 
       for (const linkedPR of linkedPRsResult.data) {
-        const trackResult = trackToProductionMergeGraphQL(
-          repo.owner,
-          repo.name,
-          linkedPR.number,
+        const trackResult = trackToProductionMergeGraphQL({
+          owner: repo.owner,
+          repo: repo.name,
+          initialPRNumber: linkedPR.number,
           token,
-          productionPattern
-        );
+          productionPattern,
+        });
 
         if (trackResult.success && trackResult.data) {
           if (trackResult.data.productionMergedAt) {

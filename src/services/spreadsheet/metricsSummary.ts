@@ -32,6 +32,43 @@ const DEVOPS_SUMMARY_HEADERS = [
 ];
 
 /**
+ * 集計結果から行データを構築
+ */
+function buildSummaryRows(
+  aggregated: ReturnType<typeof aggregateMultiRepoMetrics>,
+  totalMetricsCount: number
+): (string | number)[][] {
+  const rows: (string | number)[][] = [];
+
+  for (const summary of aggregated.repositorySummaries) {
+    rows.push([
+      summary.repository,
+      summary.dataPointCount,
+      summary.avgDeploymentCount,
+      summary.avgLeadTimeHours,
+      summary.avgChangeFailureRate,
+      summary.avgMttrHours ?? 'N/A',
+      summary.lastUpdated,
+    ]);
+  }
+
+  // 全体平均行（複数リポジトリの場合）
+  if (aggregated.repositorySummaries.length > 1) {
+    rows.push([
+      '【全体平均】',
+      totalMetricsCount,
+      aggregated.overallSummary.avgDeploymentCount,
+      aggregated.overallSummary.avgLeadTimeHours,
+      aggregated.overallSummary.avgChangeFailureRate,
+      aggregated.overallSummary.avgMttrHours ?? 'N/A',
+      new Date().toISOString(),
+    ]);
+  }
+
+  return rows;
+}
+
+/**
  * リポジトリ別シートからデータを集計してSummaryシートを作成
  *
  * @param spreadsheetId - スプレッドシートID
@@ -70,32 +107,7 @@ export function createDevOpsSummaryFromRepositorySheets(
   styleHeaderRow(sheet, DEVOPS_SUMMARY_HEADERS.length);
 
   // 行データを作成
-  const rows: (string | number)[][] = [];
-
-  for (const summary of aggregated.repositorySummaries) {
-    rows.push([
-      summary.repository,
-      summary.dataPointCount,
-      summary.avgDeploymentCount,
-      summary.avgLeadTimeHours,
-      summary.avgChangeFailureRate,
-      summary.avgMttrHours ?? 'N/A',
-      summary.lastUpdated,
-    ]);
-  }
-
-  // 全体平均行（複数リポジトリの場合）
-  if (aggregated.repositorySummaries.length > 1) {
-    rows.push([
-      '【全体平均】',
-      allMetrics.length,
-      aggregated.overallSummary.avgDeploymentCount,
-      aggregated.overallSummary.avgLeadTimeHours,
-      aggregated.overallSummary.avgChangeFailureRate,
-      aggregated.overallSummary.avgMttrHours ?? 'N/A',
-      new Date().toISOString(),
-    ]);
-  }
+  const rows = buildSummaryRows(aggregated, allMetrics.length);
 
   // 書き込み
   if (rows.length > 0) {
@@ -200,32 +212,7 @@ export function createDevOpsSummaryFromMetrics(
   styleHeaderRow(sheet, DEVOPS_SUMMARY_HEADERS.length);
 
   // 行データを作成
-  const rows: (string | number)[][] = [];
-
-  for (const summary of aggregated.repositorySummaries) {
-    rows.push([
-      summary.repository,
-      summary.dataPointCount,
-      summary.avgDeploymentCount,
-      summary.avgLeadTimeHours,
-      summary.avgChangeFailureRate,
-      summary.avgMttrHours ?? 'N/A',
-      summary.lastUpdated,
-    ]);
-  }
-
-  // 全体平均行
-  if (aggregated.repositorySummaries.length > 1) {
-    rows.push([
-      '【全体平均】',
-      metrics.length,
-      aggregated.overallSummary.avgDeploymentCount,
-      aggregated.overallSummary.avgLeadTimeHours,
-      aggregated.overallSummary.avgChangeFailureRate,
-      aggregated.overallSummary.avgMttrHours ?? 'N/A',
-      new Date().toISOString(),
-    ]);
-  }
+  const rows = buildSummaryRows(aggregated, metrics.length);
 
   // 書き込み
   if (rows.length > 0) {

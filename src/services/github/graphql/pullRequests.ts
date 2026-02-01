@@ -345,15 +345,10 @@ interface ProcessBatchSizeDataParams {
 }
 
 /**
- * 1バッチ分のPRサイズデータを処理
+ * バッチPRサイズ取得用のGraphQLクエリを構築
  */
-function processBatchSizeData(params: ProcessBatchSizeDataParams): PRSizeData[] {
-  const { batch, owner, repo, repoFullName, token, logger } = params;
-  const sizeData: PRSizeData[] = [];
-  const prNumbers = batch.map((pr) => pr.number);
-
-  // サイズ情報取得用の簡易クエリ
-  const query = `
+function buildBatchPRSizeQuery(prNumbers: number[]): string {
+  return `
     query GetBatchPRSize($owner: String!, $name: String!) {
       repository(owner: $owner, name: $name) {
         ${prNumbers
@@ -374,7 +369,17 @@ function processBatchSizeData(params: ProcessBatchSizeDataParams): PRSizeData[] 
       }
     }
   `;
+}
 
+/**
+ * 1バッチ分のPRサイズデータを処理
+ */
+function processBatchSizeData(params: ProcessBatchSizeDataParams): PRSizeData[] {
+  const { batch, owner, repo, repoFullName, token, logger } = params;
+  const sizeData: PRSizeData[] = [];
+  const prNumbers = batch.map((pr) => pr.number);
+
+  const query = buildBatchPRSizeQuery(prNumbers);
   const result = executeGraphQLWithRetry<{
     repository: Record<
       string,

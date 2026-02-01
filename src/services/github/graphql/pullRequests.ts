@@ -215,15 +215,21 @@ export function getPullRequestWithBranchesGraphQL(
 // =============================================================================
 
 /**
+ * PR手戻りデータ処理のパラメータ
+ */
+interface ProcessBatchReworkDataParams {
+  batch: GitHubPullRequest[];
+  owner: string;
+  repo: string;
+  token: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
  * 1バッチ分のPR手戻りデータを処理
  */
-function processBatchReworkData(
-  batch: GitHubPullRequest[],
-  owner: string,
-  repo: string,
-  token: string,
-  logger: { log: (msg: string) => void }
-): PRReworkData[] {
+function processBatchReworkData(params: ProcessBatchReworkDataParams): PRReworkData[] {
+  const { batch, owner, repo, token, logger } = params;
   const reworkData: PRReworkData[] = [];
   const prNumbers = batch.map((pr) => pr.number);
 
@@ -280,7 +286,7 @@ export function getReworkDataForPRsGraphQL(
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
       const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
-      const batchResults = processBatchReworkData(batch, owner, repo, token, logger);
+      const batchResults = processBatchReworkData({ batch, owner, repo, token, logger });
       reworkData.push(...batchResults);
     }
   }
@@ -293,16 +299,22 @@ export function getReworkDataForPRsGraphQL(
 // =============================================================================
 
 /**
+ * PRサイズデータ処理のパラメータ
+ */
+interface ProcessBatchSizeDataParams {
+  batch: GitHubPullRequest[];
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  token: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
  * 1バッチ分のPRサイズデータを処理
  */
-function processBatchSizeData(
-  batch: GitHubPullRequest[],
-  owner: string,
-  repo: string,
-  repoFullName: string,
-  token: string,
-  logger: { log: (msg: string) => void }
-): PRSizeData[] {
+function processBatchSizeData(params: ProcessBatchSizeDataParams): PRSizeData[] {
+  const { batch, owner, repo, repoFullName, token, logger } = params;
   const sizeData: PRSizeData[] = [];
   const prNumbers = batch.map((pr) => pr.number);
 
@@ -388,7 +400,14 @@ export function getPRSizeDataForPRsGraphQL(
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
       const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
-      const batchResults = processBatchSizeData(batch, owner, repo, repoFullName, token, logger);
+      const batchResults = processBatchSizeData({
+        batch,
+        owner,
+        repo,
+        repoFullName,
+        token,
+        logger,
+      });
       sizeData.push(...batchResults);
     }
   }
@@ -401,16 +420,22 @@ export function getPRSizeDataForPRsGraphQL(
 // =============================================================================
 
 /**
+ * PRレビューデータ処理のパラメータ
+ */
+interface ProcessBatchReviewDataParams {
+  batch: GitHubPullRequest[];
+  owner: string;
+  repo: string;
+  repoFullName: string;
+  token: string;
+  logger: { log: (msg: string) => void };
+}
+
+/**
  * 1バッチ分のPRレビュー効率データを処理
  */
-function processBatchReviewData(
-  batch: GitHubPullRequest[],
-  owner: string,
-  repo: string,
-  repoFullName: string,
-  token: string,
-  logger: { log: (msg: string) => void }
-): PRReviewData[] {
+function processBatchReviewData(params: ProcessBatchReviewDataParams): PRReviewData[] {
+  const { batch, owner, repo, repoFullName, token, logger } = params;
   const reviewData: PRReviewData[] = [];
   const prNumbers = batch.map((pr) => pr.number);
 
@@ -465,7 +490,14 @@ export function getReviewEfficiencyDataForPRsGraphQL(
     // バッチ処理（設定可能なバッチサイズ）
     for (let i = 0; i < prs.length; i += DEFAULT_BATCH_SIZE) {
       const batch = prs.slice(i, i + DEFAULT_BATCH_SIZE);
-      const batchResults = processBatchReviewData(batch, owner, repo, repoFullName, token, logger);
+      const batchResults = processBatchReviewData({
+        batch,
+        owner,
+        repo,
+        repoFullName,
+        token,
+        logger,
+      });
       reviewData.push(...batchResults);
     }
   }

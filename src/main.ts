@@ -84,6 +84,13 @@ import {
   removeWeeklyReportTrigger,
   showWeeklyReportTrigger,
 } from './functions/slackWeekly';
+import {
+  // Slackアラート通知
+  checkAndSendAlerts,
+  setupAlertTrigger,
+  removeAlertTrigger,
+  showAlertTrigger,
+} from './functions/slackAlerts';
 
 // =============================================================================
 // GASグローバルスコープにエクスポート
@@ -174,3 +181,9 @@ global.sendWeeklyReport = sendWeeklyReport;
 global.setupWeeklyReportTrigger = setupWeeklyReportTrigger;
 global.removeWeeklyReportTrigger = removeWeeklyReportTrigger;
 global.showWeeklyReportTrigger = showWeeklyReportTrigger;
+
+// Slackアラート通知
+global.checkAndSendAlerts = checkAndSendAlerts;
+global.setupAlertTrigger = setupAlertTrigger;
+global.removeAlertTrigger = removeAlertTrigger;
+global.showAlertTrigger = showAlertTrigger;

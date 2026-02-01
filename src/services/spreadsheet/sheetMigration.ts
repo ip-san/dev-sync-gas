@@ -84,6 +84,31 @@ function parseDevOpsMetricsFromLegacySheet(
 }
 
 /**
+ * 従来シートをリネームしてアーカイブする
+ */
+function renameLegacySheet(
+  spreadsheetId: string,
+  sourceSheetName: string,
+  logger: { log: (msg: string) => void }
+): void {
+  const spreadsheet = openSpreadsheet(spreadsheetId);
+  const legacySheet = spreadsheet.getSheetByName(sourceSheetName);
+
+  if (!legacySheet) {
+    return; // 従来シートが見つからない場合は何もしない
+  }
+
+  const newName = `${sourceSheetName} (Legacy)`;
+  // 既に同名のシートがあれば削除
+  const existingLegacy = spreadsheet.getSheetByName(newName);
+  if (existingLegacy) {
+    spreadsheet.deleteSheet(existingLegacy);
+  }
+  legacySheet.setName(newName);
+  logger.log(`📝 Renamed legacy sheet to "${newName}"`);
+}
+
+/**
  * 従来型シートからリポジトリ別シートへマイグレーション
  *
  * 既存の「DevOps Metrics」シートから各リポジトリ別シートにデータを移行し、
@@ -161,20 +186,7 @@ export function migrateToRepositorySheets(
 
     // 6. 従来シートのリネーム（保持する場合）
     if (keepLegacySheet) {
-      const spreadsheet = openSpreadsheet(spreadsheetId);
-      const legacySheet = spreadsheet.getSheetByName(sourceSheetName);
-      if (!legacySheet) {
-        // 従来シートが見つからない場合は何もしない
-      } else {
-        const newName = `${sourceSheetName} (Legacy)`;
-        // 既に同名のシートがあれば削除
-        const existingLegacy = spreadsheet.getSheetByName(newName);
-        if (existingLegacy) {
-          spreadsheet.deleteSheet(existingLegacy);
-        }
-        legacySheet.setName(newName);
-        logger.log(`📝 Renamed legacy sheet to "${newName}"`);
-      }
+      renameLegacySheet(spreadsheetId, sourceSheetName, logger);
     }
 
     const duration = Date.now() - startTime;

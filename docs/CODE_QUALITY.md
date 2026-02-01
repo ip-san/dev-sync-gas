@@ -143,6 +143,38 @@ src/config/settings.ts:321 - clearGitHubAppConfig
 type-coverage success.
 ```
 
+#### 7. テストカバレッジの測定
+
+**コマンド**: `bun test`
+
+**ツール**: Bun Test Runner
+
+**目標**: 関数カバレッジ80%以上
+
+**効果**: コードの動作を保証し、リグレッションを防止
+
+**現状**（2026-02-02時点）:
+- **関数カバレッジ**: 81.00% (3357/4145 functions)
+- **行カバレッジ**: 76.70% (15234/19864 lines)
+- **テスト数**: 643件（24ファイル）
+
+**カバレッジ向上の履歴**:
+- Phase 1: GraphQL Helpers/Pull Requests統合テスト追加
+- Phase 2: Spreadsheet書き込み系テスト追加
+- Phase 3: Dashboard/Coding/Cycle Time/Issuesテスト追加
+- Phase 4: Secret Manager/Metrics Summaryテスト追加
+- Phase 5: API Config/Audit Log/Batch Processing等のテスト追加（70% → 81%達成）
+
+**100%カバレッジ達成ファイル**（主要なもの）:
+- `apiConfig.ts` - API設定管理
+- `batchProcessing.ts` - バッチ処理ヘルパー
+- `healthStatus.ts` - 健全性ステータス判定
+- `codingTime.ts` - コーディング時間計測
+- `cycleTime.ts` - サイクルタイム計測
+- `deploymentHelpers.ts` - デプロイメント集計
+- `graphqlParser.ts` - GraphQLレスポンス解析
+- `repositoryParser.ts` - リポジトリ名パース
+
 ## 実行コマンド
 
 ### 個別実行
@@ -165,6 +197,9 @@ bun run check:unused
 
 # 型カバレッジチェック
 bun run check:types
+
+# テスト実行（カバレッジ付き）
+bun test
 ```
 
 ### 一括実行

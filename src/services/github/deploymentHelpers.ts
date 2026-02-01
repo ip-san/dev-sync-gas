@@ -67,6 +67,89 @@ export function convertToGitHubDeployment(
 }
 
 /**
+ * デプロイメント取得用のエンドポイントURLを構築
+ */
+export function buildDeploymentEndpoint(
+  repoFullName: string,
+  page: number,
+  perPage: number,
+  environment: string | undefined,
+  useApiFilter: boolean
+): string {
+  let endpoint = `/repos/${repoFullName}/deployments?per_page=${perPage}&page=${page}`;
+  if (useApiFilter && environment) {
+    endpoint += `&environment=${encodeURIComponent(environment)}`;
+  }
+  return endpoint;
+}
+
+/**
+ * ページ取得結果を処理
+ * @returns true: 続行, false: 終了
+ */
+export function processDeploymentPage(
+  response: { success: boolean; data?: GitHubDeploymentResponse[]; error?: string },
+  page: number,
+  repoFullName: string,
+  environment: string | undefined,
+  environmentMatchMode: 'exact' | 'partial',
+  dateRange: DateRange | undefined,
+  allDeployments: GitHubDeployment[]
+): { shouldContinue: boolean; error?: string } {
+  // エラーまたはデータなし
+  if (!response.success || !response.data) {
+    if (page === 1) {
+      return { shouldContinue: false, error: response.error };
+    }
+    return { shouldContinue: false };
+  }
+
+  // 空ページ（終了）
+  if (response.data.length === 0) {
+    return { shouldContinue: false };
+  }
+
+  // デプロイメントを処理
+  for (const deployment of response.data) {
+    processDeployment(
+      deployment,
+      repoFullName,
+      environment,
+      environmentMatchMode,
+      dateRange,
+      allDeployments
+    );
+  }
+
+  return { shouldContinue: true };
+}
+
+/**
+ * デプロイメント1件を処理してリストに追加
+ */
+export function processDeployment(
+  deployment: GitHubDeploymentResponse,
+  repoFullName: string,
+  environment: string | undefined,
+  environmentMatchMode: 'exact' | 'partial',
+  dateRange: DateRange | undefined,
+  allDeployments: GitHubDeployment[]
+): void {
+  // 期間フィルタリング
+  const createdAt = new Date(deployment.created_at);
+  if (!isWithinDateRange(createdAt, dateRange)) {
+    return;
+  }
+
+  // 環境フィルタリング（部分一致モードのみ）
+  if (!matchesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
+    return;
+  }
+
+  allDeployments.push(convertToGitHubDeployment(deployment, repoFullName));
+}
+
+/**
  * デプロイメントのステータスを一括取得
  */
 export function fetchDeploymentStatuses(

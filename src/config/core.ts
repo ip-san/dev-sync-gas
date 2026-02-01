@@ -14,6 +14,7 @@ import {
 } from '../utils/configSchemas';
 import { getGitHubAuthMode, checkPartialGitHubAppConfig } from './authMode';
 import type { StorageClient } from '../interfaces';
+import { ConfigurationError, ErrorCode } from '../utils/errors';
 
 /**
  * 認証モードを検証し、未設定の場合はエラーを投げる
@@ -28,18 +29,25 @@ function validateAuthMode(authMode: 'none' | 'pat' | 'app'): void {
 
   const missing = checkPartialGitHubAppConfig();
   if (missing) {
-    throw new Error(
+    throw new ConfigurationError(
       `GitHub Apps設定が不完全です（${missing.join(', ')} が未設定）\n` +
         '→ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください\n' +
-        '→ 設定状況を確認するには checkConfig() を実行してください'
+        '→ 設定状況を確認するには checkConfig() を実行してください',
+      {
+        code: ErrorCode.CONFIG_INVALID_PROJECT,
+        context: { missing },
+      }
     );
   }
 
-  throw new Error(
+  throw new ConfigurationError(
     'GitHub認証が設定されていません\n' +
       "→ PAT認証: setup('GITHUB_TOKEN', 'SPREADSHEET_ID')\n" +
       '→ GitHub Apps認証: setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId)\n' +
-      '→ 設定状況を確認するには checkConfig() を実行してください'
+      '→ 設定状況を確認するには checkConfig() を実行してください',
+    {
+      code: ErrorCode.CONFIG_MISSING_TOKEN,
+    }
   );
 }
 
@@ -77,11 +85,14 @@ export function getConfig(): Config {
   const projects = safeParseJSON(projectsJson, ProjectGroupsSchema, [], logger);
 
   if (projects.length === 0 && !spreadsheetId) {
-    throw new Error(
+    throw new ConfigurationError(
       'SPREADSHEET_ID is not set\n' +
         "→ setup('GITHUB_TOKEN', 'SPREADSHEET_ID') または setupWithGitHubApp() で設定してください\n" +
         '→ 複数スプレッドシートを使う場合は createProject() でプロジェクトを作成してください\n' +
-        '→ 設定状況を確認するには checkConfig() を実行してください'
+        '→ 設定状況を確認するには checkConfig() を実行してください',
+      {
+        code: ErrorCode.CONFIG_MISSING_SPREADSHEET,
+      }
     );
   }
 

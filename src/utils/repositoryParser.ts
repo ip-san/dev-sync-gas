@@ -5,6 +5,7 @@
  */
 
 import type { ApiResponse } from '../types';
+import { ValidationError, ErrorCode } from './errors';
 
 // =============================================================================
 // 型定義
@@ -72,11 +73,20 @@ export function parseRepository(fullName: string): ParsedRepository {
   const result = parseRepositorySafe(fullName);
 
   if (!result.success) {
-    throw new Error(result.error);
+    throw new ValidationError(result.error ?? 'Invalid repository format', {
+      code: ErrorCode.INVALID_REPOSITORY,
+      context: { fullName },
+    });
   }
 
   if (!result.data) {
-    throw new Error('Unexpected error: parseRepositorySafe returned success but no data');
+    throw new ValidationError(
+      'Unexpected error: parseRepositorySafe returned success but no data',
+      {
+        code: ErrorCode.INVALID_REPOSITORY,
+        context: { fullName },
+      }
+    );
   }
 
   return result.data;

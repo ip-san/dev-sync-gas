@@ -3,6 +3,66 @@
  * セキュリティ: アクセス権限を事前に確認し、適切なエラーメッセージを提供
  */
 
+import { SpreadsheetError, ValidationError, ErrorCode } from './errors';
+
+/**
+ * スプレッドシートのアクセステストを実行
+ */
+function testSpreadsheetAccess(spreadsheetId: string): void {
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  const name = spreadsheet.getName();
+
+  if (!name) {
+    throw new SpreadsheetError('Spreadsheet exists but has no name', {
+      code: ErrorCode.SPREADSHEET_NOT_FOUND,
+      context: { spreadsheetId },
+    });
+  }
+}
+
+/**
+ * スプレッドシートアクセスエラーを適切なエラー型に変換
+ */
+function handleSpreadsheetAccessError(spreadsheetId: string, error: unknown): never {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  if (errorMessage.includes('perhaps it was deleted') || errorMessage.includes('not found')) {
+    throw new SpreadsheetError(
+      `Spreadsheet not found: ${spreadsheetId}\n` +
+        'Check if:\n' +
+        '1. The spreadsheet ID is correct\n' +
+        '2. The spreadsheet has not been deleted\n' +
+        '3. The spreadsheet is in your Google Drive or shared with you',
+      {
+        code: ErrorCode.SPREADSHEET_NOT_FOUND,
+        context: { spreadsheetId },
+        cause: error instanceof Error ? error : undefined,
+      }
+    );
+  }
+
+  if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+    throw new SpreadsheetError(
+      `Cannot access spreadsheet ${spreadsheetId}\n` +
+        'Check if:\n' +
+        '1. You have edit permission for this spreadsheet\n' +
+        '2. The spreadsheet owner has granted access to your account\n' +
+        '3. The sharing settings allow access',
+      {
+        code: ErrorCode.SPREADSHEET_ACCESS_DENIED,
+        context: { spreadsheetId },
+        cause: error instanceof Error ? error : undefined,
+      }
+    );
+  }
+
+  throw new SpreadsheetError(`Failed to access spreadsheet ${spreadsheetId}: ${errorMessage}`, {
+    code: ErrorCode.SPREADSHEET_ACCESS_DENIED,
+    context: { spreadsheetId },
+    cause: error instanceof Error ? error : undefined,
+  });
+}
+
 /**
  * スプレッドシートへのアクセス権限を検証
  *
@@ -11,7 +71,9 @@
  */
 export function validateSpreadsheetAccess(spreadsheetId: string): void {
   if (!spreadsheetId) {
-    throw new Error('Spreadsheet ID is required');
+    throw new ValidationError('Spreadsheet ID is required', {
+      code: ErrorCode.INVALID_SPREADSHEET_ID,
+    });
   }
 
   // テスト環境ではSpreadsheetAppが存在しないのでスキップ
@@ -20,42 +82,9 @@ export function validateSpreadsheetAccess(spreadsheetId: string): void {
   }
 
   try {
-    // スプレッドシートを開いてアクセステスト
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-
-    // getName()を呼び出すことで実際にアクセス可能か確認
-    const name = spreadsheet.getName();
-
-    // 空の名前は異常なので警告
-    if (!name) {
-      throw new Error('Spreadsheet exists but has no name');
-    }
+    testSpreadsheetAccess(spreadsheetId);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // エラーの種類に応じて適切なメッセージを提供
-    if (errorMessage.includes('perhaps it was deleted') || errorMessage.includes('not found')) {
-      throw new Error(
-        `Spreadsheet not found: ${spreadsheetId}\n` +
-          'Check if:\n' +
-          '1. The spreadsheet ID is correct\n' +
-          '2. The spreadsheet has not been deleted\n' +
-          '3. The spreadsheet is in your Google Drive or shared with you'
-      );
-    }
-
-    if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-      throw new Error(
-        `Cannot access spreadsheet ${spreadsheetId}\n` +
-          'Check if:\n' +
-          '1. You have edit permission for this spreadsheet\n' +
-          '2. The spreadsheet owner has granted access to your account\n' +
-          '3. The sharing settings allow access'
-      );
-    }
-
-    // その他のエラーはそのまま再スロー
-    throw new Error(`Failed to access spreadsheet ${spreadsheetId}: ${errorMessage}`);
+    handleSpreadsheetAccessError(spreadsheetId, error);
   }
 }
 

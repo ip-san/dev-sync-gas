@@ -84,6 +84,13 @@ import {
   removeWeeklyReportTrigger,
   showWeeklyReportTrigger,
 } from './functions/slackWeekly';
+import {
+  // Slackインシデント日次サマリー
+  sendIncidentDailySummary,
+  setupIncidentDailySummaryTrigger,
+  removeIncidentDailySummaryTrigger,
+  showIncidentDailySummaryTrigger,
+} from './functions/slackIncidents';
 
 // =============================================================================
 // GASグローバルスコープにエクスポート
@@ -174,3 +181,9 @@ global.sendWeeklyReport = sendWeeklyReport;
 global.setupWeeklyReportTrigger = setupWeeklyReportTrigger;
 global.removeWeeklyReportTrigger = removeWeeklyReportTrigger;
 global.showWeeklyReportTrigger = showWeeklyReportTrigger;
+
+// Slackインシデント日次サマリー
+global.sendIncidentDailySummary = sendIncidentDailySummary;
+global.setupIncidentDailySummaryTrigger = setupIncidentDailySummaryTrigger;
+global.removeIncidentDailySummaryTrigger = removeIncidentDailySummaryTrigger;
+global.showIncidentDailySummaryTrigger = showIncidentDailySummaryTrigger;

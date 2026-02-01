@@ -25,6 +25,10 @@ export interface HttpClient {
 export interface SlackMessage {
   text: string;
   blocks?: SlackBlock[];
+  attachments?: Array<{
+    color?: string;
+    fallback?: string;
+  }>;
 }
 
 export interface SlackBlock {

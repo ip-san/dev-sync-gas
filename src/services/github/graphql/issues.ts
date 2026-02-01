@@ -22,7 +22,8 @@ import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { ISSUES_QUERY, ISSUE_WITH_LINKED_PRS_QUERY, COMMIT_ASSOCIATED_PRS_QUERY } from './queries';
 import { trackToProductionMerge as trackToProductionMergeShared } from '../shared/prTracking.js';
-import { createGraphQLFetcher } from './prTrackingHelpers.js';
+import type { PRFetcher, MinimalPRInfo } from '../shared/prTracking.js';
+import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
 import type {
   IssuesQueryResponse,
   IssueWithLinkedPRsQueryResponse,
@@ -293,6 +294,50 @@ export function findPRContainingCommitGraphQL(
       headRefName: targetPR.headRefName,
       mergedAt: targetPR.mergedAt,
       mergeCommitSha: targetPR.mergeCommit?.oid ?? null,
+    },
+  };
+}
+
+/**
+ * GraphQL API版PRFetcherの作成
+ *
+ * 共通のPR追跡ロジックで使用するためのアダプター
+ */
+function createGraphQLFetcher(owner: string, repo: string, token: string): PRFetcher {
+  return {
+    getPR(prNumber: number): ApiResponse<MinimalPRInfo | null> {
+      const result = getPullRequestWithBranchesGraphQL(owner, repo, prNumber, token);
+
+      if (!result.success || !result.data) {
+        return { success: false, error: result.error };
+      }
+
+      const pr = result.data;
+      return {
+        success: true,
+        data: {
+          number: pr.number,
+          baseBranch: pr.baseBranch ?? null,
+          headBranch: pr.headBranch ?? null,
+          mergedAt: pr.mergedAt,
+          mergeCommitSha: pr.mergeCommitSha ?? null,
+        },
+      };
+    },
+
+    findPRByCommit(commitSha: string, currentPRNumber: number): ApiResponse<number | null> {
+      const result = findPRContainingCommitGraphQL(owner, repo, commitSha, token);
+
+      if (!result.success || !result.data) {
+        return { success: true, data: null };
+      }
+
+      // 同じPRの場合は無限ループを防止
+      if (result.data.number === currentPRNumber) {
+        return { success: true, data: null };
+      }
+
+      return { success: true, data: result.data.number };
     },
   };
 }

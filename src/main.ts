@@ -85,6 +85,13 @@ import {
   showWeeklyReportTrigger,
 } from './functions/slackWeekly';
 import {
+  // Slackアラート通知
+  checkAndSendAlerts,
+  setupAlertTrigger,
+  removeAlertTrigger,
+  showAlertTrigger,
+} from './functions/slackAlerts';
+import {
   // Slackインシデント日次サマリー
   sendIncidentDailySummary,
   setupIncidentDailySummaryTrigger,
@@ -181,6 +188,12 @@ global.sendWeeklyReport = sendWeeklyReport;
 global.setupWeeklyReportTrigger = setupWeeklyReportTrigger;
 global.removeWeeklyReportTrigger = removeWeeklyReportTrigger;
 global.showWeeklyReportTrigger = showWeeklyReportTrigger;
+
+// Slackアラート通知
+global.checkAndSendAlerts = checkAndSendAlerts;
+global.setupAlertTrigger = setupAlertTrigger;
+global.removeAlertTrigger = removeAlertTrigger;
+global.showAlertTrigger = showAlertTrigger;
 
 // Slackインシデント日次サマリー
 global.sendIncidentDailySummary = sendIncidentDailySummary;

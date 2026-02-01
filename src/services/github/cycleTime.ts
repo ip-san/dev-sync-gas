@@ -119,17 +119,17 @@ export function getCycleTimeData(
       const linkedPRsResult = getLinkedPRsForIssue(repo.owner, repo.name, issue.number, token);
       const linkedPRs = linkedPRsResult.success && linkedPRsResult.data ? linkedPRsResult.data : [];
 
-      const cycleTimeData = processIssueCycleTime(
+      const cycleTimeData = processIssueCycleTime({
         issue,
-        linkedPRs,
-        repo.owner,
-        repo.name,
-        repo.fullName,
+        linkedPRNumbers: linkedPRs,
+        owner: repo.owner,
+        repoName: repo.name,
+        repository: repo.fullName,
         token,
         productionPattern,
         logger,
-        trackToProductionMerge
-      );
+        trackFn: trackToProductionMerge,
+      });
 
       allCycleTimeData.push(cycleTimeData);
     }
@@ -181,15 +181,15 @@ export function getCodingTimeData(
       const linkedPRsResult = getLinkedPRsForIssue(repo.owner, repo.name, issue.number, token);
       const linkedPRs = linkedPRsResult.success && linkedPRsResult.data ? linkedPRsResult.data : [];
 
-      const codingTimeData = processIssueCodingTime(
+      const codingTimeData = processIssueCodingTime({
         issue,
-        linkedPRs,
-        repo.owner,
-        repo.name,
-        repo.fullName,
+        linkedPRNumbers: linkedPRs,
+        owner: repo.owner,
+        repoName: repo.name,
+        repository: repo.fullName,
         token,
-        logger
-      );
+        logger,
+      });
 
       allCodingTimeData.push(codingTimeData);
     }

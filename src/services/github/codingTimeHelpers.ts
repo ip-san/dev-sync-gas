@@ -7,6 +7,7 @@
 import type { IssueCodingTime } from '../../types/index.js';
 import type { LoggerClient } from '../../interfaces/index.js';
 import { getPullRequestWithBranches } from './pullRequests.js';
+import { MS_TO_HOURS } from '../../utils/timeConstants.js';
 
 /**
  * PRがない場合のデフォルトコーディングタイムデータを生成
@@ -32,7 +33,7 @@ export function createDefaultCodingTimeData(
 export function calculateCodingTimeHours(issueCreatedAt: string, prCreatedAt: string): number {
   const issueTime = new Date(issueCreatedAt).getTime();
   const prTime = new Date(prCreatedAt).getTime();
-  return Math.round(((prTime - issueTime) / (1000 * 60 * 60)) * 10) / 10;
+  return Math.round(((prTime - issueTime) / MS_TO_HOURS) * 10) / 10;
 }
 
 /**

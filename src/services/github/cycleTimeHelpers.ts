@@ -6,6 +6,7 @@
 
 import type { IssueCycleTime, PRChainItem, ApiResponse } from '../../types/index.js';
 import type { LoggerClient } from '../../interfaces/index.js';
+import { MS_TO_HOURS } from '../../utils/timeConstants.js';
 
 /**
  * PRChainがない場合のデフォルトサイクルタイムデータを生成
@@ -38,7 +39,7 @@ export function calculateCycleTimeHours(
 
   const startTime = new Date(issueCreatedAt).getTime();
   const endTime = new Date(productionMergedAt).getTime();
-  return Math.round(((endTime - startTime) / (1000 * 60 * 60)) * 10) / 10;
+  return Math.round(((endTime - startTime) / MS_TO_HOURS) * 10) / 10;
 }
 
 /**

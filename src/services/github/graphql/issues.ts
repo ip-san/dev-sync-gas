@@ -31,6 +31,8 @@ import type {
 } from './types';
 import type { IssueDateRange } from '../api';
 import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
+import { selectBestTrackResult } from '../cycleTimeHelpers.js';
+import { MS_TO_HOURS } from '../../../utils/timeConstants.js';
 
 // =============================================================================
 // Issue一覧取得
@@ -481,12 +483,7 @@ export function getCycleTimeDataGraphQL(
       );
 
       // 最初のリンクPRからproductionマージを追跡
-      let bestResult: {
-        productionMergedAt: string | null;
-        prChain: PRChainItem[];
-      } | null = null;
-
-      for (const linkedPR of linkedPRsResult.data) {
+      const trackResults = linkedPRsResult.data.map((linkedPR) => {
         const trackResult = trackToProductionMergeGraphQL({
           owner: repo.owner,
           repo: repo.name,
@@ -494,31 +491,17 @@ export function getCycleTimeDataGraphQL(
           token,
           productionPattern,
         });
+        return trackResult.success && trackResult.data ? trackResult.data : null;
+      });
 
-        if (trackResult.success && trackResult.data) {
-          if (trackResult.data.productionMergedAt) {
-            if (
-              !bestResult?.productionMergedAt ||
-              new Date(trackResult.data.productionMergedAt) <
-                new Date(bestResult.productionMergedAt)
-            ) {
-              bestResult = trackResult.data;
-            }
-          } else if (!bestResult) {
-            bestResult = trackResult.data;
-          }
-        }
-      }
-
-      const prChain = bestResult?.prChain ?? [];
-      const productionMergedAt = bestResult?.productionMergedAt ?? null;
+      const { productionMergedAt, prChain } = selectBestTrackResult(trackResults);
 
       // サイクルタイム計算
       let cycleTimeHours: number | null = null;
       if (productionMergedAt) {
         const startTime = new Date(issue.createdAt).getTime();
         const endTime = new Date(productionMergedAt).getTime();
-        cycleTimeHours = Math.round(((endTime - startTime) / (1000 * 60 * 60)) * 10) / 10;
+        cycleTimeHours = Math.round(((endTime - startTime) / MS_TO_HOURS) * 10) / 10;
       }
 
       allCycleTimeData.push({
@@ -605,7 +588,7 @@ export function getCodingTimeDataGraphQL(
       const issueCreatedTime = new Date(issue.createdAt).getTime();
       const prCreatedTime = new Date(earliestPR.createdAt).getTime();
       const codingTimeHours =
-        Math.round(((prCreatedTime - issueCreatedTime) / (1000 * 60 * 60)) * 10) / 10;
+        Math.round(((prCreatedTime - issueCreatedTime) / MS_TO_HOURS) * 10) / 10;
 
       logger.log(`    ✅ Coding time: ${codingTimeHours}h (Issue → PR #${earliestPR.number})`);
 

@@ -222,17 +222,21 @@ export function getLinkedPRsForIssue(
     }
 
     for (const event of response.data) {
-      // cross-referencedイベントからPRを抽出
-      if (event.event === 'cross-referenced') {
-        const crossRefEvent = event as GitHubTimelineCrossReferenceEvent;
-        if (crossRefEvent.source?.issue?.pull_request) {
-          const prNumber = crossRefEvent.source.issue.number;
-          // 同じリポジトリのPRのみ
-          const sourceRepo = crossRefEvent.source.issue.repository?.full_name;
-          if (sourceRepo === `${owner}/${repo}` && !prNumbers.includes(prNumber)) {
-            prNumbers.push(prNumber);
-          }
-        }
+      // cross-referencedイベント以外はスキップ
+      if (event.event !== 'cross-referenced') {
+        continue;
+      }
+
+      const crossRefEvent = event as GitHubTimelineCrossReferenceEvent;
+      if (!crossRefEvent.source?.issue?.pull_request) {
+        continue;
+      }
+
+      const prNumber = crossRefEvent.source.issue.number;
+      // 同じリポジトリのPRのみ
+      const sourceRepo = crossRefEvent.source.issue.repository?.full_name;
+      if (sourceRepo === `${owner}/${repo}` && !prNumbers.includes(prNumber)) {
+        prNumbers.push(prNumber);
       }
     }
 

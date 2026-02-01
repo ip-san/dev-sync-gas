@@ -127,7 +127,8 @@ export function getCycleTimeData(
         repo.fullName,
         token,
         productionPattern,
-        logger
+        logger,
+        trackToProductionMerge
       );
 
       allCycleTimeData.push(cycleTimeData);

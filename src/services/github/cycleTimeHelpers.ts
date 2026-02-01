@@ -4,9 +4,8 @@
  * getCycleTimeData の複雑度削減のため分離
  */
 
-import type { IssueCycleTime, PRChainItem } from '../../types/index.js';
+import type { IssueCycleTime, PRChainItem, ApiResponse } from '../../types/index.js';
 import type { LoggerClient } from '../../interfaces/index.js';
-import { trackToProductionMerge } from './cycleTime.js';
 
 /**
  * PRChainがない場合のデフォルトサイクルタイムデータを生成
@@ -110,7 +109,17 @@ export function processIssueCycleTime(
   repository: string,
   token: string,
   productionPattern: string,
-  logger: LoggerClient
+  logger: LoggerClient,
+  trackFn: (options: {
+    owner: string;
+    repo: string;
+    initialPRNumber: number;
+    token: string;
+    productionPattern: string;
+  }) => ApiResponse<{
+    productionMergedAt: string | null;
+    prChain: PRChainItem[];
+  }>
 ): IssueCycleTime {
   logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
 
@@ -123,7 +132,7 @@ export function processIssueCycleTime(
 
   // 各リンクPRからproductionマージを追跡
   const trackResults = linkedPRNumbers.map((prNumber) => {
-    const trackResult = trackToProductionMerge({
+    const trackResult = trackFn({
       owner,
       repo: repoName,
       initialPRNumber: prNumber,

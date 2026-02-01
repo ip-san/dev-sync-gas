@@ -54,6 +54,15 @@ export interface SheetRange {
 
 export type BorderStyle = 'dotted' | 'dashed' | 'solid' | 'solid_medium' | 'solid_thick' | 'double';
 
+export interface EmbeddedChart {
+  getChartId(): number | null;
+  getOptions(): ChartOptions | null;
+}
+
+export interface ChartOptions {
+  get(option: string): unknown;
+}
+
 export interface Sheet {
   getName(): string;
   setName(name: string): void;
@@ -65,6 +74,10 @@ export interface Sheet {
   autoResizeColumn(col: number): void;
   deleteRow(row: number): void;
   clear(): void;
+  // チャート関連
+  getCharts(): EmbeddedChart[];
+  insertChart(chart: EmbeddedChart): void;
+  removeChart(chart: EmbeddedChart): void;
 }
 
 export interface Spreadsheet {
@@ -74,6 +87,8 @@ export interface Spreadsheet {
   deleteSheet(sheet: Sheet): void;
   setActiveSheet(sheet: Sheet): void;
   moveActiveSheet(position: number): void;
+  // チャート関連
+  getId(): string;
 }
 
 export interface SpreadsheetClient {

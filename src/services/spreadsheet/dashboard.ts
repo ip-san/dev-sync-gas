@@ -64,7 +64,7 @@ function formatStatus(status: HealthStatus): string {
 /**
  * リポジトリ別の最新メトリクスを集計
  */
-interface RepositoryLatestData {
+export interface RepositoryLatestData {
   repository: string;
   latestDate: string;
   deploymentFrequency: string;
@@ -353,8 +353,13 @@ function initializeDashboardSheet(spreadsheet: Spreadsheet): Sheet {
  *
  * @param spreadsheetId - スプレッドシートID
  * @param metrics - 全リポジトリのメトリクス
+ * @param options - オプション設定
  */
-export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
+export async function writeDashboard(
+  spreadsheetId: string,
+  metrics: DevOpsMetrics[],
+  options?: { includeCharts?: boolean }
+): Promise<void> {
   const { logger } = getContainer();
   const spreadsheet = openSpreadsheet(spreadsheetId);
 
@@ -383,6 +388,18 @@ export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]):
 
   // フォーマット
   formatDashboardSheet(sheet, rows.length, repoDataList.length > 1);
+
+  // チャートを追加（デフォルトで有効）
+  if (options?.includeCharts !== false) {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const charts = await import('./charts');
+      charts.addAllDashboardCharts(sheet, repoDataList);
+      logger.info('📊 Dashboard charts added');
+    } catch (error) {
+      logger.warn(`⚠️ Failed to add dashboard charts: ${String(error)}`);
+    }
+  }
 
   logger.info(`✅ Dashboard updated with ${repoDataList.length} repositories`);
 }
@@ -593,8 +610,16 @@ function formatTrendSheet(sheet: Sheet, rowCount: number): void {
 
 /**
  * トレンドシートを作成または更新
+ *
+ * @param spreadsheetId - スプレッドシートID
+ * @param metrics - 全リポジトリのメトリクス
+ * @param options - オプション設定
  */
-export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
+export async function writeDashboardTrends(
+  spreadsheetId: string,
+  metrics: DevOpsMetrics[],
+  options?: { includeCharts?: boolean }
+): Promise<void> {
   const { logger } = getContainer();
   const spreadsheet = openSpreadsheet(spreadsheetId);
 
@@ -613,6 +638,18 @@ export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetri
   }
 
   formatTrendSheet(sheet, rows.length);
+
+  // チャートを追加（デフォルトで有効）
+  if (options?.includeCharts !== false) {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const charts = await import('./charts');
+      charts.addTrendCharts(sheet, trends);
+      logger.info('📊 Trend charts added');
+    } catch (error) {
+      logger.warn(`⚠️ Failed to add trend charts: ${String(error)}`);
+    }
+  }
 
   logger.info(`✅ Trend sheet updated with ${trends.length} weeks`);
 }

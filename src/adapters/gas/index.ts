@@ -18,6 +18,7 @@ import type {
   Trigger,
   TriggerBuilder,
   TimeTriggerBuilder,
+  EmbeddedChart,
   ServiceContainer,
 } from '../../interfaces';
 
@@ -320,6 +321,19 @@ class GasSheet implements Sheet {
   clear(): void {
     this.sheet.clear();
   }
+
+  // チャート関連メソッド
+  getCharts(): EmbeddedChart[] {
+    return this.sheet.getCharts();
+  }
+
+  insertChart(chart: EmbeddedChart): void {
+    this.sheet.insertChart(chart as GoogleAppsScript.Spreadsheet.EmbeddedChart);
+  }
+
+  removeChart(chart: EmbeddedChart): void {
+    this.sheet.removeChart(chart as GoogleAppsScript.Spreadsheet.EmbeddedChart);
+  }
 }
 
 class GasSpreadsheet implements Spreadsheet {
@@ -354,6 +368,10 @@ class GasSpreadsheet implements Spreadsheet {
 
   moveActiveSheet(position: number): void {
     this.spreadsheet.moveActiveSheet(position);
+  }
+
+  getId(): string {
+    return this.spreadsheet.getId();
   }
 }
 

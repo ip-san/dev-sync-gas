@@ -15,6 +15,7 @@ import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { DEPLOYMENTS_QUERY } from './queries';
 import type { DeploymentsQueryResponse, GraphQLDeployment } from './types';
 import type { DateRange } from '../api';
+import { validatePaginatedResponse } from './errorHelpers.js';
 
 // =============================================================================
 // 型定義
@@ -127,14 +128,15 @@ export function getDeploymentsGraphQL(
         token
       );
 
-    if (!queryResult.success || !queryResult.data?.repository?.deployments) {
-      if (page === 0) {
-        return { success: false, error: queryResult.error };
-      }
-      break;
+    const validationError = validatePaginatedResponse(queryResult, page, 'repository.deployments');
+    if (validationError) {
+      return validationError;
+    }
+    if (!queryResult.success) {
+      break; // 2ページ目以降のエラー
     }
 
-    const deploymentsData = queryResult.data.repository.deployments;
+    const deploymentsData = queryResult.data!.repository!.deployments;
     const nodes: GraphQLDeployment[] = deploymentsData.nodes;
     const pageInfo = deploymentsData.pageInfo;
 

@@ -20,6 +20,7 @@ import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
 import { PULL_REQUESTS_QUERY, PULL_REQUEST_DETAIL_QUERY, buildBatchPRDetailQuery } from './queries';
 import { isWithinPRDateRange } from './issueHelpers.js';
+import { validatePaginatedResponse, validateSingleResponse } from './errorHelpers.js';
 import type {
   PullRequestsQueryResponse,
   PullRequestDetailQueryResponse,
@@ -79,14 +80,15 @@ export function getPullRequestsGraphQL(
         token
       );
 
-    if (!queryResult.success || !queryResult.data?.repository?.pullRequests) {
-      if (page === 0) {
-        return { success: false, error: queryResult.error };
-      }
-      break;
+    const validationError = validatePaginatedResponse(queryResult, page, 'repository.pullRequests');
+    if (validationError) {
+      return validationError;
+    }
+    if (!queryResult.success) {
+      break; // 2ページ目以降のエラー
     }
 
-    const prsData = queryResult.data.repository.pullRequests;
+    const prsData = queryResult.data!.repository!.pullRequests;
     const nodes: GraphQLPullRequest[] = prsData.nodes;
     const pageInfo = prsData.pageInfo;
 
@@ -161,11 +163,12 @@ export function getPRDetailsGraphQL(
     token
   );
 
-  if (!result.success || !result.data?.repository?.pullRequest) {
-    return { success: false, error: result.error };
+  const validationError = validateSingleResponse(result, 'repository.pullRequest');
+  if (validationError) {
+    return validationError;
   }
 
-  const pr = result.data.repository.pullRequest;
+  const pr = result.data!.repository!.pullRequest!;
   return {
     success: true,
     data: {
@@ -195,11 +198,12 @@ export function getPullRequestWithBranchesGraphQL(
     token
   );
 
-  if (!result.success || !result.data?.repository?.pullRequest) {
-    return { success: false, error: result.error };
+  const validationError = validateSingleResponse(result, 'repository.pullRequest');
+  if (validationError) {
+    return validationError;
   }
 
-  const pr = result.data.repository.pullRequest;
+  const pr = result.data!.repository!.pullRequest!;
   return {
     success: true,
     data: convertToPullRequest(pr, `${owner}/${repo}`),

@@ -35,6 +35,7 @@ import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
 import { selectBestTrackResult } from '../cycleTimeHelpers.js';
 import { MS_TO_HOURS } from '../../../utils/timeConstants.js';
 import { isWithinDateRange } from './issueHelpers.js';
+import { validatePaginatedResponse, validateSingleResponse } from './errorHelpers.js';
 
 // =============================================================================
 // Issue一覧取得
@@ -78,14 +79,15 @@ export function getIssuesGraphQL(
         token
       );
 
-    if (!queryResult.success || !queryResult.data?.repository?.issues) {
-      if (page === 0) {
-        return { success: false, error: queryResult.error };
-      }
-      break;
+    const validationError = validatePaginatedResponse(queryResult, page, 'repository.issues');
+    if (validationError) {
+      return validationError;
+    }
+    if (!queryResult.success) {
+      break; // 2ページ目以降のエラー
     }
 
-    const issuesData = queryResult.data.repository.issues;
+    const issuesData = queryResult.data!.repository!.issues;
     const nodes: GraphQLIssue[] = issuesData.nodes;
     const pageInfo = issuesData.pageInfo;
 
@@ -210,11 +212,12 @@ export function getLinkedPRsForIssueGraphQL(
     token
   );
 
-  if (!result.success || !result.data?.repository?.issue) {
-    return { success: false, error: result.error };
+  const validationError = validateSingleResponse(result, 'repository.issue');
+  if (validationError) {
+    return validationError;
   }
 
-  const timeline = result.data.repository.issue.timelineItems.nodes;
+  const timeline = result.data!.repository!.issue!.timelineItems.nodes;
   const linkedPRs: {
     number: number;
     createdAt: string;

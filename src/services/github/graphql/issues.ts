@@ -373,6 +373,81 @@ export function trackToProductionMergeGraphQL(
 }
 
 /**
+ * サイクルタイムを計算
+ */
+function calculateCycleTimeHours(issueCreatedAt: string, productionMergedAt: string): number {
+  const startTime = new Date(issueCreatedAt).getTime();
+  const endTime = new Date(productionMergedAt).getTime();
+  return Math.round(((endTime - startTime) / MS_TO_HOURS) * 10) / 10;
+}
+
+/**
+ * リンクPRなしのサイクルタイムエントリを作成
+ */
+function createEmptyCycleTimeEntry(issue: GitHubIssue, repository: string): IssueCycleTime {
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository,
+    issueCreatedAt: issue.createdAt,
+    productionMergedAt: null,
+    cycleTimeHours: null,
+    prChain: [],
+  };
+}
+
+/**
+ * 1つのIssueをサイクルタイム処理
+ */
+function processIssueForCycleTime(
+  issue: GitHubIssue,
+  repo: GitHubRepository,
+  token: string,
+  productionPattern: string,
+  logger: { log: (msg: string) => void }
+): IssueCycleTime {
+  logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
+
+  const linkedPRsResult = getLinkedPRsForIssueGraphQL(repo.owner, repo.name, issue.number, token);
+
+  if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
+    logger.log(`    ⏭️ No linked PRs found`);
+    return createEmptyCycleTimeEntry(issue, repo.fullName);
+  }
+
+  logger.log(
+    `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.map((p) => p.number).join(', ')}`
+  );
+
+  const trackResults = linkedPRsResult.data.map((linkedPR) => {
+    const trackResult = trackToProductionMergeGraphQL({
+      owner: repo.owner,
+      repo: repo.name,
+      initialPRNumber: linkedPR.number,
+      token,
+      productionPattern,
+    });
+    return trackResult.success && trackResult.data ? trackResult.data : null;
+  });
+
+  const { productionMergedAt, prChain } = selectBestTrackResult(trackResults);
+
+  const cycleTimeHours = productionMergedAt
+    ? calculateCycleTimeHours(issue.createdAt, productionMergedAt)
+    : null;
+
+  return {
+    issueNumber: issue.number,
+    issueTitle: issue.title,
+    repository: repo.fullName,
+    issueCreatedAt: issue.createdAt,
+    productionMergedAt,
+    cycleTimeHours,
+    prChain,
+  };
+}
+
+/**
  * サイクルタイムデータを取得（GraphQL版）
  */
 export function getCycleTimeDataGraphQL(
@@ -391,7 +466,6 @@ export function getCycleTimeDataGraphQL(
   for (const repo of repositories) {
     logger.log(`🔍 Processing ${repo.fullName}...`);
 
-    // Issueを取得
     const issuesResult = getIssuesGraphQL(repo, token, {
       dateRange: options.dateRange,
       labels: options.labels,
@@ -402,69 +476,17 @@ export function getCycleTimeDataGraphQL(
       continue;
     }
 
-    const issues = issuesResult.data;
-    logger.log(`  📋 Found ${issues.length} issues to process`);
+    logger.log(`  📋 Found ${issuesResult.data.length} issues to process`);
 
-    for (const issue of issues) {
-      logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
-
-      // リンクPRを取得（GraphQLで詳細情報も同時取得）
-      const linkedPRsResult = getLinkedPRsForIssueGraphQL(
-        repo.owner,
-        repo.name,
-        issue.number,
-        token
+    for (const issue of issuesResult.data) {
+      const cycleTimeEntry = processIssueForCycleTime(
+        issue,
+        repo,
+        token,
+        productionPattern,
+        logger
       );
-
-      if (!linkedPRsResult.success || !linkedPRsResult.data || linkedPRsResult.data.length === 0) {
-        logger.log(`    ⏭️ No linked PRs found`);
-        allCycleTimeData.push({
-          issueNumber: issue.number,
-          issueTitle: issue.title,
-          repository: repo.fullName,
-          issueCreatedAt: issue.createdAt,
-          productionMergedAt: null,
-          cycleTimeHours: null,
-          prChain: [],
-        });
-        continue;
-      }
-
-      logger.log(
-        `    🔗 Found ${linkedPRsResult.data.length} linked PRs: ${linkedPRsResult.data.map((p) => p.number).join(', ')}`
-      );
-
-      // 最初のリンクPRからproductionマージを追跡
-      const trackResults = linkedPRsResult.data.map((linkedPR) => {
-        const trackResult = trackToProductionMergeGraphQL({
-          owner: repo.owner,
-          repo: repo.name,
-          initialPRNumber: linkedPR.number,
-          token,
-          productionPattern,
-        });
-        return trackResult.success && trackResult.data ? trackResult.data : null;
-      });
-
-      const { productionMergedAt, prChain } = selectBestTrackResult(trackResults);
-
-      // サイクルタイム計算
-      let cycleTimeHours: number | null = null;
-      if (productionMergedAt) {
-        const startTime = new Date(issue.createdAt).getTime();
-        const endTime = new Date(productionMergedAt).getTime();
-        cycleTimeHours = Math.round(((endTime - startTime) / MS_TO_HOURS) * 10) / 10;
-      }
-
-      allCycleTimeData.push({
-        issueNumber: issue.number,
-        issueTitle: issue.title,
-        repository: repo.fullName,
-        issueCreatedAt: issue.createdAt,
-        productionMergedAt,
-        cycleTimeHours,
-        prChain,
-      });
+      allCycleTimeData.push(cycleTimeEntry);
     }
   }
 

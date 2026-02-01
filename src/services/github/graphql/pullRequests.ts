@@ -40,6 +40,17 @@ import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
 // =============================================================================
 
 /**
+ * Pull Requests取得のパラメータ
+ */
+export interface GetPullRequestsGraphQLParams {
+  repo: GitHubRepository;
+  token: string;
+  state?: 'open' | 'closed' | 'all';
+  dateRange?: DateRange;
+  maxPages?: number;
+}
+
+/**
  * リポジトリのPR一覧を取得（GraphQL版）
  *
  * REST APIとの違い:
@@ -47,12 +58,9 @@ import { parseGraphQLNodeIdOrZero } from '../../../utils/graphqlParser';
  * - ブランチ情報（baseRefName, headRefName）も取得
  */
 export function getPullRequestsGraphQL(
-  repo: GitHubRepository,
-  token: string,
-  state: 'open' | 'closed' | 'all' = 'all',
-  dateRange?: DateRange,
-  maxPages: number = 5
+  params: GetPullRequestsGraphQLParams
 ): ApiResponse<GitHubPullRequest[]> {
+  const { repo, token, state = 'all', dateRange, maxPages = 5 } = params;
   const { logger } = getContainer();
   const allPRs: GitHubPullRequest[] = [];
   let cursor: string | null = null;

@@ -2,16 +2,16 @@
  * GitHub GraphQL API テスト
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { initializeContainer, resetContainer } from "../../src/container";
-import { createMockContainer, MockHttpClient } from "../mocks";
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { initializeContainer, resetContainer } from '../../src/container';
+import { createMockContainer, MockHttpClient } from '../mocks';
 import {
   executeGraphQL,
   getRateLimitInfo,
   GITHUB_GRAPHQL_ENDPOINT,
-} from "../../src/services/github/graphql/client";
+} from '../../src/services/github/graphql/client';
 
-describe("GraphQL Client", () => {
+describe('GraphQL Client', () => {
   let mockContainer: ReturnType<typeof createMockContainer>;
   let mockHttpClient: MockHttpClient;
 
@@ -25,13 +25,13 @@ describe("GraphQL Client", () => {
     resetContainer();
   });
 
-  describe("executeGraphQL", () => {
-    it("should send GraphQL query and return data", () => {
+  describe('executeGraphQL', () => {
+    it('should send GraphQL query and return data', () => {
       const mockResponse = {
         data: {
           repository: {
             pullRequests: {
-              nodes: [{ number: 1, title: "Test PR" }],
+              nodes: [{ number: 1, title: 'Test PR' }],
             },
           },
         },
@@ -44,9 +44,9 @@ describe("GraphQL Client", () => {
       });
 
       const result = executeGraphQL<typeof mockResponse.data>(
-        "query { repository { pullRequests { nodes { number title } } } }",
-        { owner: "test", name: "repo" },
-        "test-token"
+        'query { repository { pullRequests { nodes { number title } } } }',
+        { owner: 'test', name: 'repo' },
+        'test-token'
       );
 
       expect(result.success).toBe(true);
@@ -54,28 +54,22 @@ describe("GraphQL Client", () => {
       expect(result.data?.repository.pullRequests.nodes[0].number).toBe(1);
     });
 
-    it("should handle HTTP errors", () => {
+    it('should handle HTTP errors', () => {
       mockHttpClient.setResponse(GITHUB_GRAPHQL_ENDPOINT, {
         statusCode: 401,
-        content: "Unauthorized",
+        content: 'Unauthorized',
       });
 
-      const result = executeGraphQL(
-        "query { test }",
-        {},
-        "invalid-token"
-      );
+      const result = executeGraphQL('query { test }', {}, 'invalid-token');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("401");
+      expect(result.error).toContain('401');
     });
 
-    it("should handle GraphQL errors", () => {
+    it('should handle GraphQL errors', () => {
       const mockResponse = {
         data: null,
-        errors: [
-          { message: "Field 'test' not found", type: "FIELD_ERROR" },
-        ],
+        errors: [{ message: "Field 'test' not found", type: 'FIELD_ERROR' }],
       };
 
       mockHttpClient.setResponse(GITHUB_GRAPHQL_ENDPOINT, {
@@ -84,24 +78,18 @@ describe("GraphQL Client", () => {
         data: mockResponse,
       });
 
-      const result = executeGraphQL(
-        "query { test }",
-        {},
-        "test-token"
-      );
+      const result = executeGraphQL('query { test }', {}, 'test-token');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Field 'test' not found");
     });
 
-    it("should return partial data with GraphQL errors", () => {
+    it('should return partial data with GraphQL errors', () => {
       const mockResponse = {
         data: {
-          repository: { name: "test" },
+          repository: { name: 'test' },
         },
-        errors: [
-          { message: "Some field failed", type: "PARTIAL_ERROR" },
-        ],
+        errors: [{ message: 'Some field failed', type: 'PARTIAL_ERROR' }],
       };
 
       mockHttpClient.setResponse(GITHUB_GRAPHQL_ENDPOINT, {
@@ -111,39 +99,39 @@ describe("GraphQL Client", () => {
       });
 
       const result = executeGraphQL<{ repository: { name: string } }>(
-        "query { repository { name } }",
+        'query { repository { name } }',
         {},
-        "test-token"
+        'test-token'
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.repository.name).toBe("test");
+      expect(result.data?.repository.name).toBe('test');
     });
 
-    it("should include proper headers", () => {
+    it('should include proper headers', () => {
       mockHttpClient.setResponse(GITHUB_GRAPHQL_ENDPOINT, {
         statusCode: 200,
         content: JSON.stringify({ data: {} }),
         data: { data: {} },
       });
 
-      executeGraphQL("query { test }", {}, "test-token");
+      executeGraphQL('query { test }', {}, 'test-token');
 
       const call = mockHttpClient.calls[0];
-      expect(call.options?.headers?.Authorization).toBe("Bearer test-token");
-      expect(call.options?.headers?.["Content-Type"]).toBe("application/json");
-      expect(call.options?.headers?.["User-Agent"]).toBe("DevSyncGAS");
+      expect(call.options?.headers?.Authorization).toBe('Bearer test-token');
+      expect(call.options?.headers?.['Content-Type']).toBe('application/json');
+      expect(call.options?.headers?.['User-Agent']).toBe('DevSyncGAS');
     });
   });
 
-  describe("getRateLimitInfo", () => {
-    it("should return rate limit information", () => {
+  describe('getRateLimitInfo', () => {
+    it('should return rate limit information', () => {
       const mockResponse = {
         data: {
           rateLimit: {
             limit: 5000,
             remaining: 4999,
-            resetAt: "2024-01-01T00:00:00Z",
+            resetAt: '2024-01-01T00:00:00Z',
             cost: 1,
           },
         },
@@ -155,7 +143,7 @@ describe("GraphQL Client", () => {
         data: mockResponse,
       });
 
-      const result = getRateLimitInfo("test-token");
+      const result = getRateLimitInfo('test-token');
 
       expect(result.success).toBe(true);
       expect(result.data?.limit).toBe(5000);
@@ -164,7 +152,7 @@ describe("GraphQL Client", () => {
   });
 });
 
-describe("GraphQL Queries", () => {
+describe('GraphQL Queries', () => {
   let mockContainer: ReturnType<typeof createMockContainer>;
   let mockHttpClient: MockHttpClient;
 
@@ -178,11 +166,10 @@ describe("GraphQL Queries", () => {
     resetContainer();
   });
 
-  describe("Pull Request queries", () => {
-    it("should fetch pull requests via GraphQL", async () => {
-      const { getPullRequestsGraphQL } = await import(
-        "../../src/services/github/graphql/pullRequests"
-      );
+  describe('Pull Request queries', () => {
+    it('should fetch pull requests via GraphQL', async () => {
+      const { getPullRequestsGraphQL } =
+        await import('../../src/services/github/graphql/pullRequests');
 
       const mockResponse = {
         data: {
@@ -191,17 +178,17 @@ describe("GraphQL Queries", () => {
               pageInfo: { hasNextPage: false, endCursor: null },
               nodes: [
                 {
-                  id: "PR_123",
+                  id: 'PR_123',
                   number: 1,
-                  title: "Test PR",
-                  state: "MERGED",
-                  createdAt: "2024-01-01T00:00:00Z",
-                  mergedAt: "2024-01-02T00:00:00Z",
+                  title: 'Test PR',
+                  state: 'MERGED',
+                  createdAt: '2024-01-01T00:00:00Z',
+                  mergedAt: '2024-01-02T00:00:00Z',
                   closedAt: null,
-                  author: { login: "testuser" },
-                  baseRefName: "main",
-                  headRefName: "feature",
-                  mergeCommit: { oid: "abc123" },
+                  author: { login: 'testuser' },
+                  baseRefName: 'main',
+                  headRefName: 'feature',
+                  mergeCommit: { oid: 'abc123' },
                   additions: 100,
                   deletions: 50,
                   changedFiles: 5,
@@ -218,25 +205,24 @@ describe("GraphQL Queries", () => {
         data: mockResponse,
       });
 
-      const result = getPullRequestsGraphQL(
-        { owner: "test", name: "repo", fullName: "test/repo" },
-        "test-token"
-      );
+      const result = getPullRequestsGraphQL({
+        repo: { owner: 'test', name: 'repo', fullName: 'test/repo' },
+        token: 'test-token',
+      });
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
       expect(result.data![0].number).toBe(1);
-      expect(result.data![0].title).toBe("Test PR");
-      expect(result.data![0].author).toBe("testuser");
-      expect(result.data![0].baseBranch).toBe("main");
+      expect(result.data![0].title).toBe('Test PR');
+      expect(result.data![0].author).toBe('testuser');
+      expect(result.data![0].baseBranch).toBe('main');
     });
   });
 
-  describe("Deployment queries", () => {
-    it("should fetch deployments via GraphQL", async () => {
-      const { getDeploymentsGraphQL } = await import(
-        "../../src/services/github/graphql/deployments"
-      );
+  describe('Deployment queries', () => {
+    it('should fetch deployments via GraphQL', async () => {
+      const { getDeploymentsGraphQL } =
+        await import('../../src/services/github/graphql/deployments');
 
       const mockResponse = {
         data: {
@@ -245,15 +231,15 @@ describe("GraphQL Queries", () => {
               pageInfo: { hasNextPage: false, endCursor: null },
               nodes: [
                 {
-                  id: "DEP_123",
-                  environment: "production",
-                  createdAt: "2024-01-01T00:00:00Z",
-                  updatedAt: "2024-01-01T00:01:00Z",
-                  commit: { oid: "abc123" },
-                  state: "ACTIVE",
+                  id: 'DEP_123',
+                  environment: 'production',
+                  createdAt: '2024-01-01T00:00:00Z',
+                  updatedAt: '2024-01-01T00:01:00Z',
+                  commit: { oid: 'abc123' },
+                  state: 'ACTIVE',
                   latestStatus: {
-                    state: "SUCCESS",
-                    createdAt: "2024-01-01T00:01:00Z",
+                    state: 'SUCCESS',
+                    createdAt: '2024-01-01T00:01:00Z',
                   },
                 },
               ],
@@ -269,23 +255,21 @@ describe("GraphQL Queries", () => {
       });
 
       const result = getDeploymentsGraphQL(
-        { owner: "test", name: "repo", fullName: "test/repo" },
-        "test-token",
-        { environment: "production" }
+        { owner: 'test', name: 'repo', fullName: 'test/repo' },
+        'test-token',
+        { environment: 'production' }
       );
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
-      expect(result.data![0].environment).toBe("production");
-      expect(result.data![0].status).toBe("success");
+      expect(result.data![0].environment).toBe('production');
+      expect(result.data![0].status).toBe('success');
     });
   });
 
-  describe("Issue queries", () => {
-    it("should fetch issues via GraphQL", async () => {
-      const { getIssuesGraphQL } = await import(
-        "../../src/services/github/graphql/issues"
-      );
+  describe('Issue queries', () => {
+    it('should fetch issues via GraphQL', async () => {
+      const { getIssuesGraphQL } = await import('../../src/services/github/graphql/issues');
 
       const mockResponse = {
         data: {
@@ -294,14 +278,14 @@ describe("GraphQL Queries", () => {
               pageInfo: { hasNextPage: false, endCursor: null },
               nodes: [
                 {
-                  id: "ISSUE_123",
+                  id: 'ISSUE_123',
                   number: 1,
-                  title: "Test Issue",
-                  state: "CLOSED",
-                  createdAt: "2024-01-01T00:00:00Z",
-                  closedAt: "2024-01-02T00:00:00Z",
+                  title: 'Test Issue',
+                  state: 'CLOSED',
+                  createdAt: '2024-01-01T00:00:00Z',
+                  closedAt: '2024-01-02T00:00:00Z',
                   labels: {
-                    nodes: [{ name: "bug" }, { name: "priority" }],
+                    nodes: [{ name: 'bug' }, { name: 'priority' }],
                   },
                 },
               ],
@@ -317,19 +301,19 @@ describe("GraphQL Queries", () => {
       });
 
       const result = getIssuesGraphQL(
-        { owner: "test", name: "repo", fullName: "test/repo" },
-        "test-token"
+        { owner: 'test', name: 'repo', fullName: 'test/repo' },
+        'test-token'
       );
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
       expect(result.data![0].number).toBe(1);
-      expect(result.data![0].labels).toContain("bug");
+      expect(result.data![0].labels).toContain('bug');
     });
   });
 });
 
-describe("API Mode Setting", () => {
+describe('API Mode Setting', () => {
   let mockContainer: ReturnType<typeof createMockContainer>;
 
   beforeEach(() => {
@@ -341,30 +325,28 @@ describe("API Mode Setting", () => {
     resetContainer();
   });
 
-  it("should default to GraphQL mode", async () => {
-    const { getGitHubApiMode } = await import("../../src/config/settings");
+  it('should default to GraphQL mode', async () => {
+    const { getGitHubApiMode } = await import('../../src/config/settings');
 
     const mode = getGitHubApiMode();
-    expect(mode).toBe("graphql");
+    expect(mode).toBe('graphql');
   });
 
-  it("should switch to REST mode", async () => {
-    const { getGitHubApiMode, setGitHubApiMode } = await import(
-      "../../src/config/settings"
-    );
+  it('should switch to REST mode', async () => {
+    const { getGitHubApiMode, setGitHubApiMode } = await import('../../src/config/settings');
 
-    setGitHubApiMode("rest");
+    setGitHubApiMode('rest');
     const mode = getGitHubApiMode();
-    expect(mode).toBe("rest");
+    expect(mode).toBe('rest');
   });
 
-  it("should reset to GraphQL mode", async () => {
+  it('should reset to GraphQL mode', async () => {
     const { getGitHubApiMode, setGitHubApiMode, resetGitHubApiMode } =
-      await import("../../src/config/settings");
+      await import('../../src/config/settings');
 
-    setGitHubApiMode("rest");
+    setGitHubApiMode('rest');
     resetGitHubApiMode();
     const mode = getGitHubApiMode();
-    expect(mode).toBe("graphql");
+    expect(mode).toBe('graphql');
   });
 });

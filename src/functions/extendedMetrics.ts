@@ -188,9 +188,14 @@ function fetchMergedPRs(days: number): GitHubPullRequest[] | null {
 
   for (const repo of config.github.repositories) {
     Logger.log(`📡 Fetching PRs from ${repo.fullName}...`);
-    const result = getPullRequestsGraphQL(repo, token, 'all', {
-      since: startDate,
-      until: endDate,
+    const result = getPullRequestsGraphQL({
+      repo,
+      token,
+      state: 'all',
+      dateRange: {
+        since: startDate,
+        until: endDate,
+      },
     });
 
     if (result.success && result.data) {

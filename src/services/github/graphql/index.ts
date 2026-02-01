@@ -134,7 +134,12 @@ export function getAllRepositoriesDataGraphQL(
     logger.log(`📡 Fetching data for ${repo.fullName} (GraphQL)...`);
 
     // PRを取得（GraphQL）
-    const prsResult = getPullRequestsGraphQL(repo, token, 'all', dateRange);
+    const prsResult = getPullRequestsGraphQL({
+      repo,
+      token,
+      state: 'all',
+      dateRange,
+    });
     if (prsResult.success && prsResult.data) {
       allPRs.push(...prsResult.data);
       logger.log(`  PRs: ${prsResult.data.length}`);

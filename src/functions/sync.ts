@@ -55,7 +55,7 @@ function fetchRepositoriesData(
  * リポジトリごとに別シートに書き出し、
  * Dashboard、Summaryシートも自動生成。
  */
-export function syncDevOpsMetrics(dateRange?: DateRange): void {
+export async function syncDevOpsMetrics(dateRange?: DateRange): Promise<void> {
   ensureContainerInitialized();
   const config = getConfig();
 
@@ -97,8 +97,8 @@ export function syncDevOpsMetrics(dateRange?: DateRange): void {
   writeMetricsToAllRepositorySheets(config.spreadsheet.id, metrics, { skipDuplicates: true });
 
   // Dashboard更新
-  writeDashboard(config.spreadsheet.id, metrics);
-  writeDashboardTrends(config.spreadsheet.id, metrics);
+  await writeDashboard(config.spreadsheet.id, metrics);
+  await writeDashboardTrends(config.spreadsheet.id, metrics);
 
   // Summary更新
   createDevOpsSummaryFromMetrics(config.spreadsheet.id, metrics, 'DevOps Summary');
@@ -111,14 +111,14 @@ export function syncDevOpsMetrics(dateRange?: DateRange): void {
  *
  * 各プロジェクトでリポジトリ別シート、Dashboard、Summaryを生成。
  */
-export function syncAllProjects(dateRange?: DateRange): void {
+export async function syncAllProjects(dateRange?: DateRange): Promise<void> {
   ensureContainerInitialized();
   const config = getConfig();
   const projects = config.projects ?? [];
 
   if (projects.length === 0) {
     Logger.log('⚠️ No projects configured. Using single spreadsheet mode.');
-    syncDevOpsMetrics(dateRange);
+    await syncDevOpsMetrics(dateRange);
     return;
   }
 
@@ -163,8 +163,8 @@ export function syncAllProjects(dateRange?: DateRange): void {
     writeMetricsToAllRepositorySheets(project.spreadsheetId, metrics, { skipDuplicates: true });
 
     // Dashboard更新
-    writeDashboard(project.spreadsheetId, metrics);
-    writeDashboardTrends(project.spreadsheetId, metrics);
+    await writeDashboard(project.spreadsheetId, metrics);
+    await writeDashboardTrends(project.spreadsheetId, metrics);
 
     // Summary更新
     createDevOpsSummaryFromMetrics(project.spreadsheetId, metrics, 'DevOps Summary');
@@ -180,7 +180,7 @@ export function syncAllProjects(dateRange?: DateRange): void {
  *
  * リポジトリ別シート、Dashboard、Summaryを生成。
  */
-export function syncProject(projectName: string, dateRange?: DateRange): void {
+export async function syncProject(projectName: string, dateRange?: DateRange): Promise<void> {
   ensureContainerInitialized();
   const projects = getProjects();
   const project = projects.find((p) => p.name === projectName);
@@ -219,8 +219,8 @@ export function syncProject(projectName: string, dateRange?: DateRange): void {
   writeMetricsToAllRepositorySheets(project.spreadsheetId, metrics, { skipDuplicates: true });
 
   // Dashboard更新
-  writeDashboard(project.spreadsheetId, metrics);
-  writeDashboardTrends(project.spreadsheetId, metrics);
+  await writeDashboard(project.spreadsheetId, metrics);
+  await writeDashboardTrends(project.spreadsheetId, metrics);
 
   // Summary更新
   createDevOpsSummaryFromMetrics(project.spreadsheetId, metrics, 'DevOps Summary');
@@ -235,7 +235,7 @@ export function syncProject(projectName: string, dateRange?: DateRange): void {
 /**
  * 過去N日分のメトリクスを取得
  */
-export function syncHistoricalMetrics(days: number): void {
+export async function syncHistoricalMetrics(days: number): Promise<void> {
   const until = new Date();
   const since = new Date();
   since.setDate(since.getDate() - days);
@@ -244,13 +244,13 @@ export function syncHistoricalMetrics(days: number): void {
   Logger.log(`   From: ${since.toISOString()}`);
   Logger.log(`   To: ${until.toISOString()}`);
 
-  syncDevOpsMetrics({ since, until });
+  await syncDevOpsMetrics({ since, until });
 }
 
 /**
  * 全プロジェクトの過去N日分のメトリクスを取得
  */
-export function syncAllProjectsHistorical(days: number): void {
+export async function syncAllProjectsHistorical(days: number): Promise<void> {
   const until = new Date();
   const since = new Date();
   since.setDate(since.getDate() - days);
@@ -259,17 +259,17 @@ export function syncAllProjectsHistorical(days: number): void {
   Logger.log(`   From: ${since.toISOString()}`);
   Logger.log(`   To: ${until.toISOString()}`);
 
-  syncAllProjects({ since, until });
+  await syncAllProjects({ since, until });
 }
 
 /** 過去30日分を取得 */
-export function syncLast30Days(): void {
-  syncHistoricalMetrics(30);
+export async function syncLast30Days(): Promise<void> {
+  await syncHistoricalMetrics(30);
 }
 
 /** 過去90日分を取得 */
-export function syncLast90Days(): void {
-  syncHistoricalMetrics(90);
+export async function syncLast90Days(): Promise<void> {
+  await syncHistoricalMetrics(90);
 }
 
 // =============================================================================
@@ -284,7 +284,7 @@ export function syncLast90Days(): void {
  *
  * @param days - バックフィル日数（デフォルト: 30）
  */
-export function syncDailyBackfill(days = 30): void {
+export async function syncDailyBackfill(days = 30): Promise<void> {
   ensureContainerInitialized();
   const config = getConfig();
   const token = getGitHubToken();
@@ -325,8 +325,8 @@ export function syncDailyBackfill(days = 30): void {
   writeMetricsToAllRepositorySheets(config.spreadsheet.id, dailyMetrics, { skipDuplicates: true });
 
   // 5. Dashboard更新
-  writeDashboard(config.spreadsheet.id, dailyMetrics);
-  writeDashboardTrends(config.spreadsheet.id, dailyMetrics);
+  await writeDashboard(config.spreadsheet.id, dailyMetrics);
+  await writeDashboardTrends(config.spreadsheet.id, dailyMetrics);
 
   // 6. Summary更新
   createDevOpsSummaryFromMetrics(config.spreadsheet.id, dailyMetrics, 'DevOps Summary');
@@ -341,14 +341,14 @@ export function syncDailyBackfill(days = 30): void {
  *
  * @param days - バックフィル日数（デフォルト: 30）
  */
-export function backfillAllProjectsDaily(days = 30): void {
+export async function backfillAllProjectsDaily(days = 30): Promise<void> {
   ensureContainerInitialized();
   const config = getConfig();
   const projects = config.projects ?? [];
 
   if (projects.length === 0) {
     Logger.log('⚠️ No projects configured. Using single spreadsheet mode.');
-    syncDailyBackfill(days);
+    await syncDailyBackfill(days);
     return;
   }
 
@@ -397,8 +397,8 @@ export function backfillAllProjectsDaily(days = 30): void {
     });
 
     // Dashboard更新
-    writeDashboard(project.spreadsheetId, dailyMetrics);
-    writeDashboardTrends(project.spreadsheetId, dailyMetrics);
+    await writeDashboard(project.spreadsheetId, dailyMetrics);
+    await writeDashboardTrends(project.spreadsheetId, dailyMetrics);
 
     // Summary更新
     createDevOpsSummaryFromMetrics(project.spreadsheetId, dailyMetrics, 'DevOps Summary');
@@ -408,13 +408,13 @@ export function backfillAllProjectsDaily(days = 30): void {
 }
 
 /** 過去30日分を日別バックフィル */
-export function backfillLast30Days(): void {
-  syncDailyBackfill(30);
+export async function backfillLast30Days(): Promise<void> {
+  await syncDailyBackfill(30);
 }
 
 /** 過去90日分を日別バックフィル */
-export function backfillLast90Days(): void {
-  syncDailyBackfill(90);
+export async function backfillLast90Days(): Promise<void> {
+  await syncDailyBackfill(90);
 }
 
 // =============================================================================

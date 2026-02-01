@@ -21,6 +21,7 @@ import { DASHBOARD_SCHEMA, getHeadersFromSchema } from '../../schemas';
 import { evaluateMetric, selectWorstStatus } from '../../utils/healthStatus';
 import { getExtendedMetricSheetName } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
+import type { WeeklyTrendData, RepositoryLatestData } from './dashboardTypes';
 
 const DASHBOARD_HEADERS = getHeadersFromSchema(DASHBOARD_SCHEMA);
 
@@ -63,23 +64,9 @@ function formatStatus(status: HealthStatus): string {
 
 /**
  * リポジトリ別の最新メトリクスを集計
+ *
+ * Note: 型定義は dashboardTypes.ts に移動
  */
-interface RepositoryLatestData {
-  repository: string;
-  latestDate: string;
-  deploymentFrequency: string;
-  leadTimeHours: number | null;
-  changeFailureRate: number | null;
-  mttrHours: number | null;
-  // 拡張指標
-  cycleTimeHours: number | null;
-  codingTimeHours: number | null;
-  timeToFirstReviewHours: number | null;
-  reviewDurationHours: number | null;
-  avgLinesOfCode: number | null;
-  avgAdditionalCommits: number | null;
-  avgForcePushCount: number | null;
-}
 
 /**
  * メトリクスから各リポジトリの最新データを抽出
@@ -353,8 +340,13 @@ function initializeDashboardSheet(spreadsheet: Spreadsheet): Sheet {
  *
  * @param spreadsheetId - スプレッドシートID
  * @param metrics - 全リポジトリのメトリクス
+ * @param options - オプション設定
  */
-export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
+export async function writeDashboard(
+  spreadsheetId: string,
+  metrics: DevOpsMetrics[],
+  options?: { includeCharts?: boolean }
+): Promise<void> {
   const { logger } = getContainer();
   const spreadsheet = openSpreadsheet(spreadsheetId);
 
@@ -383,6 +375,18 @@ export function writeDashboard(spreadsheetId: string, metrics: DevOpsMetrics[]):
 
   // フォーマット
   formatDashboardSheet(sheet, rows.length, repoDataList.length > 1);
+
+  // チャートを追加（デフォルトで有効）
+  if (options?.includeCharts !== false) {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const charts = await import('./charts');
+      charts.addAllDashboardCharts(sheet, repoDataList);
+      logger.info('📊 Dashboard charts added');
+    } catch (error) {
+      logger.warn(`⚠️ Failed to add dashboard charts: ${String(error)}`);
+    }
+  }
 
   logger.info(`✅ Dashboard updated with ${repoDataList.length} repositories`);
 }
@@ -422,14 +426,9 @@ function formatDashboardSheet(sheet: Sheet, rowCount: number, hasOverallRow: boo
 
 /**
  * 週次トレンドデータを計算
+ *
+ * Note: 型定義は dashboardTypes.ts に移動
  */
-export interface WeeklyTrendData {
-  week: string;
-  totalDeployments: number;
-  avgLeadTimeHours: number | null;
-  avgChangeFailureRate: number | null;
-  avgCycleTimeHours: number | null;
-}
 
 /**
  * メトリクスから週次トレンドを計算
@@ -593,8 +592,16 @@ function formatTrendSheet(sheet: Sheet, rowCount: number): void {
 
 /**
  * トレンドシートを作成または更新
+ *
+ * @param spreadsheetId - スプレッドシートID
+ * @param metrics - 全リポジトリのメトリクス
+ * @param options - オプション設定
  */
-export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetrics[]): void {
+export async function writeDashboardTrends(
+  spreadsheetId: string,
+  metrics: DevOpsMetrics[],
+  options?: { includeCharts?: boolean }
+): Promise<void> {
   const { logger } = getContainer();
   const spreadsheet = openSpreadsheet(spreadsheetId);
 
@@ -613,6 +620,18 @@ export function writeDashboardTrends(spreadsheetId: string, metrics: DevOpsMetri
   }
 
   formatTrendSheet(sheet, rows.length);
+
+  // チャートを追加（デフォルトで有効）
+  if (options?.includeCharts !== false) {
+    try {
+      // Dynamic import to avoid circular dependencies
+      const charts = await import('./charts');
+      charts.addTrendCharts(sheet, trends);
+      logger.info('📊 Trend charts added');
+    } catch (error) {
+      logger.warn(`⚠️ Failed to add trend charts: ${String(error)}`);
+    }
+  }
 
   logger.info(`✅ Trend sheet updated with ${trends.length} weeks`);
 }

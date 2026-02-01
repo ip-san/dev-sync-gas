@@ -17,6 +17,7 @@ import type {
   TriggerBuilder,
   TimeTriggerBuilder,
   ServiceContainer,
+  EmbeddedChart,
 } from '../../src/interfaces';
 
 // Mock HTTP Client
@@ -180,12 +181,30 @@ export class MockSheetRange implements SheetRange {
   }
 }
 
+// Mock Embedded Chart
+export class MockEmbeddedChart implements EmbeddedChart {
+  private chartId: number;
+
+  constructor(chartId: number = 1) {
+    this.chartId = chartId;
+  }
+
+  getChartId(): number | null {
+    return this.chartId;
+  }
+
+  getOptions(): null {
+    return null;
+  }
+}
+
 // Mock Sheet
 export class MockSheet implements Sheet {
   private name: string;
   private data: unknown[][] = [];
   private frozenRows: number = 0;
   private resizedColumns: number[] = [];
+  private charts: EmbeddedChart[] = [];
 
   constructor(name: string, initialData: unknown[][] = []) {
     this.name = name;
@@ -273,6 +292,23 @@ export class MockSheet implements Sheet {
 
   clear(): void {
     this.data = [];
+    this.charts = [];
+  }
+
+  // チャート関連メソッド
+  getCharts(): EmbeddedChart[] {
+    return this.charts;
+  }
+
+  insertChart(chart: EmbeddedChart): void {
+    this.charts.push(chart);
+  }
+
+  removeChart(chart: EmbeddedChart): void {
+    const index = this.charts.indexOf(chart);
+    if (index !== -1) {
+      this.charts.splice(index, 1);
+    }
   }
 
   // Test helpers
@@ -318,6 +354,10 @@ export class MockSpreadsheet implements Spreadsheet {
 
   moveActiveSheet(_position: number): void {
     // Mock implementation - no-op for testing
+  }
+
+  getId(): string {
+    return this.name;
   }
 
   // Test helper to add pre-existing sheet

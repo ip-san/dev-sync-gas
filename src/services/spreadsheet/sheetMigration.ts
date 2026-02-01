@@ -143,7 +143,7 @@ function createEmptyMigrationResult(
 /**
  * リポジトリ別シート移行を実行
  */
-function performRepositoryMigration(
+async function performRepositoryMigration(
   spreadsheetId: string,
   metrics: DevOpsMetrics[],
   options: {
@@ -151,7 +151,7 @@ function performRepositoryMigration(
     createSummary: boolean;
   },
   logger: { log: (msg: string) => void }
-): string[] {
+): Promise<string[]> {
   const grouped = groupMetricsByRepository(metrics);
   logger.log(`📁 Migrating to ${grouped.size} repository sheets`);
 
@@ -165,8 +165,8 @@ function performRepositoryMigration(
   }
 
   if (options.createDashboard) {
-    writeDashboard(spreadsheetId, metrics);
-    writeDashboardTrends(spreadsheetId, metrics);
+    await writeDashboard(spreadsheetId, metrics);
+    await writeDashboardTrends(spreadsheetId, metrics);
     createdSheets.push('Dashboard', 'Dashboard - Trend');
   }
 
@@ -215,7 +215,7 @@ function createSuccessMigrationResult(params: {
  * @param sourceSheetName - 移行元シート名（デフォルト: "DevOps Metrics"）
  * @param options - オプション
  */
-export function migrateToRepositorySheets(
+export async function migrateToRepositorySheets(
   spreadsheetId: string,
   sourceSheetName: string = 'DevOps Metrics',
   options: {
@@ -226,7 +226,7 @@ export function migrateToRepositorySheets(
     /** Summaryを作成するか（デフォルト: true） */
     createSummary?: boolean;
   } = {}
-): SheetMigrationResult {
+): Promise<SheetMigrationResult> {
   const { logger } = getContainer();
   const startTime = Date.now();
 
@@ -249,7 +249,7 @@ export function migrateToRepositorySheets(
 
     logger.log(`📊 Found ${metrics.length} records to migrate`);
 
-    const createdSheets = performRepositoryMigration(
+    const createdSheets = await performRepositoryMigration(
       spreadsheetId,
       metrics,
       { createDashboard, createSummary },

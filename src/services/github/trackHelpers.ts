@@ -1,15 +1,65 @@
 /**
- * PR追跡のヘルパー関数
+ * PR追跡のヘルパー関数（REST API版）
  *
- * trackToProductionMerge の複雑度削減のため分離
+ * 共通のPR追跡ロジックにREST API実装を提供するアダプター
  */
 
-import type { PRChainItem } from '../../types/index.js';
-import type { LoggerClient } from '../../interfaces/index.js';
+import type { ApiResponse } from '../../types/index.js';
+import type { PRFetcher, MinimalPRInfo } from './shared/prTracking.js';
 import { getPullRequestWithBranches, findPRContainingCommit } from './pullRequests.js';
 
 /**
+ * REST API版PRFetcherの作成
+ *
+ * 共通のPR追跡ロジックで使用するためのアダプター
+ */
+export function createRESTFetcher(owner: string, repo: string, token: string): PRFetcher {
+  return {
+    getPR(prNumber: number): ApiResponse<MinimalPRInfo | null> {
+      const result = getPullRequestWithBranches(owner, repo, prNumber, token);
+
+      if (!result.success || !result.data) {
+        return { success: false, error: result.error };
+      }
+
+      const pr = result.data;
+      return {
+        success: true,
+        data: {
+          number: pr.number,
+          baseBranch: pr.baseBranch ?? null,
+          headBranch: pr.headBranch ?? null,
+          mergedAt: pr.mergedAt,
+          mergeCommitSha: pr.mergeCommitSha ?? null,
+        },
+      };
+    },
+
+    findPRByCommit(commitSha: string, currentPRNumber: number): ApiResponse<number | null> {
+      const result = findPRContainingCommit(owner, repo, commitSha, token);
+
+      if (!result.success || !result.data) {
+        return { success: true, data: null };
+      }
+
+      // 同じPRの場合は無限ループを防止
+      if (result.data.number === currentPRNumber) {
+        return { success: true, data: null };
+      }
+
+      return { success: true, data: result.data.number };
+    },
+  };
+}
+
+// ============================================================================
+// 後方互換性のための旧関数（@deprecated）
+// ============================================================================
+
+/**
  * PR追跡の1ステップ処理結果
+ *
+ * @deprecated 共通のprTracking.tsに移行しました。直接使用せず、trackToProductionMergeを使用してください。
  */
 export interface TrackStepResult {
   shouldContinue: boolean;
@@ -18,56 +68,9 @@ export interface TrackStepResult {
 }
 
 /**
- * productionブランチへのマージを検出
- */
-function checkProductionMerge(
-  pr: { baseBranch?: string | null | undefined; mergedAt: string | null; number: number },
-  productionPattern: string,
-  logger: LoggerClient
-): string | null {
-  if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
-    if (pr.mergedAt) {
-      logger.log(
-        `    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`
-      );
-      return pr.mergedAt;
-    }
-  }
-  return null;
-}
-
-/**
- * 次のPRを検索
- */
-/**
- * findNextPR のオプション
- */
-interface FindNextPROptions {
-  owner: string;
-  repo: string;
-  mergeCommitSha: string;
-  currentPRNumber: number;
-  token: string;
-}
-
-function findNextPR(options: FindNextPROptions): number | null {
-  const { owner, repo, mergeCommitSha, currentPRNumber, token } = options;
-  const nextPRResult = findPRContainingCommit(owner, repo, mergeCommitSha, token);
-
-  if (!nextPRResult.success || !nextPRResult.data) {
-    return null;
-  }
-
-  // 同じPRの場合は無限ループを防止
-  if (nextPRResult.data.number === currentPRNumber) {
-    return null;
-  }
-
-  return nextPRResult.data.number;
-}
-
-/**
  * processTrackStep のオプション
+ *
+ * @deprecated 共通のprTracking.tsに移行しました。
  */
 export interface ProcessTrackStepOptions {
   owner: string;
@@ -75,17 +78,29 @@ export interface ProcessTrackStepOptions {
   currentPRNumber: number;
   token: string;
   productionPattern: string;
-  prChain: PRChainItem[];
-  logger: LoggerClient;
+  prChain: Array<{
+    prNumber: number;
+    baseBranch: string;
+    headBranch: string;
+    mergedAt: string | null;
+  }>;
+  logger: {
+    log(message: string): void;
+  };
 }
 
 /**
  * PR追跡の1ステップを実行
+ *
+ * @deprecated この関数は後方互換性のために残されています。
+ * 新しいコードでは shared/prTracking.ts の trackToProductionMerge を使用してください。
  */
 export function processTrackStep(options: ProcessTrackStepOptions): TrackStepResult {
-  const { owner, repo, currentPRNumber, token, productionPattern, prChain, logger } = options;
-  const prResult = getPullRequestWithBranches(owner, repo, currentPRNumber, token);
+  // 後方互換性のため、共通ロジックを使用せず従来の実装を維持
+  const { owner, repo, currentPRNumber, token, prChain, logger } = options;
+  const fetcher = createRESTFetcher(owner, repo, token);
 
+  const prResult = fetcher.getPR(currentPRNumber);
   if (!prResult.success || !prResult.data) {
     logger.log(`    ⚠️ Failed to fetch PR #${currentPRNumber}`);
     return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
@@ -100,9 +115,16 @@ export function processTrackStep(options: ProcessTrackStepOptions): TrackStepRes
   });
 
   // productionブランチへのマージを検出
-  const productionMergedAt = checkProductionMerge(pr, productionPattern, logger);
-  if (productionMergedAt) {
-    return { shouldContinue: false, productionMergedAt, nextPRNumber: null };
+  if (
+    pr.baseBranch &&
+    pr.baseBranch.toLowerCase().includes(options.productionPattern.toLowerCase())
+  ) {
+    if (pr.mergedAt) {
+      logger.log(
+        `    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`
+      );
+      return { shouldContinue: false, productionMergedAt: pr.mergedAt, nextPRNumber: null };
+    }
   }
 
   // マージされていない場合は追跡終了
@@ -111,16 +133,10 @@ export function processTrackStep(options: ProcessTrackStepOptions): TrackStepRes
   }
 
   // 次のPRを検索
-  const nextPRNumber = findNextPR({
-    owner,
-    repo,
-    mergeCommitSha: pr.mergeCommitSha,
-    currentPRNumber,
-    token,
-  });
-  if (!nextPRNumber) {
+  const nextPRResult = fetcher.findPRByCommit(pr.mergeCommitSha, currentPRNumber);
+  if (!nextPRResult.success || !nextPRResult.data) {
     return { shouldContinue: false, productionMergedAt: null, nextPRNumber: null };
   }
 
-  return { shouldContinue: true, productionMergedAt: null, nextPRNumber };
+  return { shouldContinue: true, productionMergedAt: null, nextPRNumber: nextPRResult.data };
 }

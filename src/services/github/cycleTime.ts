@@ -21,10 +21,10 @@ import type {
 import { getContainer } from '../../container';
 import { type IssueDateRange } from './api';
 import { getIssues, getLinkedPRsForIssue } from './issues';
-import { MAX_PR_CHAIN_DEPTH } from '../../config/apiConfig';
 import { processIssueCycleTime } from './cycleTimeHelpers.js';
 import { processIssueCodingTime } from './codingTimeHelpers.js';
-import { processTrackStep } from './trackHelpers.js';
+import { trackToProductionMerge as trackToProductionMergeShared } from './shared/prTracking.js';
+import { createRESTFetcher } from './trackHelpers.js';
 
 // =============================================================================
 // PRチェーン追跡
@@ -55,33 +55,10 @@ export function trackToProductionMerge(options: TrackToProductionOptions): ApiRe
 }> {
   const { owner, repo, initialPRNumber, token, productionPattern = 'production' } = options;
   const { logger } = getContainer();
-  const prChain: PRChainItem[] = [];
-  let currentPRNumber = initialPRNumber;
-  let productionMergedAt: string | null = null;
 
-  for (let depth = 0; depth < MAX_PR_CHAIN_DEPTH; depth++) {
-    const result = processTrackStep({
-      owner,
-      repo,
-      currentPRNumber,
-      token,
-      productionPattern,
-      prChain,
-      logger,
-    });
-
-    if (result.productionMergedAt) {
-      productionMergedAt = result.productionMergedAt;
-    }
-
-    if (!result.shouldContinue) {
-      break;
-    }
-
-    currentPRNumber = result.nextPRNumber!;
-  }
-
-  return { success: true, data: { productionMergedAt, prChain } };
+  // 共通のPR追跡ロジックを使用（REST API版のfetcherを提供）
+  const fetcher = createRESTFetcher(owner, repo, token);
+  return trackToProductionMergeShared(fetcher, initialPRNumber, productionPattern, logger);
 }
 
 // =============================================================================

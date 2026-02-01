@@ -1,8 +1,14 @@
 /**
- * Cycle Time & Coding Time 計測モジュール
+ * Cycle Time & Coding Time 計測モジュール（REST API版）
+ *
+ * @deprecated このファイルの関数はREST APIを使用しており、非推奨です。
+ * GraphQL版（src/services/github/graphql/issues.ts）の使用を推奨します。
+ * GraphQL版はAPI呼び出し回数が大幅に少なく、レート制限対策として有効です。
  *
  * Issue作成からProductionマージまでのサイクルタイム、
  * Issue作成からPR作成までのコーディングタイムを計測。
+ *
+ * 削除予定: Version 1.2.0
  */
 
 import type {
@@ -39,6 +45,9 @@ export interface TrackToProductionOptions {
  * PRチェーンを追跡してproductionブランチへのマージを検出
  *
  * feature → main → staging → production のようなPRの連鎖を追跡
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getCycleTimeDataGraphQL() 内で自動的に処理されます。
+ * 削除予定: Version 1.2.0
  */
 export function trackToProductionMerge(options: TrackToProductionOptions): ApiResponse<{
   productionMergedAt: string | null;
@@ -83,6 +92,10 @@ export function trackToProductionMerge(options: TrackToProductionOptions): ApiRe
  * 複数リポジトリからサイクルタイムデータを取得
  *
  * サイクルタイム = Issue作成 → Productionマージ
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getCycleTimeDataGraphQL() を使用してください。
+ * GraphQL版はAPI呼び出し回数が大幅に削減されています。
+ * 削除予定: Version 1.2.0
  */
 export function getCycleTimeData(
   repositories: GitHubRepository[],
@@ -147,6 +160,10 @@ export function getCycleTimeData(
  * 複数リポジトリからコーディングタイムデータを取得
  *
  * コーディングタイム = Issue作成 → PR作成
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getCodingTimeDataGraphQL() を使用してください。
+ * GraphQL版はAPI呼び出し回数が大幅に削減されています。
+ * 削除予定: Version 1.2.0
  */
 export function getCodingTimeData(
   repositories: GitHubRepository[],

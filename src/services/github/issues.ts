@@ -1,8 +1,14 @@
 /**
- * GitHub Issues 関連モジュール
+ * GitHub Issues 関連モジュール（REST API版）
+ *
+ * @deprecated このファイルの関数はREST APIを使用しており、非推奨です。
+ * GraphQL版（src/services/github/graphql/issues.ts）の使用を推奨します。
+ * GraphQL版はAPI呼び出し回数が大幅に少なく、レート制限対策として有効です。
  *
  * Issue取得、インシデント取得（MTTRサポート）、
  * Issue↔PR リンク取得などを提供。
+ *
+ * 削除予定: Version 1.2.0
  */
 
 import type {
@@ -42,6 +48,9 @@ interface GetIncidentsOptions {
 /**
  * リポジトリのインシデント（ラベル付きIssue）を取得
  * MTTR計測に使用
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getIssuesGraphQL() を使用してください。
+ * 削除予定: Version 1.2.0
  */
 export function getIncidents(
   repo: GitHubRepository,
@@ -109,6 +118,10 @@ export function getIncidents(
 
 /**
  * リポジトリのIssueを取得（PRを除外）
+ *
+ * @deprecated REST API版は非推奨です。GraphQL版の getIssuesGraphQL() を使用してください。
+ * GraphQL版はPRが自動的に除外され、ラベルフィルタもAPI側で処理されます。
+ * 削除予定: Version 1.2.0
  */
 export function getIssues(
   repo: GitHubRepository,

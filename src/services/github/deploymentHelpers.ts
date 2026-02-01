@@ -67,15 +67,21 @@ export function convertToGitHubDeployment(
 }
 
 /**
+ * buildDeploymentEndpoint のオプション
+ */
+export interface BuildDeploymentEndpointOptions {
+  repoFullName: string;
+  page: number;
+  perPage: number;
+  environment: string | undefined;
+  useApiFilter: boolean;
+}
+
+/**
  * デプロイメント取得用のエンドポイントURLを構築
  */
-export function buildDeploymentEndpoint(
-  repoFullName: string,
-  page: number,
-  perPage: number,
-  environment: string | undefined,
-  useApiFilter: boolean
-): string {
+export function buildDeploymentEndpoint(options: BuildDeploymentEndpointOptions): string {
+  const { repoFullName, page, perPage, environment, useApiFilter } = options;
   let endpoint = `/repos/${repoFullName}/deployments?per_page=${perPage}&page=${page}`;
   if (useApiFilter && environment) {
     endpoint += `&environment=${encodeURIComponent(environment)}`;
@@ -84,18 +90,35 @@ export function buildDeploymentEndpoint(
 }
 
 /**
+ * processDeploymentPage のオプション
+ */
+export interface ProcessDeploymentPageOptions {
+  response: { success: boolean; data?: GitHubDeploymentResponse[]; error?: string };
+  page: number;
+  repoFullName: string;
+  environment: string | undefined;
+  environmentMatchMode: 'exact' | 'partial';
+  dateRange: DateRange | undefined;
+  allDeployments: GitHubDeployment[];
+}
+
+/**
  * ページ取得結果を処理
  * @returns true: 続行, false: 終了
  */
-export function processDeploymentPage(
-  response: { success: boolean; data?: GitHubDeploymentResponse[]; error?: string },
-  page: number,
-  repoFullName: string,
-  environment: string | undefined,
-  environmentMatchMode: 'exact' | 'partial',
-  dateRange: DateRange | undefined,
-  allDeployments: GitHubDeployment[]
-): { shouldContinue: boolean; error?: string } {
+export function processDeploymentPage(options: ProcessDeploymentPageOptions): {
+  shouldContinue: boolean;
+  error?: string;
+} {
+  const {
+    response,
+    page,
+    repoFullName,
+    environment,
+    environmentMatchMode,
+    dateRange,
+    allDeployments,
+  } = options;
   // エラーまたはデータなし
   if (!response.success || !response.data) {
     if (page === 1) {
@@ -111,30 +134,37 @@ export function processDeploymentPage(
 
   // デプロイメントを処理
   for (const deployment of response.data) {
-    processDeployment(
+    processDeployment({
       deployment,
       repoFullName,
       environment,
       environmentMatchMode,
       dateRange,
-      allDeployments
-    );
+      allDeployments,
+    });
   }
 
   return { shouldContinue: true };
 }
 
 /**
+ * processDeployment のオプション
+ */
+export interface ProcessDeploymentOptions {
+  deployment: GitHubDeploymentResponse;
+  repoFullName: string;
+  environment: string | undefined;
+  environmentMatchMode: 'exact' | 'partial';
+  dateRange: DateRange | undefined;
+  allDeployments: GitHubDeployment[];
+}
+
+/**
  * デプロイメント1件を処理してリストに追加
  */
-export function processDeployment(
-  deployment: GitHubDeploymentResponse,
-  repoFullName: string,
-  environment: string | undefined,
-  environmentMatchMode: 'exact' | 'partial',
-  dateRange: DateRange | undefined,
-  allDeployments: GitHubDeployment[]
-): void {
+export function processDeployment(options: ProcessDeploymentOptions): void {
+  const { deployment, repoFullName, environment, environmentMatchMode, dateRange, allDeployments } =
+    options;
   // 期間フィルタリング
   const createdAt = new Date(deployment.created_at);
   if (!isWithinDateRange(createdAt, dateRange)) {

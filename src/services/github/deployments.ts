@@ -141,25 +141,25 @@ export function getDeployments(
 
   // Phase 1: デプロイメント一覧を取得
   while (page <= maxPages) {
-    const endpoint = buildDeploymentEndpoint(
-      repo.fullName,
+    const endpoint = buildDeploymentEndpoint({
+      repoFullName: repo.fullName,
       page,
-      PER_PAGE,
+      perPage: PER_PAGE,
       environment,
-      useApiFilter
-    );
+      useApiFilter,
+    });
 
     const response = fetchGitHub<GitHubDeploymentResponse[]>(endpoint, token);
 
-    const result = processDeploymentPage(
+    const result = processDeploymentPage({
       response,
       page,
-      repo.fullName,
+      repoFullName: repo.fullName,
       environment,
       environmentMatchMode,
       dateRange,
-      allDeployments
-    );
+      allDeployments,
+    });
 
     if (!result.shouldContinue) {
       if (result.error) {

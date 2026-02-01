@@ -62,17 +62,23 @@ export function findEarliestPR(
 }
 
 /**
+ * processIssueCodingTime のオプション
+ */
+export interface ProcessIssueCodingTimeOptions {
+  issue: { number: number; title: string; createdAt: string };
+  linkedPRNumbers: number[];
+  owner: string;
+  repoName: string;
+  repository: string;
+  token: string;
+  logger: LoggerClient;
+}
+
+/**
  * Issue1件分のコーディングタイムデータを処理
  */
-export function processIssueCodingTime(
-  issue: { number: number; title: string; createdAt: string },
-  linkedPRNumbers: number[],
-  owner: string,
-  repoName: string,
-  repository: string,
-  token: string,
-  logger: LoggerClient
-): IssueCodingTime {
+export function processIssueCodingTime(options: ProcessIssueCodingTimeOptions): IssueCodingTime {
+  const { issue, linkedPRNumbers, owner, repoName, repository, token, logger } = options;
   logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
 
   if (linkedPRNumbers.length === 0) {

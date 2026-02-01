@@ -100,17 +100,17 @@ export function buildCycleTimeData(
 }
 
 /**
- * Issue1件分のサイクルタイムデータを処理
+ * processIssueCycleTime のオプション
  */
-export function processIssueCycleTime(
-  issue: { number: number; title: string; createdAt: string },
-  linkedPRNumbers: number[],
-  owner: string,
-  repoName: string,
-  repository: string,
-  token: string,
-  productionPattern: string,
-  logger: LoggerClient,
+export interface ProcessIssueCycleTimeOptions {
+  issue: { number: number; title: string; createdAt: string };
+  linkedPRNumbers: number[];
+  owner: string;
+  repoName: string;
+  repository: string;
+  token: string;
+  productionPattern: string;
+  logger: LoggerClient;
   trackFn: (options: {
     owner: string;
     repo: string;
@@ -120,8 +120,24 @@ export function processIssueCycleTime(
   }) => ApiResponse<{
     productionMergedAt: string | null;
     prChain: PRChainItem[];
-  }>
-): IssueCycleTime {
+  }>;
+}
+
+/**
+ * Issue1件分のサイクルタイムデータを処理
+ */
+export function processIssueCycleTime(options: ProcessIssueCycleTimeOptions): IssueCycleTime {
+  const {
+    issue,
+    linkedPRNumbers,
+    owner,
+    repoName,
+    repository,
+    token,
+    productionPattern,
+    logger,
+    trackFn,
+  } = options;
   logger.log(`  📌 Processing Issue #${issue.number}: ${issue.title}`);
 
   if (linkedPRNumbers.length === 0) {

@@ -52,6 +52,41 @@ function passesEnvironmentFilter(
   return envLower.includes(filterLower);
 }
 
+/**
+ * デプロイメントが日付範囲内かチェック
+ */
+function passesDateRangeFilter(createdAt: Date, dateRange?: DateRange): boolean {
+  if (dateRange?.until && createdAt > dateRange.until) {
+    return false;
+  }
+  if (dateRange?.since && createdAt < dateRange.since) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * デプロイメント1件が全てのフィルタを通過するかチェック
+ */
+function shouldIncludeDeployment(
+  deployment: GraphQLDeployment,
+  environment: string | undefined,
+  environmentMatchMode: EnvironmentMatchMode,
+  dateRange?: DateRange
+): boolean {
+  const createdAt = new Date(deployment.createdAt);
+
+  if (!passesDateRangeFilter(createdAt, dateRange)) {
+    return false;
+  }
+
+  if (!passesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
+    return false;
+  }
+
+  return true;
+}
+
 // =============================================================================
 // デプロイメント一覧取得
 // =============================================================================
@@ -104,22 +139,9 @@ export function getDeploymentsGraphQL(
     const pageInfo = deploymentsData.pageInfo;
 
     for (const deployment of nodes) {
-      const createdAt = new Date(deployment.createdAt);
-
-      // 期間フィルタリング
-      if (dateRange?.until && createdAt > dateRange.until) {
-        continue;
+      if (shouldIncludeDeployment(deployment, environment, environmentMatchMode, dateRange)) {
+        allDeployments.push(convertToDeployment(deployment, repo.fullName));
       }
-      if (dateRange?.since && createdAt < dateRange.since) {
-        continue;
-      }
-
-      // 環境フィルタリング（部分一致モードの場合）
-      if (!passesEnvironmentFilter(deployment, environment, environmentMatchMode)) {
-        continue;
-      }
-
-      allDeployments.push(convertToDeployment(deployment, repo.fullName));
     }
 
     if (!pageInfo.hasNextPage) {
@@ -168,6 +190,22 @@ function isValidDeploymentStatus(value: string): value is NonNullable<GitHubDepl
 }
 
 /**
+ * GraphQL DeploymentState のマッピングテーブル
+ */
+const DEPLOYMENT_STATE_MAP: Record<string, GitHubDeployment['status']> = {
+  ACTIVE: 'success',
+  ERROR: 'failure',
+  FAILURE: 'failure',
+  IN_PROGRESS: 'pending',
+  PENDING: 'pending',
+  QUEUED: 'pending',
+  WAITING: 'pending',
+  INACTIVE: 'inactive',
+  DESTROYED: 'inactive',
+  ABANDONED: 'inactive',
+};
+
+/**
  * GraphQL DeploymentState/DeploymentStatusState を REST API互換のステータスに変換
  */
 function mapDeploymentStatus(
@@ -184,22 +222,5 @@ function mapDeploymentStatus(
   }
 
   // state から推測
-  switch (state) {
-    case 'ACTIVE':
-      return 'success';
-    case 'ERROR':
-    case 'FAILURE':
-      return 'failure';
-    case 'IN_PROGRESS':
-    case 'PENDING':
-    case 'QUEUED':
-    case 'WAITING':
-      return 'pending';
-    case 'INACTIVE':
-    case 'DESTROYED':
-    case 'ABANDONED':
-      return 'inactive';
-    default:
-      return null;
-  }
+  return DEPLOYMENT_STATE_MAP[state] ?? null;
 }

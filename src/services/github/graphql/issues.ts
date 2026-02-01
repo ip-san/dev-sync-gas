@@ -28,6 +28,7 @@ import type {
   IssueWithLinkedPRsQueryResponse,
   GraphQLIssue,
   CommitAssociatedPRsQueryResponse,
+  CrossReferencedEvent,
 } from './types';
 import type { IssueDateRange } from '../api';
 import { getPullRequestWithBranchesGraphQL } from './pullRequests.js';
@@ -136,6 +137,54 @@ function convertToIssue(issue: GraphQLIssue, repository: string): GitHubIssue {
  * REST APIのTimeline APIと比較して、
  * PR情報（createdAt, mergedAt, branches）も同時取得。
  */
+/**
+ * タイムラインイベントから有効なPRを抽出するかチェック
+ */
+function isValidLinkedPR(
+  source: CrossReferencedEvent['source'],
+  owner: string,
+  repo: string,
+  existingPRNumbers: Set<number>
+): boolean {
+  if (!source?.number) {
+    return false;
+  }
+
+  // 同じリポジトリのPRのみ
+  const sourceRepo = source.repository?.nameWithOwner;
+  if (sourceRepo && sourceRepo !== `${owner}/${repo}`) {
+    return false;
+  }
+
+  // 重複チェック
+  if (existingPRNumbers.has(source.number)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * タイムラインイベントからPR情報を抽出
+ */
+function extractPRInfo(source: NonNullable<CrossReferencedEvent['source']>): {
+  number: number;
+  createdAt: string;
+  mergedAt: string | null;
+  baseRefName: string;
+  headRefName: string;
+  mergeCommitSha: string | null;
+} {
+  return {
+    number: source.number!,
+    createdAt: source.createdAt ?? '',
+    mergedAt: source.mergedAt ?? null,
+    baseRefName: source.baseRefName ?? '',
+    headRefName: source.headRefName ?? '',
+    mergeCommitSha: source.mergeCommit?.oid ?? null,
+  };
+}
+
 export function getLinkedPRsForIssueGraphQL(
   owner: string,
   repo: string,
@@ -174,32 +223,15 @@ export function getLinkedPRsForIssueGraphQL(
     headRefName: string;
     mergeCommitSha: string | null;
   }[] = [];
+  const prNumbers = new Set<number>();
 
   for (const event of timeline) {
     const source = event.source;
-    if (!source?.number) {
-      continue;
+    if (isValidLinkedPR(source, owner, repo, prNumbers) && source) {
+      const prInfo = extractPRInfo(source);
+      linkedPRs.push(prInfo);
+      prNumbers.add(prInfo.number);
     }
-
-    // 同じリポジトリのPRのみ
-    const sourceRepo = source.repository?.nameWithOwner;
-    if (sourceRepo && sourceRepo !== `${owner}/${repo}`) {
-      continue;
-    }
-
-    // 重複チェック
-    if (linkedPRs.some((pr) => pr.number === source.number)) {
-      continue;
-    }
-
-    linkedPRs.push({
-      number: source.number,
-      createdAt: source.createdAt ?? '',
-      mergedAt: source.mergedAt ?? null,
-      baseRefName: source.baseRefName ?? '',
-      headRefName: source.headRefName ?? '',
-      mergeCommitSha: source.mergeCommit?.oid ?? null,
-    });
   }
 
   return { success: true, data: linkedPRs };

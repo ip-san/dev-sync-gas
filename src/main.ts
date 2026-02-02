@@ -92,6 +92,13 @@ import {
   showAlertTrigger,
 } from './functions/slackAlerts';
 import {
+  // Slack月次レポート
+  sendMonthlyReport,
+  setupMonthlyReportTrigger,
+  removeMonthlyReportTrigger,
+  showMonthlyReportTrigger,
+} from './functions/slackMonthly';
+import {
   // Slackインシデント日次サマリー
   sendIncidentDailySummary,
   setupIncidentDailySummaryTrigger,
@@ -194,6 +201,12 @@ global.checkAndSendAlerts = checkAndSendAlerts;
 global.setupAlertTrigger = setupAlertTrigger;
 global.removeAlertTrigger = removeAlertTrigger;
 global.showAlertTrigger = showAlertTrigger;
+
+// Slack月次レポート
+global.sendMonthlyReport = sendMonthlyReport;
+global.setupMonthlyReportTrigger = setupMonthlyReportTrigger;
+global.removeMonthlyReportTrigger = removeMonthlyReportTrigger;
+global.showMonthlyReportTrigger = showMonthlyReportTrigger;
 
 // Slackインシデント日次サマリー
 global.sendIncidentDailySummary = sendIncidentDailySummary;

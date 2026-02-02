@@ -98,6 +98,13 @@ import {
   removeMonthlyReportTrigger,
   showMonthlyReportTrigger,
 } from './functions/slackMonthly';
+import {
+  // Slackインシデント日次サマリー
+  sendIncidentDailySummary,
+  setupIncidentDailySummaryTrigger,
+  removeIncidentDailySummaryTrigger,
+  showIncidentDailySummaryTrigger,
+} from './functions/slackIncidents';
 
 // =============================================================================
 // GASグローバルスコープにエクスポート
@@ -200,3 +207,9 @@ global.sendMonthlyReport = sendMonthlyReport;
 global.setupMonthlyReportTrigger = setupMonthlyReportTrigger;
 global.removeMonthlyReportTrigger = removeMonthlyReportTrigger;
 global.showMonthlyReportTrigger = showMonthlyReportTrigger;
+
+// Slackインシデント日次サマリー
+global.sendIncidentDailySummary = sendIncidentDailySummary;
+global.setupIncidentDailySummaryTrigger = setupIncidentDailySummaryTrigger;
+global.removeIncidentDailySummaryTrigger = removeIncidentDailySummaryTrigger;
+global.showIncidentDailySummaryTrigger = showIncidentDailySummaryTrigger;

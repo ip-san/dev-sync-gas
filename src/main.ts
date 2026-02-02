@@ -91,6 +91,13 @@ import {
   removeAlertTrigger,
   showAlertTrigger,
 } from './functions/slackAlerts';
+import {
+  // Slack月次レポート
+  sendMonthlyReport,
+  setupMonthlyReportTrigger,
+  removeMonthlyReportTrigger,
+  showMonthlyReportTrigger,
+} from './functions/slackMonthly';
 
 // =============================================================================
 // GASグローバルスコープにエクスポート
@@ -187,3 +194,9 @@ global.checkAndSendAlerts = checkAndSendAlerts;
 global.setupAlertTrigger = setupAlertTrigger;
 global.removeAlertTrigger = removeAlertTrigger;
 global.showAlertTrigger = showAlertTrigger;
+
+// Slack月次レポート
+global.sendMonthlyReport = sendMonthlyReport;
+global.setupMonthlyReportTrigger = setupMonthlyReportTrigger;
+global.removeMonthlyReportTrigger = removeMonthlyReportTrigger;
+global.showMonthlyReportTrigger = showMonthlyReportTrigger;

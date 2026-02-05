@@ -19,6 +19,14 @@ const CACHE_EXPIRES_KEY = '_GITHUB_APP_CACHED_EXPIRES';
  * @returns JWT文字列
  */
 export function generateJWT(appId: string, privateKey: string): string {
+  const { logger } = getContainer();
+
+  logger.debug('[JWT] Generating JWT...');
+  logger.debug(`[JWT] App ID: ${appId}`);
+  logger.debug(`[JWT] Private Key length: ${privateKey.length}`);
+  logger.debug(`[JWT] Private Key starts with: ${privateKey.substring(0, 30)}...`);
+  logger.debug(`[JWT] Private Key type: ${typeof privateKey}`);
+
   const now = Math.floor(Date.now() / 1000);
 
   const header = {
@@ -35,8 +43,18 @@ export function generateJWT(appId: string, privateKey: string): string {
   const sHeader = JSON.stringify(header);
   const sPayload = JSON.stringify(payload);
 
-  const jwt = KJUR.jws.JWS.sign('RS256', sHeader, sPayload, privateKey);
-  return jwt;
+  logger.debug('[JWT] About to sign with KJUR.jws.JWS.sign...');
+
+  try {
+    const jwt = KJUR.jws.JWS.sign('RS256', sHeader, sPayload, privateKey);
+    logger.debug('[JWT] JWT generated successfully');
+    return jwt;
+  } catch (error) {
+    logger.error(
+      `[JWT] Failed to generate JWT: ${error instanceof Error ? error.message : String(error)}`
+    );
+    throw error;
+  }
 }
 
 /**

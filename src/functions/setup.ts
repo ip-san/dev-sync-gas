@@ -77,6 +77,9 @@ export function setup(githubToken: string, spreadsheetId: string): void {
 
 /**
  * GitHub Apps認証用セットアップ
+ *
+ * PRIVATE_KEYは複数行のPEM形式をそのまま貼り付けてOK。
+ * 改行は自動で正規化されます。
  */
 export function setupWithGitHubApp(
   appId: string,
@@ -86,10 +89,21 @@ export function setupWithGitHubApp(
 ): void {
   ensureContainerInitialized();
 
+  // Private Keyの改行を正規化
+  // 実際の改行文字（\n）を2文字の文字列 "\\n" に変換
+  // すでに "\\n" 形式になっている場合は二重変換を防ぐ
+  let normalizedPrivateKey = privateKey;
+
+  // 実際の改行文字が含まれている場合のみ変換
+  if (/\n/.test(privateKey) && !/\\n/.test(privateKey)) {
+    normalizedPrivateKey = privateKey.replace(/\n/g, '\\n');
+    Logger.log('🔄 Private key newlines normalized');
+  }
+
   // 入力検証
   try {
     validateGitHubAppId(appId);
-    validatePrivateKey(privateKey);
+    validatePrivateKey(normalizedPrivateKey);
     validateGitHubInstallationId(installationId);
     validateSpreadsheetId(spreadsheetId);
     // スプレッドシートへのアクセス権限を検証
@@ -104,7 +118,7 @@ export function setupWithGitHubApp(
   try {
     setConfig({
       github: {
-        appConfig: { appId, privateKey, installationId },
+        appConfig: { appId, privateKey: normalizedPrivateKey, installationId },
         repositories: [],
       },
       spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },

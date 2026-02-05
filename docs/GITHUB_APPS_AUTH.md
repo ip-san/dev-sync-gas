@@ -93,7 +93,64 @@ https://github.com/settings/installations/12345678
 | Private Key | ダウンロードした `.pem` ファイルの内容 |
 | Installation ID | インストールURLの数字部分 |
 
-### GASエディタでの設定
+### 方法1: TypeScriptで設定（推奨）
+
+**最も簡単な方法です。** Private Keyを複数行のまま貼り付けられます。
+
+#### 0. テンプレートをコピー（初回のみ）
+
+```bash
+cp src/init.example.ts src/init.ts
+```
+
+#### 1. `src/init.ts` を編集
+
+```typescript
+const APP_ID = "123456";  // あなたのApp ID
+const INSTALLATION_ID = "12345678";  // あなたのInstallation ID
+
+// Private Keyは複数行のまま貼り付けてOK（バッククォートで囲む）
+const PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA...
+...
+-----END RSA PRIVATE KEY-----`;
+
+const SPREADSHEET_ID = "your-spreadsheet-id";
+
+const REPOSITORIES: { owner: string; name: string }[] = [
+  { owner: "your-org", name: "your-repo" },
+];
+```
+
+#### 2. ビルド＆デプロイ
+
+```bash
+bun run push
+```
+
+#### 3. GASエディタで実行
+
+GASエディタ（https://script.google.com）で：
+- 関数選択ドロップダウンから **`initConfigWithGitHubApp`** を選択
+- 「実行」ボタンをクリック
+
+#### 4. 機密情報を削除
+
+設定完了後、`src/init.ts` から機密情報をプレースホルダーに戻してください：
+
+```typescript
+const APP_ID = "YOUR_APP_ID_HERE";
+const PRIVATE_KEY = `YOUR_PRIVATE_KEY_HERE`;
+// ...
+```
+
+設定はPropertiesServiceに保存されているため、コードから削除してもOKです。
+
+---
+
+### 方法2: GASエディタで直接設定
+
+GASエディタで直接JavaScriptを実行する方法です。
 
 ```javascript
 // GitHub Apps認証でセットアップ
@@ -111,7 +168,7 @@ addRepo('your-org', 'repo-name');
 showAuthMode();  // => "🔐 Current auth mode: GitHub App"
 ```
 
-### Private Key の形式
+**Private Key の形式:**
 
 Private Keyは改行を `\n` に置換して1行にします:
 

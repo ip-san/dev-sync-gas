@@ -85,6 +85,8 @@ bun run check:all      # 全チェックを一括実行
 - [x] ダッシュボード用のチャート生成
 
 ## APIトークン設定（GASエディタで実行）
+
+### Personal Access Token (PAT) 認証
 ```javascript
 setup(
   'ghp_xxxx',           // GitHub PAT
@@ -92,6 +94,23 @@ setup(
 );
 addRepo('owner', 'repo-name');
 ```
+
+### GitHub App 認証
+```javascript
+// PRIVATE_KEYは複数行のまま貼り付けてOK（自動で改行を正規化）
+setupWithGitHubApp(
+  '123456',             // App ID
+  `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA...
+...
+-----END RSA PRIVATE KEY-----`,  // Private Key (複数行のまま)
+  '12345678',           // Installation ID
+  'spreadsheet-id'      // Google Spreadsheet ID
+);
+addRepo('owner', 'repo-name');
+```
+
+**注意**: PRIVATE_KEYはバッククォート(\`)で囲んで複数行のまま貼り付けてください。改行は自動で正規化されます。
 
 ## APIモード切替
 デフォルトでGraphQL APIを使用（API呼び出し回数削減）。REST APIに戻す場合：
@@ -237,9 +256,10 @@ resetIncidentLabelsConfig();
 
 ## Slack通知設定
 
-DevOps指標の日次サマリーをSlackに自動通知できます。
+DevOps指標とインシデント情報をSlackに自動通知できます。
 
-### 設定方法
+### 基本設定
+
 ```javascript
 // Slack Incoming Webhook URLを設定
 configureSlackWebhook('https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX');
@@ -251,26 +271,73 @@ showSlackConfig();
 removeSlackWebhook();
 ```
 
-### 動作
-- `syncDevOpsMetrics()` 実行時に自動的に日次サマリーを送信
-- Webhook URLが未設定の場合は通知をスキップ（警告ログのみ）
-- 通知失敗時もメイン処理は継続（エラーログのみ）
-
-### 日次サマリーの内容
-- 総合ステータス（健全性評価: 🟢良好 / 🟡要注意 / 🔴要対応）
-- DORA指標の平均値
-  - デプロイ頻度（回/日）
-  - リードタイム（時間）
-  - 変更障害率（%）
-  - MTTR（時間）
-- 対象リポジトリ数
-- スプレッドシートへのリンクボタン
-
-### Incoming Webhook URLの取得方法
+**Incoming Webhook URLの取得方法:**
 1. Slackワークスペースで [Incoming Webhooks](https://api.slack.com/messaging/webhooks) を有効化
 2. 通知先チャンネルを選択
 3. 発行されたWebhook URLをコピー
 4. `configureSlackWebhook()` で設定
+
+### 通知の種類
+
+#### 1. 週次レポート（Weekly Report）
+
+毎週月曜日の朝9時に、先週と今週のDORA指標を比較したレポートを送信します。
+
+**トリガー設定:**
+```javascript
+// 週次レポートトリガーを設定（毎週月曜9時）
+setupWeeklyReportTrigger();
+
+// トリガー状態を確認
+showWeeklyReportTrigger();
+
+// トリガーを削除
+removeWeeklyReportTrigger();
+
+// 手動送信（テスト用）
+sendWeeklyReport();
+```
+
+**レポート内容:**
+- 今週と先週のDORA指標比較
+- 週次トレンド（デプロイ頻度、リードタイム、変更障害率、MTTR）
+- 前週比での改善/悪化の傾向
+- スプレッドシートへのリンクボタン
+
+#### 2. インシデント日次サマリー（Incident Daily Summary）
+
+毎日18時に、その日発生したインシデント（新規作成・解決）をサマリーで送信します。
+
+**トリガー設定:**
+```javascript
+// インシデント日次サマリートリガーを設定（毎日18時）
+setupIncidentDailySummaryTrigger();
+
+// トリガー状態を確認
+showIncidentDailySummaryTrigger();
+
+// トリガーを削除
+removeIncidentDailySummaryTrigger();
+
+// 手動送信（テスト用）
+sendIncidentDailySummary();
+```
+
+**サマリー内容:**
+- 新規発生インシデント一覧（Issue番号、タイトル、リポジトリ）
+- 解決済みインシデント一覧（Issue番号、タイトル、解決時間）
+- インシデント総数
+- スプレッドシートへのリンクボタン
+
+**注意:**
+- リアルタイム通知は他ツール（PagerDuty/OpsGenie等）が担当
+- 本機能は振り返り・レビュー用の日次サマリーのみ提供
+
+### 動作仕様
+
+- Webhook URLが未設定の場合は通知をスキップ（警告ログのみ）
+- 通知失敗時もメイン処理は継続（エラーログのみ）
+- トリガー設定前にWebhook URLを設定する必要があります
 
 ## ログレベル設定
 

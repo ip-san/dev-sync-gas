@@ -4,6 +4,7 @@
   "description": "GitHub複数リポジトリからDevOps指標（DORA metrics）を収集し、Googleスプレッドシートに書き出すGASプロダクト",
   "type": "module",
   "scripts": {
+    "prebuild": "test -f src/init.ts || cp src/init.fallback.ts src/init.ts",
     "build": "bun run esbuild.config.ts",
     "push": "bun run build && clasp push",
     "deploy": "clasp deploy",

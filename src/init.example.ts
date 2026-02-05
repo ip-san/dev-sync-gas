@@ -1,114 +1,65 @@
 /**
- * 初期設定用テンプレート
+ * 初期設定ファイルのテンプレート
  *
  * 使い方:
  * 1. このファイルを src/init.ts にコピー
  * 2. 値を自分の環境に合わせて編集
  * 3. bun run push でデプロイ
  * 4. GASエディタで initConfig を実行
+ * 5. 設定完了後、機密情報は削除してOK（PropertiesServiceに保存済み）
+ *
+ * 認証方式:
+ * - Personal Access Token: auth.type = 'token' を使用
+ * - GitHub Apps: auth.type = 'github-app' を使用
  */
 
-import { setConfig, addRepository } from './config/settings';
-import { initializeContainer, isContainerInitialized } from './container';
-import { createGasAdapters } from './adapters/gas';
+import type { InitConfig } from './config/initializer';
+import { initializeFromConfig } from './config/initializer';
 
 /// <reference path="./types/gas-global.d.ts" />
 
-function initConfig(): void {
-  // コンテナ初期化
-  if (!isContainerInitialized()) {
-    initializeContainer(createGasAdapters());
-  }
-  // ===== ここを編集 =====
-  const GITHUB_TOKEN = 'your_github_token_here';
-  const SPREADSHEET_ID = 'your_spreadsheet_id_here';
+// ===== ここを編集 =====
+export const config: InitConfig = {
+  // 認証設定（どちらか一方を選択）
+  auth: {
+    // --- GitHub Apps認証の場合 ---
+    type: 'github-app',
+    appId: 'YOUR_APP_ID_HERE', // 例: '123456'
+    installationId: 'YOUR_INSTALLATION_ID_HERE', // 例: '12345678'
+    privateKey: `YOUR_PRIVATE_KEY_HERE`, // 複数行のまま貼り付けてOK
+    // 例:
+    // privateKey: `-----BEGIN RSA PRIVATE KEY-----
+    // MIIEpAIBAAKCAQEA...
+    // ...
+    // -----END RSA PRIVATE KEY-----`,
 
-  // リポジトリ設定
-  const REPOSITORIES = [
-    { owner: 'owner1', name: 'repo1' },
-    // { owner: "owner2", name: "repo2" },
-  ];
-  // ======================
+    // --- Personal Access Token認証の場合 ---
+    // type: 'token',
+    // token: 'ghp_xxxxx', // GitHubのPersonal Access Token
+  },
 
-  // 設定を保存
-  setConfig({
-    github: { token: GITHUB_TOKEN, repositories: [] },
-    spreadsheet: { id: SPREADSHEET_ID, sheetName: 'DevOps Metrics' },
-  });
-  Logger.log('✅ Configuration saved');
+  // スプレッドシート設定
+  spreadsheet: {
+    id: 'YOUR_SPREADSHEET_ID_HERE',
+    sheetName: 'DevOps Metrics', // 省略可（デフォルト: 'DevOps Metrics'）
+  },
 
-  // リポジトリを追加
-  for (const repo of REPOSITORIES) {
-    addRepository(repo.owner, repo.name);
-    Logger.log(`✅ Added repository: ${repo.owner}/${repo.name}`);
-  }
-
-  Logger.log('✅ 初期設定完了');
-}
+  // 監視対象リポジトリ
+  repositories: [
+    { owner: 'your-org', name: 'your-repo' },
+    // 追加するリポジトリをここに列挙
+    // { owner: 'owner2', name: 'repo2' },
+  ],
+};
+// ======================
 
 /**
- * GitHub Apps認証用の初期設定
- *
- * 使い方:
- * 1. 下記の値を自分の環境に合わせて編集
- * 2. bun run push でデプロイ
- * 3. GASエディタで initConfigWithGitHubApp を実行
- * 4. 設定完了後、このファイルの機密情報は削除してOK
- *
- * PRIVATE_KEY の記載方法:
- * - バッククォート(``)で囲んで複数行のまま貼り付けてOK
- * - 改行はそのまま使用されます
+ * GAS環境で実行される初期化関数
+ * GASエディタで実行してください
  */
-function initConfigWithGitHubApp(): void {
-  // コンテナ初期化
-  if (!isContainerInitialized()) {
-    initializeContainer(createGasAdapters());
-  }
-
-  // ===== ここを編集 =====
-  // 重要: 実際の値を設定したら、コミット前に必ずプレースホルダーに戻してください
-  const APP_ID = 'YOUR_APP_ID_HERE'; // 例: "123456"
-  const INSTALLATION_ID = 'YOUR_INSTALLATION_ID_HERE'; // 例: "12345678"
-
-  // PRIVATE_KEYは複数行のまま貼り付けてOK（バッククォートで囲む）
-  const PRIVATE_KEY = `YOUR_PRIVATE_KEY_HERE`;
-  // 例:
-  // const PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
-  // MIIEpAIBAAKCAQEA...
-  // ...
-  // -----END RSA PRIVATE KEY-----`;
-
-  const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-
-  // リポジトリ設定
-  const REPOSITORIES: { owner: string; name: string }[] = [
-    // { owner: "your-org", name: "your-repo" },
-  ];
-  // ======================
-
-  // 設定を保存
-  setConfig({
-    github: {
-      appConfig: {
-        appId: APP_ID,
-        privateKey: PRIVATE_KEY, // テンプレートリテラルの改行はそのまま使用
-        installationId: INSTALLATION_ID,
-      },
-      repositories: [],
-    },
-    spreadsheet: { id: SPREADSHEET_ID, sheetName: 'DevOps Metrics' },
-  });
-  Logger.log('✅ Configuration saved (GitHub App auth)');
-
-  // リポジトリを追加
-  for (const repo of REPOSITORIES) {
-    addRepository(repo.owner, repo.name);
-    Logger.log(`✅ Added repository: ${repo.owner}/${repo.name}`);
-  }
-
-  Logger.log('✅ GitHub Apps認証での初期設定完了');
-  Logger.log('🔐 認証モード: GitHub App');
+function initConfig(): void {
+  initializeFromConfig(config);
 }
 
+// GASグローバル関数として登録
 global.initConfig = initConfig;
-global.initConfigWithGitHubApp = initConfigWithGitHubApp;

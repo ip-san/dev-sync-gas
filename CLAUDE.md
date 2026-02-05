@@ -84,33 +84,65 @@ bun run check:all      # 全チェックを一括実行
 ## TODO / 拡張案
 - [x] ダッシュボード用のチャート生成
 
-## APIトークン設定（GASエディタで実行）
+## 初期設定
 
-### Personal Access Token (PAT) 認証
-```javascript
-setup(
-  'ghp_xxxx',           // GitHub PAT
-  'spreadsheet-id'      // Google Spreadsheet ID
-);
-addRepo('owner', 'repo-name');
-```
+### 設定手順
 
-### GitHub App 認証
-```javascript
-// PRIVATE_KEYは複数行のまま貼り付けてOK（自動で改行を正規化）
-setupWithGitHubApp(
-  '123456',             // App ID
-  `-----BEGIN RSA PRIVATE KEY-----
+1. **`src/init.example.ts` を `src/init.ts` にコピー**
+   ```bash
+   cp src/init.example.ts src/init.ts
+   ```
+
+2. **`src/init.ts` を編集して自分の環境に合わせる**
+
+   認証方式は **Personal Access Token (PAT)** または **GitHub App** のどちらかを選択できます。
+
+   #### Personal Access Token (PAT) 認証の場合
+   ```typescript
+   export const config: InitConfig = {
+     auth: {
+       type: 'token',
+       token: 'ghp_xxxxx', // GitHubのPersonal Access Token
+     },
+     spreadsheet: {
+       id: 'your-spreadsheet-id',
+     },
+     repositories: [
+       { owner: 'your-org', name: 'your-repo' },
+     ],
+   };
+   ```
+
+   #### GitHub App 認証の場合
+   ```typescript
+   export const config: InitConfig = {
+     auth: {
+       type: 'github-app',
+       appId: '123456',
+       installationId: '12345678',
+       privateKey: `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA...
 ...
------END RSA PRIVATE KEY-----`,  // Private Key (複数行のまま)
-  '12345678',           // Installation ID
-  'spreadsheet-id'      // Google Spreadsheet ID
-);
-addRepo('owner', 'repo-name');
-```
+-----END RSA PRIVATE KEY-----`, // 複数行のまま貼り付けてOK
+     },
+     spreadsheet: {
+       id: 'your-spreadsheet-id',
+     },
+     repositories: [
+       { owner: 'your-org', name: 'your-repo' },
+     ],
+   };
+   ```
 
-**注意**: PRIVATE_KEYはバッククォート(\`)で囲んで複数行のまま貼り付けてください。改行は自動で正規化されます。
+3. **デプロイ**
+   ```bash
+   bun run push
+   ```
+
+4. **GASエディタで `initConfig` を実行**
+
+5. **（推奨）機密情報を削除**
+   設定は PropertiesService に保存されるため、デプロイ後は `src/init.ts` から機密情報を削除しても問題ありません。
 
 ## APIモード切替
 デフォルトでGraphQL APIを使用（API呼び出し回数削減）。REST APIに戻す場合：

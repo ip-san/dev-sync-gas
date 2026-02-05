@@ -85,6 +85,8 @@ bun run check:all      # 全チェックを一括実行
 - [x] ダッシュボード用のチャート生成
 
 ## APIトークン設定（GASエディタで実行）
+
+### Personal Access Token (PAT) 認証
 ```javascript
 setup(
   'ghp_xxxx',           // GitHub PAT
@@ -92,6 +94,23 @@ setup(
 );
 addRepo('owner', 'repo-name');
 ```
+
+### GitHub App 認証
+```javascript
+// PRIVATE_KEYは複数行のまま貼り付けてOK（自動で改行を正規化）
+setupWithGitHubApp(
+  '123456',             // App ID
+  `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA...
+...
+-----END RSA PRIVATE KEY-----`,  // Private Key (複数行のまま)
+  '12345678',           // Installation ID
+  'spreadsheet-id'      // Google Spreadsheet ID
+);
+addRepo('owner', 'repo-name');
+```
+
+**注意**: PRIVATE_KEYはバッククォート(\`)で囲んで複数行のまま貼り付けてください。改行は自動で正規化されます。
 
 ## APIモード切替
 デフォルトでGraphQL APIを使用（API呼び出し回数削減）。REST APIに戻す場合：

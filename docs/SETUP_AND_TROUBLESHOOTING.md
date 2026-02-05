@@ -275,17 +275,24 @@ GitHub Appsの詳細な設定手順は [GitHub Apps 認証ガイド](GITHUB_APPS
 
 ### PAT認証: トークンの設定
 
-GASエディタで以下を実行：
+1. `src/init.ts` を編集：
 
-```javascript
-setup(
-  'ghp_xxxxxxxxxxxx',  // GitHub PAT
-  'spreadsheet-id'      // スプレッドシートID
-);
-
-// リポジトリを追加
-addRepo('owner', 'repo-name');
+```typescript
+export const config: InitConfig = {
+  auth: {
+    type: 'token',
+    token: 'ghp_xxxxxxxxxxxx',  // GitHub PAT
+  },
+  spreadsheet: {
+    id: 'spreadsheet-id',
+  },
+  repositories: [
+    { owner: 'owner', name: 'repo-name' },
+  ],
+};
 ```
+
+2. デプロイして、GASエディタで `initConfig()` を実行
 
 ---
 
@@ -303,38 +310,49 @@ GitHub Appsを使用する場合、以下の手順で設定します。詳細は
 | Private Key | ダウンロードした `.pem` ファイルの内容 |
 | Installation ID | インストールURLの数字部分 |
 
-#### GASエディタでの設定
+#### セットアップ手順
 
-```javascript
-setupWithGitHubApp(
-  '123456',                               // App ID
-  '-----BEGIN RSA PRIVATE KEY-----\n...', // Private Key（改行は\nで）
-  '12345678',                             // Installation ID
-  'spreadsheet-id'                        // スプレッドシートID
-);
+1. `src/init.ts` を編集：
 
-// リポジトリを追加
-addRepo('your-org', 'repo-name');
-
-// 認証モードを確認
-showAuthMode();  // => "🔐 Current auth mode: GitHub App"
+```typescript
+export const config: InitConfig = {
+  auth: {
+    type: 'github-app',
+    appId: '123456',
+    installationId: '12345678',
+    privateKey: `-----BEGIN RSA PRIVATE KEY-----
+...
+-----END RSA PRIVATE KEY-----`,
+  },
+  spreadsheet: {
+    id: 'spreadsheet-id',
+  },
+  repositories: [
+    { owner: 'your-org', name: 'repo-name' },
+  ],
+};
 ```
+
+2. デプロイして、GASエディタで `initConfig()` を実行
 
 #### 認証方式の切り替え
 
 現在の認証方式を確認するには：
 
 ```javascript
-showAuthMode();
+showAuthMode();  // => "🔐 Current auth mode: GitHub App"
 ```
 
-PAT認証に戻す場合：
+PAT認証に戻す場合は、`src/init.ts` を更新：
 
-```javascript
-setup('ghp_xxxx', 'spreadsheet-id');
+```typescript
+auth: {
+  type: 'token',  // 'github-app' から 'token' に変更
+  token: 'ghp_xxxx',
+}
 ```
 
-> **注意**: `setup()` を実行するとPAT認証に切り替わります。GitHub Apps設定は残りますが、PATが優先されます。
+再デプロイして `initConfig()` を実行してください。
 
 ---
 
@@ -356,9 +374,9 @@ checkConfig();
 
 ✅ Spreadsheet ID: 設定済み: 1234567890...
 ❌ GitHub認証: GitHub Apps設定が不完全です（Private Key が未設定）
-   → setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください
+   → src/init.ts で全ての値を設定して initConfig() を実行してください
 ⚠️ リポジトリ: リポジトリが登録されていません
-   → addRepo('owner', 'repo-name') でリポジトリを追加してください
+   → src/init.ts の repositories 配列にリポジトリを追加するか、addRepo('owner', 'repo-name') を実行してください
 
 ❌ エラーがあります。上記のヒントを参考に設定を修正してください。
 ```
@@ -440,21 +458,29 @@ Google Apps Script APIの利用許可をお願いいたします。
 **症状:**
 ```
 Error: SPREADSHEET_ID is not set
-→ setup('GITHUB_TOKEN', 'SPREADSHEET_ID') または setupWithGitHubApp() で設定してください
+→ src/init.ts で設定して initConfig() を実行してください
 → 設定状況を確認するには checkConfig() を実行してください
 ```
 
 **原因:**
 - 初期設定が完了していない
-- `setup()` または `setupWithGitHubApp()` が実行されていない
+- `initConfig()` が実行されていない
 
 **解決方法:**
-```javascript
+
+`src/init.ts` を編集して認証情報を設定し、再デプロイ後に `initConfig()` を実行：
+
+```typescript
 // PAT認証の場合
-setup('ghp_xxxx', 'spreadsheet-id');
+auth: { type: 'token', token: 'ghp_xxxx' }
 
 // GitHub Apps認証の場合
-setupWithGitHubApp('app-id', '-----BEGIN RSA PRIVATE KEY-----...', 'installation-id', 'spreadsheet-id');
+auth: {
+  type: 'github-app',
+  appId: 'app-id',
+  privateKey: '-----BEGIN RSA PRIVATE KEY-----...',
+  installationId: 'installation-id',
+}
 ```
 
 ---
@@ -464,8 +490,7 @@ setupWithGitHubApp('app-id', '-----BEGIN RSA PRIVATE KEY-----...', 'installation
 **症状:**
 ```
 Error: GitHub認証が設定されていません
-→ PAT認証: setup('GITHUB_TOKEN', 'SPREADSHEET_ID')
-→ GitHub Apps認証: setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId)
+→ src/init.ts で認証情報を設定して initConfig() を実行してください
 ```
 
 **原因:**
@@ -475,13 +500,9 @@ Error: GitHub認証が設定されていません
 ```javascript
 // 設定状況を確認
 checkConfig();
-
-// PAT認証で設定
-setup('ghp_xxxx', 'spreadsheet-id');
-
-// または GitHub Apps認証で設定
-setupWithGitHubApp('app-id', 'private-key', 'installation-id', 'spreadsheet-id');
 ```
+
+`src/init.ts` で認証情報を設定して、再デプロイ後に `initConfig()` を実行してください。
 
 ---
 
@@ -490,7 +511,7 @@ setupWithGitHubApp('app-id', 'private-key', 'installation-id', 'spreadsheet-id')
 **症状:**
 ```
 Error: GitHub Apps設定が不完全です（Private Key が未設定）
-→ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId) で全ての値を設定してください
+→ src/init.ts で全ての値を設定して initConfig() を実行してください
 ```
 
 **原因:**
@@ -498,20 +519,26 @@ Error: GitHub Apps設定が不完全です（Private Key が未設定）
 
 **解決方法:**
 1. `checkConfig()` で何が未設定か確認
-2. `setupWithGitHubApp()` で全ての値を設定し直す
+2. `src/init.ts` で全ての値を設定し直す
 
 ```javascript
 // 設定状況を確認
 checkConfig();
-
-// 全ての値を設定
-setupWithGitHubApp(
-  '123456',                               // App ID
-  '-----BEGIN RSA PRIVATE KEY-----\n...', // Private Key（改行は\nで）
-  '12345678',                             // Installation ID
-  'spreadsheet-id'                        // スプレッドシートID
-);
 ```
+
+```typescript
+// src/init.ts で全ての値を設定
+auth: {
+  type: 'github-app',
+  appId: '123456',
+  privateKey: `-----BEGIN RSA PRIVATE KEY-----
+...
+-----END RSA PRIVATE KEY-----`,
+  installationId: '12345678',
+}
+```
+
+再デプロイして `initConfig()` を実行
 
 ---
 
@@ -650,10 +677,12 @@ GitHub API error: 401 - Bad credentials
 
 **解決方法:**
 1. トークンの有効期限を確認
-2. 新しいトークンを発行して再設定
-```javascript
-setup('ghp_新しいトークン', 'spreadsheet-id');
+2. 新しいトークンを発行して `src/init.ts` を更新
+```typescript
+// src/init.ts
+auth: { type: 'token', token: 'ghp_新しいトークン' }
 ```
+3. 再デプロイして `initConfig()` を実行
 
 ---
 
@@ -709,11 +738,12 @@ GitHub App Private Key is empty
 
 **原因:**
 - Private Keyが設定されていない
-- `setupWithGitHubApp()` の引数が空文字
+- `src/init.ts` の `privateKey` が空文字
 
 **解決方法:**
 1. Private Keyを再確認
-2. 正しい引数で `setupWithGitHubApp()` を再実行
+2. `src/init.ts` で正しい値を設定
+3. 再デプロイして `initConfig()` を実行
 
 ---
 
@@ -810,16 +840,22 @@ Hint: Check if the App has the required permissions (Pull requests, Actions, Met
 ```javascript
 // 認証モードを確認
 showAuthMode();
+```
 
-// GitHub Apps設定を再実行
-setupWithGitHubApp(
-  'app-id',
-  '-----BEGIN RSA PRIVATE KEY-----\n...',
-  'installation-id',
-  'spreadsheet-id'
-);
+```typescript
+// src/init.ts でGitHub Apps設定を更新
+auth: {
+  type: 'github-app',
+  appId: 'app-id',
+  privateKey: `-----BEGIN RSA PRIVATE KEY-----
+...
+-----END RSA PRIVATE KEY-----`,
+  installationId: 'installation-id',
+}
+```
 
-// 再度確認
+再デプロイして `initConfig()` を実行後、再度確認:
+```javascript
 showAuthMode();  // => "🔐 Current auth mode: GitHub App"
 ```
 
@@ -896,8 +932,10 @@ addRepo('other-owner', 'repo3');
 **PAT認証の場合:**
 API呼び出しが401エラーで失敗します。新しいトークンを発行して再設定してください。
 
-```javascript
-setup('ghp_新しいトークン', 'spreadsheet-id');
+```typescript
+// src/init.ts を更新
+auth: { type: 'token', token: 'ghp_新しいトークン' }
+// 再デプロイして initConfig() を実行
 ```
 
 **GitHub Apps認証の場合:**

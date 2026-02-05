@@ -162,8 +162,8 @@ clearGitHubAppConfig();
 // Secret Managerを有効化
 enableSecretManager('your-gcp-project-id');
 
-// GitHub App設定（Private Keyは自動的にSecret Managerに保存）
-setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+// init.tsで設定してinitConfig()を実行すると、
+// Private Keyは自動的にSecret Managerに保存されます
 
 // 既存キーの移行
 migratePrivateKey();
@@ -222,8 +222,7 @@ showLogLevel();
 **自動実行:**
 ```javascript
 // 以下の関数で自動的に検証される
-setup('token', 'spreadsheet-id');
-setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+initConfig(); // init.tsの設定を使用
 addProject({ name: 'project', spreadsheetId: 'id', ... });
 ```
 
@@ -331,9 +330,9 @@ export function validateCustomField(value: string): void {
 // 1. Secret Managerを有効化
 enableSecretManager('your-gcp-project-id');
 
-// 2. GitHub Apps認証をセットアップ
+// 2. init.tsでGitHub Apps認証を設定してinitConfig()を実行
 // Private Keyは自動的にSecret Managerに保存されます
-setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+initConfig();
 
 // 3. 既存のPrivate Keyを移行する場合
 migratePrivateKey();
@@ -383,7 +382,7 @@ deleteSecret('old-api-key');
 
 **手順:**
 1. GitHub Appの設定ページで新しいPrivate Keyを生成
-2. `setupWithGitHubApp()` で新しいキーを設定
+2. `src/init.ts` を更新して `initConfig()` を実行
 3. 古いキーをGitHub側で削除
 4. 監査ログで変更を確認
 
@@ -409,7 +408,8 @@ deleteSecret('old-api-key');
 ```javascript
 // Secret Managerを有効化してリスクを解消
 enableSecretManager('your-gcp-project-id');
-setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
+// init.tsで設定してinitConfig()を実行
+initConfig();
 ```
 
 ### リスク2: スプレッドシートアクセス制御（✅ 対策済み）
@@ -417,7 +417,7 @@ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
 **実装状況:**
 - スプレッドシートアクセス権限の事前検証を実装
 - エラーの種類に応じた詳細なメッセージを提供
-- setup()、setupWithGitHubApp()、addProject() で自動実行
+- initConfig()、addProject() で自動実行
 
 **実装内容:**
 - `src/utils/spreadsheetValidator.ts` にvalidateSpreadsheetAccess()を実装
@@ -430,8 +430,8 @@ setupWithGitHubApp(appId, privateKey, installationId, spreadsheetId);
 
 **動作:**
 ```javascript
-// setup時に自動実行される
-setup('token', 'spreadsheet-id'); // アクセス権限を自動検証
+// initConfig()実行時に自動検証される
+initConfig(); // アクセス権限を自動検証
 
 // エラー例：
 // "Spreadsheet not found: xxxx
@@ -514,8 +514,10 @@ setup('token', 'spreadsheet-id'); // アクセス権限を自動検証
    showAuditLogs(1000);  // 直近1000件を確認
    ```
 3. **新しいトークンで再設定**
-   ```javascript
-   setup('new-token-here', 'spreadsheet-id');
+   ```typescript
+   // src/init.ts を更新
+   auth: { type: 'token', token: 'new-token-here' }
+   // 再デプロイしてinitConfig()を実行
    ```
 4. **影響範囲の調査**
    - どのリポジトリにアクセスされたか

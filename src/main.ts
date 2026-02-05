@@ -29,8 +29,6 @@ import {
   syncReviewEfficiency,
   syncPRSize,
   // セットアップ・設定
-  setup,
-  setupWithGitHubApp,
   showAuthMode,
   addRepo,
   removeRepo,
@@ -138,8 +136,6 @@ global.syncReviewEfficiency = syncReviewEfficiency;
 global.syncPRSize = syncPRSize;
 
 // セットアップ・設定
-global.setup = setup;
-global.setupWithGitHubApp = setupWithGitHubApp;
 global.showAuthMode = showAuthMode;
 global.addRepo = addRepo;
 global.removeRepo = removeRepo;

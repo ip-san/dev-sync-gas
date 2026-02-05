@@ -7,7 +7,6 @@
 
 import {
   getConfig,
-  setConfig,
   addRepository,
   removeRepository,
   getGitHubAuthMode,
@@ -24,10 +23,6 @@ import { getContainer } from '../container';
 import { ensureContainerInitialized } from './helpers';
 import {
   validateSpreadsheetId,
-  validateGitHubToken,
-  validateGitHubAppId,
-  validateGitHubInstallationId,
-  validatePrivateKey,
   validateRepositoryOwner,
   validateRepositoryName,
   validateProjectName,
@@ -38,107 +33,8 @@ import { validateSpreadsheetAccess } from '../utils/spreadsheetValidator';
 // =============================================================================
 // 初期セットアップ
 // =============================================================================
-
-/**
- * 初期セットアップ（PAT認証）
- */
-export function setup(githubToken: string, spreadsheetId: string): void {
-  ensureContainerInitialized();
-
-  // 入力検証
-  try {
-    validateGitHubToken(githubToken);
-    validateSpreadsheetId(spreadsheetId);
-    // スプレッドシートへのアクセス権限を検証
-    validateSpreadsheetAccess(spreadsheetId);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    Logger.log(`❌ Validation error: ${errorMessage}`);
-    auditLog('setup.pat', { spreadsheetId }, 'failure', errorMessage);
-    throw error;
-  }
-
-  try {
-    setConfig({
-      github: { token: githubToken, repositories: [] },
-      spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
-    });
-
-    // 監査ログ（トークンは記録しない）
-    auditLog('setup.pat', { spreadsheetId, authMethod: 'PAT' });
-
-    Logger.log('✅ Configuration saved (PAT auth). Add repositories with addRepo()');
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    auditLog('setup.pat', { spreadsheetId }, 'failure', errorMessage);
-    throw error;
-  }
-}
-
-/**
- * GitHub Apps認証用セットアップ
- *
- * PRIVATE_KEYは複数行のPEM形式をそのまま貼り付けてOK。
- * 改行は自動で正規化されます。
- */
-export function setupWithGitHubApp(
-  appId: string,
-  privateKey: string,
-  installationId: string,
-  spreadsheetId: string
-): void {
-  ensureContainerInitialized();
-
-  // Private Keyの改行を正規化
-  // 実際の改行文字（\n）を2文字の文字列 "\\n" に変換
-  // すでに "\\n" 形式になっている場合は二重変換を防ぐ
-  let normalizedPrivateKey = privateKey;
-
-  // 実際の改行文字が含まれている場合のみ変換
-  if (/\n/.test(privateKey) && !/\\n/.test(privateKey)) {
-    normalizedPrivateKey = privateKey.replace(/\n/g, '\\n');
-    Logger.log('🔄 Private key newlines normalized');
-  }
-
-  // 入力検証
-  try {
-    validateGitHubAppId(appId);
-    validatePrivateKey(normalizedPrivateKey);
-    validateGitHubInstallationId(installationId);
-    validateSpreadsheetId(spreadsheetId);
-    // スプレッドシートへのアクセス権限を検証
-    validateSpreadsheetAccess(spreadsheetId);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    Logger.log(`❌ Validation error: ${errorMessage}`);
-    auditLog('setup.github_app', { appId, installationId, spreadsheetId }, 'failure', errorMessage);
-    throw error;
-  }
-
-  try {
-    setConfig({
-      github: {
-        appConfig: { appId, privateKey: normalizedPrivateKey, installationId },
-        repositories: [],
-      },
-      spreadsheet: { id: spreadsheetId, sheetName: 'DevOps Metrics' },
-    });
-
-    // 監査ログ（Private Keyは記録しない）
-    auditLog('setup.github_app', {
-      appId,
-      installationId,
-      spreadsheetId,
-      authMethod: 'GitHub App',
-    });
-
-    Logger.log('✅ Configuration saved (GitHub App auth). Add repositories with addRepo()');
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    auditLog('setup.github_app', { appId, installationId, spreadsheetId }, 'failure', errorMessage);
-    throw error;
-  }
-}
+// NOTE: 初期セットアップは src/init.ts の initConfig() を使用してください
+// setup() と setupWithGitHubApp() は削除されました
 
 /** 現在の認証モードを表示 */
 export function showAuthMode(): void {

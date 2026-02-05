@@ -93,117 +93,99 @@ https://github.com/settings/installations/12345678
 | Private Key | ダウンロードした `.pem` ファイルの内容 |
 | Installation ID | インストールURLの数字部分 |
 
-### 方法1: TypeScriptで設定（推奨）
+### セットアップ手順
 
 **最も簡単な方法です。** Private Keyを複数行のまま貼り付けられます。
 
-#### 0. テンプレートをコピー（初回のみ）
+#### 1. テンプレートをコピー（初回のみ）
 
 ```bash
 cp src/init.example.ts src/init.ts
 ```
 
-#### 1. `src/init.ts` を編集
+#### 2. `src/init.ts` を編集
 
 ```typescript
-const APP_ID = "123456";  // あなたのApp ID
-const INSTALLATION_ID = "12345678";  // あなたのInstallation ID
-
-// Private Keyは複数行のまま貼り付けてOK（バッククォートで囲む）
-const PRIVATE_KEY = `-----BEGIN RSA PRIVATE KEY-----
+export const config: InitConfig = {
+  auth: {
+    type: 'github-app',
+    appId: '123456',  // あなたのApp ID
+    installationId: '12345678',  // あなたのInstallation ID
+    // Private Keyは複数行のまま貼り付けてOK
+    privateKey: `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA...
 ...
------END RSA PRIVATE KEY-----`;
-
-const SPREADSHEET_ID = "your-spreadsheet-id";
-
-const REPOSITORIES: { owner: string; name: string }[] = [
-  { owner: "your-org", name: "your-repo" },
-];
+-----END RSA PRIVATE KEY-----`,
+  },
+  spreadsheet: {
+    id: 'your-spreadsheet-id',
+  },
+  repositories: [
+    { owner: 'your-org', name: 'your-repo' },
+    // 複数リポジトリを追加可能
+  ],
+};
 ```
 
-#### 2. ビルド＆デプロイ
+#### 3. ビルド＆デプロイ
 
 ```bash
 bun run push
 ```
 
-#### 3. GASエディタで実行
+#### 4. GASエディタで実行
 
 GASエディタ（https://script.google.com）で：
-- 関数選択ドロップダウンから **`initConfigWithGitHubApp`** を選択
+- 関数選択ドロップダウンから **`initConfig`** を選択
 - 「実行」ボタンをクリック
+- 初回は権限承認ダイアログが表示されるので「許可」をクリック
 
-#### 4. 機密情報を削除
+#### 5. 機密情報を削除（推奨）
 
-設定完了後、`src/init.ts` から機密情報をプレースホルダーに戻してください：
+設定完了後、`src/init.ts` から機密情報を削除してもOKです：
 
 ```typescript
-const APP_ID = "YOUR_APP_ID_HERE";
-const PRIVATE_KEY = `YOUR_PRIVATE_KEY_HERE`;
-// ...
+export const config: InitConfig = {
+  auth: {
+    type: 'github-app',
+    appId: '',  // 空にしてOK
+    installationId: '',
+    privateKey: '',
+  },
+  // ...
+};
 ```
 
-設定はPropertiesServiceに保存されているため、コードから削除してもOKです。
-
----
-
-### 方法2: GASエディタで直接設定
-
-GASエディタで直接JavaScriptを実行する方法です。
-
-```javascript
-// GitHub Apps認証でセットアップ
-setupWithGitHubApp(
-  '123456',                              // App ID
-  '-----BEGIN RSA PRIVATE KEY-----\n...', // Private Key（改行は\nで）
-  '12345678',                            // Installation ID
-  'your-spreadsheet-id'                  // Spreadsheet ID
-);
-
-// リポジトリを追加
-addRepo('your-org', 'repo-name');
-
-// 認証モードを確認
-showAuthMode();  // => "🔐 Current auth mode: GitHub App"
-```
-
-**Private Key の形式:**
-
-Private Keyは改行を `\n` に置換して1行にします:
-
-```javascript
-// ❌ NG: 複数行のまま
-'-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA...
------END RSA PRIVATE KEY-----'
-
-// ✅ OK: 改行を\nに置換
-'-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----'
-```
-
-**変換コマンド（macOS/Linux）:**
-```bash
-cat your-private-key.pem | tr '\n' '\\n' | sed 's/\\n$//'
-```
+設定はPropertiesServiceに保存されているため、コードから削除しても動作します。
 
 ## PAT認証への切り替え
 
-GitHub Apps認証からPAT認証に戻す場合:
+GitHub Apps認証からPAT認証に戻す場合、`src/init.ts` を編集して再デプロイします:
 
-```javascript
-// 通常のsetup()を使用
-setup(
-  'ghp_xxxx',           // GitHub PAT
-  'spreadsheet-id'
-);
-
-// 認証モードを確認
-showAuthMode();  // => "🔐 Current auth mode: Personal Access Token (PAT)"
+```typescript
+export const config: InitConfig = {
+  auth: {
+    type: 'token',  // 'github-app' から 'token' に変更
+    token: 'ghp_xxxx',  // GitHub PAT
+  },
+  spreadsheet: {
+    id: 'your-spreadsheet-id',
+  },
+  repositories: [
+    { owner: 'your-org', name: 'your-repo' },
+  ],
+};
 ```
 
-> **注意**: `setup()` を実行すると、GitHub Apps設定は残ったままですがPATが優先されます。
-> 完全にGitHub Apps設定を削除する場合は、GASエディタの「プロジェクトの設定」→「スクリプトプロパティ」から手動で削除してください。
+```bash
+bun run push  # 再デプロイ
+```
+
+GASエディタで `initConfig()` を実行し、認証モードを確認:
+
+```javascript
+showAuthMode();  // => "🔐 Current auth mode: Personal Access Token (PAT)"
+```
 
 ## トラブルシューティング
 

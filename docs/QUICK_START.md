@@ -118,30 +118,47 @@ https://docs.google.com/spreadsheets/d/【ここがID】/edit
 
 ✅ **完了の目印:** `ghp_` で始まる40文字のトークンがコピーできる
 
-## Step 5: GASエディタで初期設定（1分）
+## Step 5: 設定ファイルを作成（1分）
 
-**なぜ:** GitHubトークンとスプレッドシートIDをDevSyncGASに教えて、計測対象のリポジトリを登録します。
+**なぜ:** GitHubトークンとスプレッドシートID、計測対象のリポジトリを設定ファイルに記載します。
 
-1. [script.google.com](https://script.google.com/) にアクセス
-2. 「DevSyncGAS」プロジェクトを開く
-3. 上部メニューから `setup` 関数を選択
-4. **実行ボタン（▶）をクリック**
+1. プロジェクトルートで設定ファイルを作成:
 
-```javascript
-// ↓ この部分を、実際の値に書き換えてから実行
-setup('ghp_xxxx', 'spreadsheet-id');
+```bash
+cp src/init.example.ts src/init.ts
 ```
 
-5. 初回は権限承認が必要 → 「許可」をクリック
+2. `src/init.ts` を開いて、実際の値に書き換えます:
 
-6. 続けてリポジトリを追加:
-
-```javascript
-// ↓ owner/repo-name を実際のリポジトリ名に変更
-addRepo('owner', 'repo-name');
+```typescript
+export const config: InitConfig = {
+  auth: {
+    type: 'token', // PAT認証の場合
+    token: 'ghp_xxxx', // ← Step 4で取得したトークン
+  },
+  spreadsheet: {
+    id: 'spreadsheet-id', // ← Step 2で取得したID
+  },
+  repositories: [
+    { owner: 'your-org', name: 'your-repo' }, // ← 実際のリポジトリ名
+    // 複数リポジトリを追加可能
+  ],
+};
 ```
 
-> **💡 複数リポジトリも可:** `addRepo` を何度でも実行できます。
+3. デプロイ:
+
+```bash
+bun run push
+```
+
+4. [script.google.com](https://script.google.com/) にアクセス
+5. 「DevSyncGAS」プロジェクトを開く
+6. 上部メニューから `initConfig` 関数を選択
+7. **実行ボタン（▶）をクリック**
+8. 初回は権限承認が必要 → 「許可」をクリック
+
+> **🔒 セキュリティTips:** 設定は PropertiesService に保存されるため、デプロイ後は `src/init.ts` から機密情報を削除してもOKです。
 
 ✅ **完了の目印:** エラーなく実行が完了する
 
@@ -200,18 +217,37 @@ checkConfig();
 
 ### 複数のリポジトリを監視したい
 
-`addRepo()` で追加できます:
+`src/init.ts` の `repositories` 配列に追加して、再デプロイ＆`initConfig()` を実行:
+
+```typescript
+repositories: [
+  { owner: 'your-org', name: 'frontend' },
+  { owner: 'your-org', name: 'backend' },
+  { owner: 'your-org', name: 'api' },
+],
+```
+
+または、GASエディタで `addRepo()` を実行して追加することもできます:
 
 ```javascript
 addRepo('your-org', 'frontend');
 addRepo('your-org', 'backend');
-addRepo('your-org', 'api');
 ```
 
 ### トークンの有効期限が切れた
 
-新しいトークンを発行して、`setup()` を再実行してください:
+新しいトークンを発行して、`src/init.ts` を更新し、再デプロイ＆`initConfig()` を実行してください:
 
-```javascript
-setup('ghp_新しいトークン', 'spreadsheet-id');
+```typescript
+// src/init.ts
+auth: {
+  type: 'token',
+  token: 'ghp_新しいトークン', // ← 新しいトークンに更新
+},
 ```
+
+```bash
+bun run push  # 再デプロイ
+```
+
+その後、GASエディタで `initConfig()` を実行します。

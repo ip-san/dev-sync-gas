@@ -121,14 +121,17 @@ git clone https://github.com/your-org/dev-sync-gas.git
 cd dev-sync-gas
 bun install
 
-# 2. GASにデプロイ
+# 2. 設定ファイルを作成
+cp src/init.example.ts src/init.ts
+# src/init.ts を編集して認証情報とリポジトリを設定
+
+# 3. GASにデプロイ
 bunx clasp login
 bunx clasp create --title "DevSyncGAS" --type standalone --rootDir ./dist
 bun run push
 
-# 3. GASエディタで初期設定
-# setup('ghp_xxxx', 'spreadsheet-id') を実行
-# addRepo('owner', 'repo') でリポジトリ追加
+# 4. GASエディタで初期設定
+# initConfig() を実行
 ```
 
 詳しい手順は [クイックスタートガイド](docs/QUICK_START.md) を参照してください。

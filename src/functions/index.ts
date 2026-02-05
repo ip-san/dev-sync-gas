@@ -42,8 +42,6 @@ export {
 
 // セットアップ・設定
 export {
-  setup,
-  setupWithGitHubApp,
   showAuthMode,
   addRepo,
   removeRepo,

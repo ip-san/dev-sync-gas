@@ -63,6 +63,177 @@ function formatChange(current: number | null, previous: number | null): string {
 }
 
 /**
+ * 週次メトリクスの平均値
+ */
+interface WeeklyAverages {
+  deploymentFreq: number;
+  leadTime: number | null;
+  cfr: number | null;
+  mttr: number | null;
+}
+
+/**
+ * 週次メトリクスの平均を計算
+ */
+function calculateWeeklyAverages(metrics: DevOpsMetrics[]): WeeklyAverages {
+  if (metrics.length === 0) {
+    return { deploymentFreq: 0, leadTime: null, cfr: null, mttr: null };
+  }
+
+  const avgDeploymentFreq =
+    metrics.reduce((sum, m) => sum + parseFloat(m.deploymentFrequency), 0) / metrics.length;
+
+  const validLeadTimes = metrics
+    .map((m) => m.leadTimeForChangesHours)
+    .filter((v): v is number => v !== null);
+  const avgLeadTime =
+    validLeadTimes.length > 0
+      ? validLeadTimes.reduce((sum, v) => sum + v, 0) / validLeadTimes.length
+      : null;
+
+  const validCFRs = metrics.map((m) => m.changeFailureRate).filter((v): v is number => v !== null);
+  const avgCFR =
+    validCFRs.length > 0 ? validCFRs.reduce((sum, v) => sum + v, 0) / validCFRs.length : null;
+
+  const validMTTRs = metrics
+    .map((m) => m.meanTimeToRecoveryHours)
+    .filter((v): v is number => v !== null);
+  const avgMTTR =
+    validMTTRs.length > 0 ? validMTTRs.reduce((sum, v) => sum + v, 0) / validMTTRs.length : null;
+
+  return {
+    deploymentFreq: avgDeploymentFreq,
+    leadTime: avgLeadTime,
+    cfr: avgCFR,
+    mttr: avgMTTR,
+  };
+}
+
+/**
+ * ヘッダーブロックを生成
+ */
+function createHeaderBlocks(weekRange: string, healthStatus: string): SlackBlock[] {
+  const statusEmoji = statusToEmoji(healthStatus as 'good' | 'warning' | 'critical');
+  const statusText =
+    healthStatus === 'good' ? '良好' : healthStatus === 'warning' ? '要注意' : '要対応';
+
+  return [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: `📊 DevOps Metrics 週次レポート (${weekRange})`,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*総合ステータス:* ${statusEmoji} ${statusText}`,
+      },
+    },
+    {
+      type: 'divider',
+    },
+  ];
+}
+
+/**
+ * メトリクスブロックを生成
+ */
+function createMetricsBlocks(current: WeeklyAverages, previous: WeeklyAverages): SlackBlock[] {
+  return [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*📈 今週の指標（前週比）*',
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: `*:rocket: デプロイ頻度*\n${formatNumber(current.deploymentFreq)}回/日 ${trendToEmoji(current.deploymentFreq, previous.deploymentFreq)}\n前週比: ${formatChange(current.deploymentFreq, previous.deploymentFreq)}`,
+        },
+        {
+          type: 'mrkdwn',
+          text: `*:hourglass_flowing_sand: リードタイム*\n${formatNumber(current.leadTime)}時間 ${trendToEmoji(current.leadTime, previous.leadTime)}\n前週比: ${formatChange(current.leadTime, previous.leadTime)}`,
+        },
+        {
+          type: 'mrkdwn',
+          text: `*:fire: 変更障害率*\n${formatNumber(current.cfr)}% ${trendToEmoji(current.cfr, previous.cfr)}\n前週比: ${formatChange(current.cfr, previous.cfr)}`,
+        },
+        {
+          type: 'mrkdwn',
+          text: `*:wrench: MTTR*\n${formatNumber(current.mttr)}時間 ${trendToEmoji(current.mttr, previous.mttr)}\n前週比: ${formatChange(current.mttr, previous.mttr)}`,
+        },
+      ],
+    },
+  ];
+}
+
+/**
+ * 週次トレンドブロックを生成
+ */
+function createTrendBlocks(weeklyTrends: WeeklyTrendData[]): SlackBlock[] {
+  if (weeklyTrends.length < 2) {
+    return [];
+  }
+
+  const recentTrends = weeklyTrends.slice(-4);
+  const trendText = recentTrends.map((t) => `• ${t.week}: ${t.totalDeployments}回`).join('\n');
+
+  return [
+    {
+      type: 'divider',
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*📊 週次トレンド（デプロイ回数）*\n${trendText}`,
+      },
+    },
+  ];
+}
+
+/**
+ * フッターブロックを生成
+ */
+function createFooterBlocks(metricsCount: number, spreadsheetUrl: string): SlackBlock[] {
+  return [
+    {
+      type: 'divider',
+    },
+    {
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `対象リポジトリ: ${metricsCount}個`,
+        },
+      ],
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: '📄 詳細レポートを開く',
+          },
+          url: spreadsheetUrl,
+          action_id: 'open_spreadsheet',
+        },
+      ],
+    },
+  ];
+}
+
+/**
  * 週次レポートメッセージを生成
  */
 export function createWeeklyReportMessage(
@@ -89,170 +260,18 @@ export function createWeeklyReportMessage(
     };
   }
 
-  // 今週の平均を計算
-  const avgDeploymentFreq =
-    currentWeekMetrics.reduce((sum, m) => sum + parseFloat(m.deploymentFrequency), 0) /
-    currentWeekMetrics.length;
+  const currentAvg = calculateWeeklyAverages(currentWeekMetrics);
+  const previousAvg = calculateWeeklyAverages(previousWeekMetrics);
 
-  const validLeadTimes = currentWeekMetrics
-    .map((m) => m.leadTimeForChangesHours)
-    .filter((v): v is number => v !== null);
-  const avgLeadTime =
-    validLeadTimes.length > 0
-      ? validLeadTimes.reduce((sum, v) => sum + v, 0) / validLeadTimes.length
-      : null;
-
-  const validCFRs = currentWeekMetrics
-    .map((m) => m.changeFailureRate)
-    .filter((v): v is number => v !== null);
-  const avgCFR =
-    validCFRs.length > 0 ? validCFRs.reduce((sum, v) => sum + v, 0) / validCFRs.length : null;
-
-  const validMTTRs = currentWeekMetrics
-    .map((m) => m.meanTimeToRecoveryHours)
-    .filter((v): v is number => v !== null);
-  const avgMTTR =
-    validMTTRs.length > 0 ? validMTTRs.reduce((sum, v) => sum + v, 0) / validMTTRs.length : null;
-
-  // 先週の平均を計算
-  let prevAvgDeploymentFreq: number | null = null;
-  let prevAvgLeadTime: number | null = null;
-  let prevAvgCFR: number | null = null;
-  let prevAvgMTTR: number | null = null;
-
-  if (previousWeekMetrics.length > 0) {
-    prevAvgDeploymentFreq =
-      previousWeekMetrics.reduce((sum, m) => sum + parseFloat(m.deploymentFrequency), 0) /
-      previousWeekMetrics.length;
-
-    const prevValidLeadTimes = previousWeekMetrics
-      .map((m) => m.leadTimeForChangesHours)
-      .filter((v): v is number => v !== null);
-    prevAvgLeadTime =
-      prevValidLeadTimes.length > 0
-        ? prevValidLeadTimes.reduce((sum, v) => sum + v, 0) / prevValidLeadTimes.length
-        : null;
-
-    const prevValidCFRs = previousWeekMetrics
-      .map((m) => m.changeFailureRate)
-      .filter((v): v is number => v !== null);
-    prevAvgCFR =
-      prevValidCFRs.length > 0
-        ? prevValidCFRs.reduce((sum, v) => sum + v, 0) / prevValidCFRs.length
-        : null;
-
-    const prevValidMTTRs = previousWeekMetrics
-      .map((m) => m.meanTimeToRecoveryHours)
-      .filter((v): v is number => v !== null);
-    prevAvgMTTR =
-      prevValidMTTRs.length > 0
-        ? prevValidMTTRs.reduce((sum, v) => sum + v, 0) / prevValidMTTRs.length
-        : null;
-  }
-
-  // 健全性ステータスを判定
-  const healthStatus = determineHealthStatus(avgLeadTime, avgCFR, null, null);
-  const statusEmoji = statusToEmoji(healthStatus);
-
-  // 週の範囲を取得
+  const healthStatus = determineHealthStatus(currentAvg.leadTime, currentAvg.cfr, null, null);
   const weekRange = weeklyTrends.length > 0 ? weeklyTrends[weeklyTrends.length - 1].week : '今週';
 
-  // Slack Block Kit メッセージを構築
   const blocks: SlackBlock[] = [
-    {
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: `📊 DevOps Metrics 週次レポート (${weekRange})`,
-      },
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*総合ステータス:* ${statusEmoji} ${healthStatus === 'good' ? '良好' : healthStatus === 'warning' ? '要注意' : '要対応'}`,
-      },
-    },
-    {
-      type: 'divider',
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: '*📈 今週の指標（前週比）*',
-      },
-    },
-    {
-      type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: `*:rocket: デプロイ頻度*\n${formatNumber(avgDeploymentFreq)}回/日 ${trendToEmoji(avgDeploymentFreq, prevAvgDeploymentFreq)}\n前週比: ${formatChange(avgDeploymentFreq, prevAvgDeploymentFreq)}`,
-        },
-        {
-          type: 'mrkdwn',
-          text: `*:hourglass_flowing_sand: リードタイム*\n${formatNumber(avgLeadTime)}時間 ${trendToEmoji(avgLeadTime, prevAvgLeadTime)}\n前週比: ${formatChange(avgLeadTime, prevAvgLeadTime)}`,
-        },
-        {
-          type: 'mrkdwn',
-          text: `*:fire: 変更障害率*\n${formatNumber(avgCFR)}% ${trendToEmoji(avgCFR, prevAvgCFR)}\n前週比: ${formatChange(avgCFR, prevAvgCFR)}`,
-        },
-        {
-          type: 'mrkdwn',
-          text: `*:wrench: MTTR*\n${formatNumber(avgMTTR)}時間 ${trendToEmoji(avgMTTR, prevAvgMTTR)}\n前週比: ${formatChange(avgMTTR, prevAvgMTTR)}`,
-        },
-      ],
-    },
+    ...createHeaderBlocks(weekRange, healthStatus),
+    ...createMetricsBlocks(currentAvg, previousAvg),
+    ...createTrendBlocks(weeklyTrends),
+    ...createFooterBlocks(currentWeekMetrics.length, spreadsheetUrl),
   ];
-
-  // 週次トレンドがあれば追加
-  if (weeklyTrends.length >= 2) {
-    const recentTrends = weeklyTrends.slice(-4); // 直近4週間
-    const trendText = recentTrends.map((t) => `• ${t.week}: ${t.totalDeployments}回`).join('\n');
-
-    blocks.push(
-      {
-        type: 'divider',
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `*📊 週次トレンド（デプロイ回数）*\n${trendText}`,
-        },
-      }
-    );
-  }
-
-  blocks.push(
-    {
-      type: 'divider',
-    },
-    {
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `対象リポジトリ: ${currentWeekMetrics.length}個`,
-        },
-      ],
-    },
-    {
-      type: 'actions',
-      elements: [
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: '📄 詳細レポートを開く',
-          },
-          url: spreadsheetUrl,
-          action_id: 'open_spreadsheet',
-        },
-      ],
-    }
-  );
 
   return {
     text: `📊 DevOps Metrics 週次レポート (${weekRange})`,

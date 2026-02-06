@@ -62,6 +62,156 @@ function formatChange(current: number | null, previous: number | null): string {
 }
 
 /**
+ * 月次メトリクスの平均値
+ */
+interface MonthlyAverages {
+  deploymentFreq: number;
+  leadTime: number | null;
+  cfr: number | null;
+  mttr: number | null;
+}
+
+/**
+ * 月次メトリクスの平均を計算
+ */
+function calculateMonthlyAverages(metrics: DevOpsMetrics[]): MonthlyAverages {
+  if (metrics.length === 0) {
+    return { deploymentFreq: 0, leadTime: null, cfr: null, mttr: null };
+  }
+
+  const avgDeploymentFreq =
+    metrics.reduce((sum, m) => sum + parseFloat(m.deploymentFrequency), 0) / metrics.length;
+
+  const validLeadTimes = metrics
+    .map((m) => m.leadTimeForChangesHours)
+    .filter((v): v is number => v !== null);
+  const avgLeadTime =
+    validLeadTimes.length > 0
+      ? validLeadTimes.reduce((sum, v) => sum + v, 0) / validLeadTimes.length
+      : null;
+
+  const validCFRs = metrics.map((m) => m.changeFailureRate).filter((v): v is number => v !== null);
+  const avgCFR =
+    validCFRs.length > 0 ? validCFRs.reduce((sum, v) => sum + v, 0) / validCFRs.length : null;
+
+  const validMTTRs = metrics
+    .map((m) => m.meanTimeToRecoveryHours)
+    .filter((v): v is number => v !== null);
+  const avgMTTR =
+    validMTTRs.length > 0 ? validMTTRs.reduce((sum, v) => sum + v, 0) / validMTTRs.length : null;
+
+  return {
+    deploymentFreq: avgDeploymentFreq,
+    leadTime: avgLeadTime,
+    cfr: avgCFR,
+    mttr: avgMTTR,
+  };
+}
+
+/**
+ * ヘッダーブロックを生成
+ */
+function createHeaderBlocks(yearMonth: string, healthStatus: string): SlackBlock[] {
+  const statusEmoji = statusToEmoji(healthStatus as 'good' | 'warning' | 'critical');
+  const statusText =
+    healthStatus === 'good' ? '良好' : healthStatus === 'warning' ? '要注意' : '要対応';
+
+  return [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: `📊 DevOps Metrics 月次レポート (${yearMonth})`,
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*総合ステータス:* ${statusEmoji} ${statusText}`,
+      },
+    },
+    {
+      type: 'divider',
+    },
+  ];
+}
+
+/**
+ * メトリクスブロックを生成
+ */
+function createMetricsBlocks(current: MonthlyAverages, previous: MonthlyAverages): SlackBlock[] {
+  return [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*📈 今月の指標（前月比）*',
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: `*:rocket: デプロイ頻度*\n${formatNumber(current.deploymentFreq)}回/日 ${trendToEmoji(current.deploymentFreq, previous.deploymentFreq)}\n前月比: ${formatChange(current.deploymentFreq, previous.deploymentFreq)}`,
+        },
+        {
+          type: 'mrkdwn',
+          text: `*:hourglass_flowing_sand: リードタイム*\n${formatNumber(current.leadTime)}時間 ${trendToEmoji(current.leadTime, previous.leadTime)}\n前月比: ${formatChange(current.leadTime, previous.leadTime)}`,
+        },
+        {
+          type: 'mrkdwn',
+          text: `*:fire: 変更障害率*\n${formatNumber(current.cfr)}% ${trendToEmoji(current.cfr, previous.cfr)}\n前月比: ${formatChange(current.cfr, previous.cfr)}`,
+        },
+        {
+          type: 'mrkdwn',
+          text: `*:wrench: MTTR*\n${formatNumber(current.mttr)}時間 ${trendToEmoji(current.mttr, previous.mttr)}\n前月比: ${formatChange(current.mttr, previous.mttr)}`,
+        },
+      ],
+    },
+  ];
+}
+
+/**
+ * フッターブロックを生成
+ */
+function createFooterBlocks(
+  daysCount: number,
+  repoCount: number,
+  spreadsheetUrl: string
+): SlackBlock[] {
+  return [
+    {
+      type: 'divider',
+    },
+    {
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `対象日数: ${daysCount}日 | 対象リポジトリ: ${repoCount}個`,
+        },
+      ],
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: {
+            type: 'plain_text',
+            text: '📄 詳細レポートを開く',
+          },
+          url: spreadsheetUrl,
+          action_id: 'open_spreadsheet',
+        },
+      ],
+    },
+  ];
+}
+
+/**
  * 月次レポートメッセージを生成
  */
 export function createMonthlyReportMessage(
@@ -87,148 +237,20 @@ export function createMonthlyReportMessage(
     };
   }
 
-  // 今月の平均を計算
-  const avgDeploymentFreq =
-    currentMonthMetrics.reduce((sum, m) => sum + parseFloat(m.deploymentFrequency), 0) /
-    currentMonthMetrics.length;
+  const currentAvg = calculateMonthlyAverages(currentMonthMetrics);
+  const previousAvg = calculateMonthlyAverages(previousMonthMetrics);
 
-  const validLeadTimes = currentMonthMetrics
-    .map((m) => m.leadTimeForChangesHours)
-    .filter((v): v is number => v !== null);
-  const avgLeadTime =
-    validLeadTimes.length > 0
-      ? validLeadTimes.reduce((sum, v) => sum + v, 0) / validLeadTimes.length
-      : null;
-
-  const validCFRs = currentMonthMetrics
-    .map((m) => m.changeFailureRate)
-    .filter((v): v is number => v !== null);
-  const avgCFR =
-    validCFRs.length > 0 ? validCFRs.reduce((sum, v) => sum + v, 0) / validCFRs.length : null;
-
-  const validMTTRs = currentMonthMetrics
-    .map((m) => m.meanTimeToRecoveryHours)
-    .filter((v): v is number => v !== null);
-  const avgMTTR =
-    validMTTRs.length > 0 ? validMTTRs.reduce((sum, v) => sum + v, 0) / validMTTRs.length : null;
-
-  // 先月の平均を計算（比較用）
-  let prevAvgDeploymentFreq: number | null = null;
-  let prevAvgLeadTime: number | null = null;
-  let prevAvgCFR: number | null = null;
-  let prevAvgMTTR: number | null = null;
-
-  if (previousMonthMetrics.length > 0) {
-    prevAvgDeploymentFreq =
-      previousMonthMetrics.reduce((sum, m) => sum + parseFloat(m.deploymentFrequency), 0) /
-      previousMonthMetrics.length;
-
-    const prevValidLeadTimes = previousMonthMetrics
-      .map((m) => m.leadTimeForChangesHours)
-      .filter((v): v is number => v !== null);
-    prevAvgLeadTime =
-      prevValidLeadTimes.length > 0
-        ? prevValidLeadTimes.reduce((sum, v) => sum + v, 0) / prevValidLeadTimes.length
-        : null;
-
-    const prevValidCFRs = previousMonthMetrics
-      .map((m) => m.changeFailureRate)
-      .filter((v): v is number => v !== null);
-    prevAvgCFR =
-      prevValidCFRs.length > 0
-        ? prevValidCFRs.reduce((sum, v) => sum + v, 0) / prevValidCFRs.length
-        : null;
-
-    const prevValidMTTRs = previousMonthMetrics
-      .map((m) => m.meanTimeToRecoveryHours)
-      .filter((v): v is number => v !== null);
-    prevAvgMTTR =
-      prevValidMTTRs.length > 0
-        ? prevValidMTTRs.reduce((sum, v) => sum + v, 0) / prevValidMTTRs.length
-        : null;
-  }
-
-  // 健全性ステータスを判定
-  const healthStatus = determineHealthStatus(avgLeadTime, avgCFR, null, null);
-  const statusEmoji = statusToEmoji(healthStatus);
-
-  // 月の範囲を取得（最新データの日付から）
+  const healthStatus = determineHealthStatus(currentAvg.leadTime, currentAvg.cfr, null, null);
   const latestDate = currentMonthMetrics[currentMonthMetrics.length - 1].date;
-  const yearMonth = latestDate.substring(0, 7); // YYYY-MM
+  const yearMonth = latestDate.substring(0, 7);
 
-  // Slack Block Kit メッセージを構築
+  const daysCount = currentMonthMetrics.length;
+  const repoCount = new Set(currentMonthMetrics.map((m) => m.repository)).size;
+
   const blocks: SlackBlock[] = [
-    {
-      type: 'header',
-      text: {
-        type: 'plain_text',
-        text: `📊 DevOps Metrics 月次レポート (${yearMonth})`,
-      },
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*総合ステータス:* ${statusEmoji} ${healthStatus === 'good' ? '良好' : healthStatus === 'warning' ? '要注意' : '要対応'}`,
-      },
-    },
-    {
-      type: 'divider',
-    },
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: '*📈 今月の指標（前月比）*',
-      },
-    },
-    {
-      type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: `*:rocket: デプロイ頻度*\n${formatNumber(avgDeploymentFreq)}回/日 ${trendToEmoji(avgDeploymentFreq, prevAvgDeploymentFreq)}\n前月比: ${formatChange(avgDeploymentFreq, prevAvgDeploymentFreq)}`,
-        },
-        {
-          type: 'mrkdwn',
-          text: `*:hourglass_flowing_sand: リードタイム*\n${formatNumber(avgLeadTime)}時間 ${trendToEmoji(avgLeadTime, prevAvgLeadTime)}\n前月比: ${formatChange(avgLeadTime, prevAvgLeadTime)}`,
-        },
-        {
-          type: 'mrkdwn',
-          text: `*:fire: 変更障害率*\n${formatNumber(avgCFR)}% ${trendToEmoji(avgCFR, prevAvgCFR)}\n前月比: ${formatChange(avgCFR, prevAvgCFR)}`,
-        },
-        {
-          type: 'mrkdwn',
-          text: `*:wrench: MTTR*\n${formatNumber(avgMTTR)}時間 ${trendToEmoji(avgMTTR, prevAvgMTTR)}\n前月比: ${formatChange(avgMTTR, prevAvgMTTR)}`,
-        },
-      ],
-    },
-    {
-      type: 'divider',
-    },
-    {
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `対象日数: ${currentMonthMetrics.length}日 | 対象リポジトリ: ${new Set(currentMonthMetrics.map((m) => m.repository)).size}個`,
-        },
-      ],
-    },
-    {
-      type: 'actions',
-      elements: [
-        {
-          type: 'button',
-          text: {
-            type: 'plain_text',
-            text: '📄 詳細レポートを開く',
-          },
-          url: spreadsheetUrl,
-          action_id: 'open_spreadsheet',
-        },
-      ],
-    },
+    ...createHeaderBlocks(yearMonth, healthStatus),
+    ...createMetricsBlocks(currentAvg, previousAvg),
+    ...createFooterBlocks(daysCount, repoCount, spreadsheetUrl),
   ];
 
   return {

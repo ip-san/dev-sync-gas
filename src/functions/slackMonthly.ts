@@ -167,19 +167,3 @@ export function removeMonthlyReportTrigger(): void {
     logger.info('No monthly report trigger found to remove');
   }
 }
-
-/**
- * 月次レポートトリガーの状態を表示
- */
-export function showMonthlyReportTrigger(): void {
-  const { triggerClient, logger } = getContainer();
-
-  const triggers = triggerClient.getProjectTriggers();
-  const monthlyTriggers = triggers.filter((t) => t.getHandlerFunction() === 'sendMonthlyReport');
-
-  if (monthlyTriggers.length > 0) {
-    logger.log('Monthly report trigger is set up (Every 1st of month at 9:00)');
-  } else {
-    logger.log('No monthly report trigger found');
-  }
-}

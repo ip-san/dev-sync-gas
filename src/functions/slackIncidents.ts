@@ -198,21 +198,3 @@ export function removeIncidentDailySummaryTrigger(): void {
     logger.info('No incident daily summary trigger found to remove');
   }
 }
-
-/**
- * インシデント日次サマリートリガーの状態を表示
- */
-export function showIncidentDailySummaryTrigger(): void {
-  const { triggerClient, logger } = getContainer();
-
-  const triggers = triggerClient.getProjectTriggers();
-  const incidentTriggers = triggers.filter(
-    (t) => t.getHandlerFunction() === 'sendIncidentDailySummary'
-  );
-
-  if (incidentTriggers.length > 0) {
-    logger.log('Incident daily summary trigger is set up (Every day at 18:00)');
-  } else {
-    logger.log('No incident daily summary trigger found');
-  }
-}

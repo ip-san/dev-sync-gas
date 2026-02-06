@@ -118,19 +118,3 @@ export function removeAlertTrigger(): void {
     logger.info('No alert trigger found to remove');
   }
 }
-
-/**
- * アラートトリガーの状態を表示
- */
-export function showAlertTrigger(): void {
-  const { triggerClient, logger } = getContainer();
-
-  const triggers = triggerClient.getProjectTriggers();
-  const alertTriggers = triggers.filter((t) => t.getHandlerFunction() === 'checkAndSendAlerts');
-
-  if (alertTriggers.length > 0) {
-    logger.log('Alert trigger is set up (Every day at 10:00)');
-  } else {
-    logger.log('No alert trigger found');
-  }
-}

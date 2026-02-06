@@ -13,7 +13,6 @@ import {
 import {
   setupIncidentDailySummaryTrigger,
   removeIncidentDailySummaryTrigger,
-  showIncidentDailySummaryTrigger,
 } from '../../src/functions/slackIncidents';
 import { isSlackNotificationEnabled } from '../../src/services/slack/client';
 import { CONFIG_KEYS } from '../../src/config/propertyKeys';
@@ -356,30 +355,6 @@ describe('Slack Incident Daily Summary', () => {
         logs.some((log: string) =>
           log.includes('No incident daily summary trigger found to remove')
         )
-      ).toBe(true);
-    });
-  });
-
-  describe('showIncidentDailySummaryTrigger', () => {
-    it('should display trigger information when exists', () => {
-      const webhookUrl = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX';
-      mockContainer.storageClient.setProperty(CONFIG_KEYS.SLACK.WEBHOOK_URL, webhookUrl);
-
-      setupIncidentDailySummaryTrigger();
-      showIncidentDailySummaryTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(
-        logs.some((log: string) => log.includes('Incident daily summary trigger is set up'))
-      ).toBe(true);
-    });
-
-    it('should display message when no trigger exists', () => {
-      showIncidentDailySummaryTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(
-        logs.some((log: string) => log.includes('No incident daily summary trigger found'))
       ).toBe(true);
     });
   });

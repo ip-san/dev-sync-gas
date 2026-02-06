@@ -15,7 +15,7 @@ export type { ColumnDefinition, SheetSchema, MigrationResult, MigrationPreview }
 // =============================================================================
 
 // DevOps Metrics
-export { DEVOPS_METRICS_SCHEMA, DEVOPS_SUMMARY_SCHEMA } from './devops';
+export { DEVOPS_METRICS_SCHEMA } from './devops';
 
 // サイクルタイム
 export { CYCLE_TIME_SCHEMA, CYCLE_TIME_DETAIL_SCHEMA } from './cycleTime';
@@ -45,7 +45,7 @@ export { REPOSITORY_DEVOPS_SCHEMA } from './repository';
 import type { SheetSchema } from './types';
 import { DASHBOARD_SCHEMA, DASHBOARD_TREND_SCHEMA } from './dashboard';
 import { REPOSITORY_DEVOPS_SCHEMA } from './repository';
-import { DEVOPS_METRICS_SCHEMA, DEVOPS_SUMMARY_SCHEMA } from './devops';
+import { DEVOPS_METRICS_SCHEMA } from './devops';
 import { CYCLE_TIME_SCHEMA, CYCLE_TIME_DETAIL_SCHEMA } from './cycleTime';
 import { CODING_TIME_SCHEMA, CODING_TIME_DETAIL_SCHEMA } from './codingTime';
 import { REWORK_RATE_SCHEMA, REWORK_RATE_DETAIL_SCHEMA } from './reworkRate';
@@ -57,7 +57,6 @@ export const ALL_SCHEMAS: SheetSchema[] = [
   DASHBOARD_TREND_SCHEMA,
   REPOSITORY_DEVOPS_SCHEMA,
   DEVOPS_METRICS_SCHEMA,
-  DEVOPS_SUMMARY_SCHEMA,
   CYCLE_TIME_SCHEMA,
   CYCLE_TIME_DETAIL_SCHEMA,
   CODING_TIME_SCHEMA,

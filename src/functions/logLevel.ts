@@ -2,7 +2,7 @@
  * ログレベル設定のGASエントリーポイント関数
  */
 
-import { getLogLevel, setLogLevel, resetLogLevel } from '../utils/logLevel';
+import { getLogLevel, setLogLevel } from '../utils/logLevel';
 import type { LogLevel } from '../interfaces';
 
 /**
@@ -54,15 +54,4 @@ export function configureLogLevel(level: LogLevel): void {
     Logger.log('');
     Logger.log('Valid log levels: DEBUG, INFO, WARN, ERROR');
   }
-}
-
-/**
- * ログレベルをデフォルト（INFO）にリセット
- *
- * @example
- * resetLogLevelConfig();
- */
-export function resetLogLevelConfig(): void {
-  resetLogLevel();
-  Logger.log('✅ Log level reset to default (INFO)');
 }

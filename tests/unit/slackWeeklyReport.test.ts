@@ -9,7 +9,6 @@ import {
   sendWeeklyReport,
   setupWeeklyReportTrigger,
   removeWeeklyReportTrigger,
-  showWeeklyReportTrigger,
 } from '../../src/functions/slackWeekly';
 import { createWeeklyReportMessage } from '../../src/services/slack/weeklyReport';
 import { isSlackNotificationEnabled } from '../../src/services/slack/client';
@@ -326,28 +325,6 @@ describe('Slack Weekly Report', () => {
       expect(
         logs.some((log: string) => log.includes('No weekly report trigger found to remove'))
       ).toBe(true);
-    });
-  });
-
-  describe('showWeeklyReportTrigger', () => {
-    it('should display trigger information when exists', () => {
-      const webhookUrl = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX';
-      mockContainer.storageClient.setProperty(CONFIG_KEYS.SLACK.WEBHOOK_URL, webhookUrl);
-
-      setupWeeklyReportTrigger();
-      showWeeklyReportTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(logs.some((log: string) => log.includes('Weekly report trigger is set up'))).toBe(
-        true
-      );
-    });
-
-    it('should display message when no trigger exists', () => {
-      showWeeklyReportTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(logs.some((log: string) => log.includes('No weekly report trigger found'))).toBe(true);
     });
   });
 

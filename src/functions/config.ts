@@ -8,37 +8,26 @@
 import {
   getProductionBranchPattern,
   setProductionBranchPattern,
-  resetProductionBranchPattern,
   getCycleTimeIssueLabels,
   setCycleTimeIssueLabels,
-  resetCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
   setCodingTimeIssueLabels,
-  resetCodingTimeIssueLabels,
   getExcludeMetricsLabels,
   setExcludeMetricsLabels,
-  resetExcludeMetricsLabels,
   getIncidentLabels,
   setIncidentLabels,
-  resetIncidentLabels,
   getExcludePRSizeBaseBranches,
   setExcludePRSizeBaseBranches,
-  resetExcludePRSizeBaseBranches,
   getExcludeReviewEfficiencyBaseBranches,
   setExcludeReviewEfficiencyBaseBranches,
-  resetExcludeReviewEfficiencyBaseBranches,
   getExcludeCycleTimeBaseBranches,
   setExcludeCycleTimeBaseBranches,
-  resetExcludeCycleTimeBaseBranches,
   getExcludeCodingTimeBaseBranches,
   setExcludeCodingTimeBaseBranches,
-  resetExcludeCodingTimeBaseBranches,
   getExcludeReworkRateBaseBranches,
   setExcludeReworkRateBaseBranches,
-  resetExcludeReworkRateBaseBranches,
   getGitHubApiMode,
   setGitHubApiMode,
-  resetGitHubApiMode,
 } from '../config/settings';
 import { ensureContainerInitialized } from './helpers';
 
@@ -64,13 +53,6 @@ export function showProductionBranch(): void {
   ensureContainerInitialized();
   const pattern = getProductionBranchPattern();
   Logger.log(`📋 Production branch pattern: "${pattern}"`);
-}
-
-/** productionブランチパターンをリセット */
-export function resetProductionBranch(): void {
-  ensureContainerInitialized();
-  resetProductionBranchPattern();
-  Logger.log('✅ Production branch pattern reset to: "production"');
 }
 
 /**
@@ -99,13 +81,6 @@ export function showCycleTimeLabels(): void {
   } else {
     Logger.log('📋 Cycle time labels: (all issues)');
   }
-}
-
-/** サイクルタイムIssueラベルをリセット */
-export function resetCycleTimeLabelsConfig(): void {
-  ensureContainerInitialized();
-  resetCycleTimeIssueLabels();
-  Logger.log('✅ Cycle time labels reset (all issues will be tracked)');
 }
 
 /** サイクルタイム設定を一覧表示 */
@@ -151,13 +126,6 @@ export function showCodingTimeLabels(): void {
   } else {
     Logger.log('📋 Coding time labels: (all issues)');
   }
-}
-
-/** コーディングタイムIssueラベルをリセット */
-export function resetCodingTimeLabelsConfig(): void {
-  ensureContainerInitialized();
-  resetCodingTimeIssueLabels();
-  Logger.log('✅ Coding time labels reset (all issues will be tracked)');
 }
 
 /** コーディングタイム設定を一覧表示 */
@@ -208,13 +176,6 @@ export function showApiMode(): void {
   }
 }
 
-/** APIモードをリセット（GraphQLに戻す） */
-export function resetApiMode(): void {
-  ensureContainerInitialized();
-  resetGitHubApiMode();
-  Logger.log('✅ API mode reset to: GraphQL (default)');
-}
-
 // =============================================================================
 // 除外ラベル設定
 // =============================================================================
@@ -248,11 +209,6 @@ export function showExcludeLabels(): void {
 /**
  * 除外ラベル設定をリセット
  */
-export function resetExcludeLabelsConfig(): void {
-  ensureContainerInitialized();
-  resetExcludeMetricsLabels();
-  Logger.log('✅ Exclude labels reset to: "exclude-metrics"');
-}
 
 // =============================================================================
 // インシデントラベル設定
@@ -287,11 +243,6 @@ export function showIncidentLabels(): void {
 /**
  * インシデントラベル設定をリセット
  */
-export function resetIncidentLabelsConfig(): void {
-  ensureContainerInitialized();
-  resetIncidentLabels();
-  Logger.log('✅ Incident labels reset to: "incident"');
-}
 
 // =============================================================================
 // PRサイズ除外ブランチ設定
@@ -334,11 +285,6 @@ export function showPRSizeExcludeBranches(): void {
 /**
  * PRサイズ除外ブランチ設定をリセット（全PR対象に戻す）
  */
-export function resetPRSizeExcludeBranchesConfig(): void {
-  ensureContainerInitialized();
-  resetExcludePRSizeBaseBranches();
-  Logger.log('✅ PR size exclude branches reset (all PRs will be included)');
-}
 
 // =============================================================================
 // レビュー効率除外ブランチ設定
@@ -383,11 +329,6 @@ export function showReviewEfficiencyExcludeBranches(): void {
 /**
  * レビュー効率除外ブランチ設定をリセット（全PR対象に戻す）
  */
-export function resetReviewEfficiencyExcludeBranchesConfig(): void {
-  ensureContainerInitialized();
-  resetExcludeReviewEfficiencyBaseBranches();
-  Logger.log('✅ Review efficiency exclude branches reset (all PRs will be included)');
-}
 
 // =============================================================================
 // サイクルタイム除外ブランチ設定
@@ -430,11 +371,6 @@ export function showCycleTimeExcludeBranches(): void {
 /**
  * サイクルタイム除外ブランチ設定をリセット（全Issue対象に戻す）
  */
-export function resetCycleTimeExcludeBranchesConfig(): void {
-  ensureContainerInitialized();
-  resetExcludeCycleTimeBaseBranches();
-  Logger.log('✅ Cycle time exclude branches reset (all issues will be included)');
-}
 
 // =============================================================================
 // コーディング時間除外ブランチ設定
@@ -477,11 +413,6 @@ export function showCodingTimeExcludeBranches(): void {
 /**
  * コーディング時間除外ブランチ設定をリセット（全Issue対象に戻す）
  */
-export function resetCodingTimeExcludeBranchesConfig(): void {
-  ensureContainerInitialized();
-  resetExcludeCodingTimeBaseBranches();
-  Logger.log('✅ Coding time exclude branches reset (all issues will be included)');
-}
 
 // =============================================================================
 // 手戻り率除外ブランチ設定
@@ -524,8 +455,3 @@ export function showReworkRateExcludeBranches(): void {
 /**
  * 手戻り率除外ブランチ設定をリセット（全PR対象に戻す）
  */
-export function resetReworkRateExcludeBranchesConfig(): void {
-  ensureContainerInitialized();
-  resetExcludeReworkRateBaseBranches();
-  Logger.log('✅ Rework rate exclude branches reset (all PRs will be included)');
-}

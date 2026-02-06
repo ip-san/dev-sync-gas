@@ -9,7 +9,6 @@ import {
   checkAndSendAlerts,
   setupAlertTrigger,
   removeAlertTrigger,
-  showAlertTrigger,
 } from '../../src/functions/slackAlerts';
 import { detectAlerts, createAlertMessage, type Alert } from '../../src/services/slack/alerts';
 import { isSlackNotificationEnabled } from '../../src/services/slack/client';
@@ -421,26 +420,6 @@ describe('Slack Alerts', () => {
       expect(logs.some((log: string) => log.includes('No alert trigger found to remove'))).toBe(
         true
       );
-    });
-  });
-
-  describe('showAlertTrigger', () => {
-    it('should display trigger information when exists', () => {
-      const webhookUrl = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX';
-      mockContainer.storageClient.setProperty(CONFIG_KEYS.SLACK.WEBHOOK_URL, webhookUrl);
-
-      setupAlertTrigger();
-      showAlertTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(logs.some((log: string) => log.includes('Alert trigger is set up'))).toBe(true);
-    });
-
-    it('should display message when no trigger exists', () => {
-      showAlertTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(logs.some((log: string) => log.includes('No alert trigger found'))).toBe(true);
     });
   });
 });

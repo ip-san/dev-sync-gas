@@ -479,8 +479,42 @@ Hint: Check if the App has the required permissions (Pull requests, Actions, Met
 - 権限変更後にAppの再インストールが必要
 
 **解決方法:**
-1. App設定ページで権限を確認（Metadata, Pull requests, Actions, Deployments）
+1. App設定ページで権限を確認（Metadata, Pull requests, Actions, Deployments, Contents）
 2. 権限を変更した場合はAppを再インストール
+
+---
+
+### エラー: 「Resource not accessible by integration」（大量発生）
+
+**症状:**
+```
+⚠️ GraphQL partial error: Resource not accessible by integration
+```
+同じエラーが1回のリクエストで数十〜数百回繰り返される
+
+**原因:**
+- GitHub Appの **Contents権限** が設定されていない
+- PRのコミット情報、レビュー情報、タイムラインにアクセスできない
+
+**解決方法:**
+1. GitHub App設定ページを開く
+2. **Repository permissions** で以下を確認:
+   - ✅ **Contents: Read-only**（**これが不足している可能性大**）
+   - ✅ **Pull requests: Read-only**
+   - ✅ **Actions: Read-only**
+   - ✅ **Deployments: Read-only**
+   - ✅ **Issues: Read-only**
+3. Contents権限を追加後、**Save changes**
+4. インストールした組織/リポジトリで権限を承認（Update）
+5. GASスクリプトを再実行
+
+**確認方法:**
+権限追加後、エラーが消えて正常にPR詳細が取得できるようになります。
+
+> **重要**: Contents権限がないと、PRのコミット一覧やタイムラインイベントにアクセスできず、
+> DORA metricsの計算に必要なデータが不足します。
+
+詳細は [GITHUB_APPS_AUTH.md](GITHUB_APPS_AUTH.md#2-権限を設定) を参照。
 
 ---
 

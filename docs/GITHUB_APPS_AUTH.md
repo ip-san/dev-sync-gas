@@ -39,11 +39,14 @@ GitHub Apps認証を使用すると、Personal Access Token（PAT）に比べて
 | 権限 | アクセスレベル | 用途 |
 |------|--------------|------|
 | **Actions** | Read-only | ワークフロー実行履歴の取得 |
+| **Contents** | Read-only | コミット情報、ブランチ情報の取得（**必須**） |
 | **Deployments** | Read-only | デプロイメント情報の取得 |
 | **Issues** | Read-only | インシデント（MTTR）計測 |
-| **Metadata** | Read-only | 基本情報（必須） |
-| **Pull requests** | Read-only | PR情報の取得 |
+| **Metadata** | Read-only | 基本情報（必須・自動付与） |
+| **Pull requests** | Read-only | PR情報、レビュー、タイムラインの取得（**必須**） |
 
+> **重要**: Contents権限がないと、PRのコミット情報が取得できず、大量のエラーが発生します。
+>
 > **注意**: Write権限は不要です。Read-onlyのみで動作します。
 
 ### 3. インストール先を設定

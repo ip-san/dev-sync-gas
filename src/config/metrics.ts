@@ -1,5 +1,13 @@
 import { getContainer } from '../container';
-import { PRODUCTION_KEYS, LABEL_KEYS, PR_SIZE_KEYS } from './propertyKeys';
+import {
+  PRODUCTION_KEYS,
+  LABEL_KEYS,
+  PR_SIZE_KEYS,
+  REVIEW_EFFICIENCY_KEYS,
+  CYCLE_TIME_EXCLUDE_KEYS,
+  CODING_TIME_EXCLUDE_KEYS,
+  REWORK_RATE_EXCLUDE_KEYS,
+} from './propertyKeys';
 
 // ============================================================
 // サイクルタイム設定
@@ -267,4 +275,125 @@ export function setExcludePRSizeBaseBranches(branches: string[]): void {
  */
 export function resetExcludePRSizeBaseBranches(): void {
   deleteProperty(PR_SIZE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+// ============================================================
+// レビュー効率設定
+// ============================================================
+
+/**
+ * レビュー効率計算から除外するbaseブランチを取得
+ * これらのブランチへのマージはレビュー効率計算から除外される（部分一致）
+ *
+ * @returns ブランチ名配列（デフォルト: []）
+ * @example
+ * // 設定が ["production", "staging"] の場合:
+ * // - "production" → 除外
+ * // - "production-hotfix" → 除外（部分一致）
+ * // - "staging-test" → 除外（部分一致）
+ * // - "main" → 含める
+ */
+export function getExcludeReviewEfficiencyBaseBranches(): string[] {
+  return getPropertyAsStringArray(REVIEW_EFFICIENCY_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+/**
+ * レビュー効率計算から除外するbaseブランチを設定
+ * ブランチ名は部分一致で判定される
+ *
+ * @param branches 除外するbaseブランチ名の配列
+ * @example
+ * // デプロイ用PRを除外（部分一致）
+ * setExcludeReviewEfficiencyBaseBranches(["production", "staging"]);
+ *
+ * // 除外しない
+ * setExcludeReviewEfficiencyBaseBranches([]);
+ */
+export function setExcludeReviewEfficiencyBaseBranches(branches: string[]): void {
+  setPropertyAsStringArray(REVIEW_EFFICIENCY_KEYS.EXCLUDE_BASE_BRANCHES, branches);
+}
+
+/**
+ * レビュー効率除外ブランチ設定をリセット（全PR対象に戻す）
+ */
+export function resetExcludeReviewEfficiencyBaseBranches(): void {
+  deleteProperty(REVIEW_EFFICIENCY_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+// ============================================================
+// サイクルタイム除外設定
+// ============================================================
+
+/**
+ * サイクルタイム計算から除外するbaseブランチを取得
+ * @returns ブランチ名配列（デフォルト: []）
+ */
+export function getExcludeCycleTimeBaseBranches(): string[] {
+  return getPropertyAsStringArray(CYCLE_TIME_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+/**
+ * サイクルタイム計算から除外するbaseブランチを設定
+ */
+export function setExcludeCycleTimeBaseBranches(branches: string[]): void {
+  setPropertyAsStringArray(CYCLE_TIME_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES, branches);
+}
+
+/**
+ * サイクルタイム除外ブランチ設定をリセット
+ */
+export function resetExcludeCycleTimeBaseBranches(): void {
+  deleteProperty(CYCLE_TIME_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+// ============================================================
+// コーディング時間除外設定
+// ============================================================
+
+/**
+ * コーディング時間計算から除外するbaseブランチを取得
+ * @returns ブランチ名配列（デフォルト: []）
+ */
+export function getExcludeCodingTimeBaseBranches(): string[] {
+  return getPropertyAsStringArray(CODING_TIME_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+/**
+ * コーディング時間計算から除外するbaseブランチを設定
+ */
+export function setExcludeCodingTimeBaseBranches(branches: string[]): void {
+  setPropertyAsStringArray(CODING_TIME_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES, branches);
+}
+
+/**
+ * コーディング時間除外ブランチ設定をリセット
+ */
+export function resetExcludeCodingTimeBaseBranches(): void {
+  deleteProperty(CODING_TIME_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+// ============================================================
+// 手戻り率除外設定
+// ============================================================
+
+/**
+ * 手戻り率計算から除外するbaseブランチを取得
+ * @returns ブランチ名配列（デフォルト: []）
+ */
+export function getExcludeReworkRateBaseBranches(): string[] {
+  return getPropertyAsStringArray(REWORK_RATE_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+/**
+ * 手戻り率計算から除外するbaseブランチを設定
+ */
+export function setExcludeReworkRateBaseBranches(branches: string[]): void {
+  setPropertyAsStringArray(REWORK_RATE_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES, branches);
+}
+
+/**
+ * 手戻り率除外ブランチ設定をリセット
+ */
+export function resetExcludeReworkRateBaseBranches(): void {
+  deleteProperty(REWORK_RATE_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
 }

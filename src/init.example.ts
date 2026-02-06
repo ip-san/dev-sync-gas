@@ -54,6 +54,23 @@ export const config: InitConfig = {
   // PRサイズ計算から除外するbaseブランチ（部分一致）
   // デプロイ用PRを除外する場合に設定
   prSizeExcludeBranches: ['production', 'staging'],
+
+  // レビュー効率計算から除外するbaseブランチ（部分一致）
+  // デプロイ用PRを除外する場合に設定
+  reviewEfficiencyExcludeBranches: ['production', 'staging'],
+
+  // サイクルタイム計算から除外するbaseブランチ（部分一致）
+  // デプロイ用PRを除外する場合に設定
+  cycleTimeExcludeBranches: ['production', 'staging'],
+
+  // コーディング時間計算から除外するbaseブランチ（部分一致）
+  // デプロイ用PRを除外する場合に設定
+  codingTimeExcludeBranches: ['production', 'staging'],
+
+  // 手戻り率計算から除外するbaseブランチ（部分一致）
+  // デプロイ用PRを除外する場合に設定
+  reworkRateExcludeBranches: ['production', 'staging'],
+
   // 例:
   // - "production" → 除外
   // - "production-hotfix" → 除外（部分一致）

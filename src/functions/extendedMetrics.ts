@@ -13,6 +13,10 @@ import {
   getCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
   getExcludePRSizeBaseBranches,
+  getExcludeReviewEfficiencyBaseBranches,
+  getExcludeCycleTimeBaseBranches,
+  getExcludeCodingTimeBaseBranches,
+  getExcludeReworkRateBaseBranches,
 } from '../config/settings';
 import {
   getPullRequestsGraphQL,
@@ -68,6 +72,7 @@ export function syncCycleTime(days = 30): void {
   const { startDateStr, endDateStr, period } = createDateRange(days);
   const productionPattern = getProductionBranchPattern();
   const labels = getCycleTimeIssueLabels();
+  const excludeBaseBranches = getExcludeCycleTimeBaseBranches();
 
   Logger.log(`⏱️ Calculating Cycle Time for ${days} days`);
   Logger.log(`   Period: ${period}`);
@@ -75,9 +80,16 @@ export function syncCycleTime(days = 30): void {
   Logger.log(
     labels.length > 0 ? `   Issue labels: ${labels.join(', ')}` : `   Issue labels: (all issues)`
   );
+  if (excludeBaseBranches.length > 0) {
+    Logger.log(
+      `   ⚠️ Exclude base branches configured (${excludeBaseBranches.join(', ')}) but not yet implemented - requires GraphQL query modification`
+    );
+  }
 
   Logger.log(`🚀 Using GraphQL API`);
 
+  // TODO: excludeBaseBranches filtering requires GraphQL query modification
+  // to filter issues based on their linked PR's base branch
   const result = getCycleTimeDataGraphQL(config.github.repositories, token, {
     dateRange: { start: startDateStr, end: endDateStr },
     productionBranchPattern: productionPattern,
@@ -128,15 +140,23 @@ export function syncCodingTime(days = 30): void {
   const token = getGitHubToken();
   const { startDateStr, endDateStr, period } = createDateRange(days);
   const labels = getCodingTimeIssueLabels();
+  const excludeBaseBranches = getExcludeCodingTimeBaseBranches();
 
   Logger.log(`⌨️ Calculating Coding Time for ${days} days`);
   Logger.log(`   Period: ${period}`);
   Logger.log(
     labels.length > 0 ? `   Issue labels: ${labels.join(', ')}` : `   Issue labels: (all issues)`
   );
+  if (excludeBaseBranches.length > 0) {
+    Logger.log(
+      `   ⚠️ Exclude base branches configured (${excludeBaseBranches.join(', ')}) but not yet implemented - requires GraphQL query modification`
+    );
+  }
 
   Logger.log(`🚀 Using GraphQL API`);
 
+  // TODO: excludeBaseBranches filtering requires GraphQL query modification
+  // to filter issues based on their linked PR's base branch
   const result = getCodingTimeDataGraphQL(config.github.repositories, token, {
     dateRange: { start: startDateStr, end: endDateStr },
     labels: labels.length > 0 ? labels : undefined,
@@ -237,9 +257,33 @@ export function syncReworkRate(days = 30): void {
     return;
   }
 
-  Logger.log(`📊 Fetching rework data for ${allPRs.length} PRs...`);
+  // 除外ブランチ設定を取得してフィルタリング（部分一致）
+  const excludeBaseBranches = getExcludeReworkRateBaseBranches();
+  let filteredPRs = allPRs;
+
+  if (excludeBaseBranches.length > 0) {
+    const beforeCount = allPRs.length;
+    filteredPRs = allPRs.filter((pr) => {
+      // baseBranchが存在しない、または除外パターンのいずれも含まない場合は含める
+      if (!pr.baseBranch) {
+        return true;
+      }
+      return !excludeBaseBranches.some((pattern) => pr.baseBranch!.includes(pattern));
+    });
+    const excludedCount = beforeCount - filteredPRs.length;
+    Logger.log(
+      `   Excluded ${excludedCount} PRs with base branches containing: ${excludeBaseBranches.join(', ')}`
+    );
+  }
+
+  if (filteredPRs.length === 0) {
+    Logger.log('⚠️ No PRs remaining after filtering');
+    return;
+  }
+
+  Logger.log(`📊 Fetching rework data for ${filteredPRs.length} PRs...`);
   const token = getGitHubToken();
-  const reworkData = getReworkDataForPRsGraphQL(allPRs, token);
+  const reworkData = getReworkDataForPRsGraphQL(filteredPRs, token);
 
   const metrics = calculateReworkRate(reworkData, period);
 
@@ -278,9 +322,33 @@ export function syncReviewEfficiency(days = 30): void {
     return;
   }
 
-  Logger.log(`📊 Fetching review data for ${allPRs.length} PRs...`);
+  // 除外ブランチ設定を取得してフィルタリング（部分一致）
+  const excludeBaseBranches = getExcludeReviewEfficiencyBaseBranches();
+  let filteredPRs = allPRs;
+
+  if (excludeBaseBranches.length > 0) {
+    const beforeCount = allPRs.length;
+    filteredPRs = allPRs.filter((pr) => {
+      // baseBranchが存在しない、または除外パターンのいずれも含まない場合は含める
+      if (!pr.baseBranch) {
+        return true;
+      }
+      return !excludeBaseBranches.some((pattern) => pr.baseBranch!.includes(pattern));
+    });
+    const excludedCount = beforeCount - filteredPRs.length;
+    Logger.log(
+      `   Excluded ${excludedCount} PRs with base branches containing: ${excludeBaseBranches.join(', ')}`
+    );
+  }
+
+  if (filteredPRs.length === 0) {
+    Logger.log('⚠️ No PRs remaining after filtering');
+    return;
+  }
+
+  Logger.log(`📊 Fetching review data for ${filteredPRs.length} PRs...`);
   const token = getGitHubToken();
-  const reviewData = getReviewEfficiencyDataForPRsGraphQL(allPRs, token);
+  const reviewData = getReviewEfficiencyDataForPRsGraphQL(filteredPRs, token);
 
   const metrics = calculateReviewEfficiency(reviewData, period);
 

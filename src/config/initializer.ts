@@ -3,7 +3,15 @@
  * init.ts の設定オブジェクトから実際の設定を適用する
  */
 
-import { setConfig, addRepository, setExcludePRSizeBaseBranches } from './settings';
+import {
+  setConfig,
+  addRepository,
+  setExcludePRSizeBaseBranches,
+  setExcludeReviewEfficiencyBaseBranches,
+  setExcludeCycleTimeBaseBranches,
+  setExcludeCodingTimeBaseBranches,
+  setExcludeReworkRateBaseBranches,
+} from './settings';
 import { initializeContainer, isContainerInitialized } from '../container';
 import { createGasAdapters } from '../adapters/gas';
 
@@ -32,6 +40,14 @@ export interface InitConfig {
   }>;
   /** PRサイズ計算から除外するbaseブランチ（部分一致） */
   prSizeExcludeBranches?: string[];
+  /** レビュー効率計算から除外するbaseブランチ（部分一致） */
+  reviewEfficiencyExcludeBranches?: string[];
+  /** サイクルタイム計算から除外するbaseブランチ（部分一致） */
+  cycleTimeExcludeBranches?: string[];
+  /** コーディング時間計算から除外するbaseブランチ（部分一致） */
+  codingTimeExcludeBranches?: string[];
+  /** 手戻り率計算から除外するbaseブランチ（部分一致） */
+  reworkRateExcludeBranches?: string[];
 }
 
 /**
@@ -84,6 +100,38 @@ export function initializeFromConfig(config: InitConfig): void {
     setExcludePRSizeBaseBranches(config.prSizeExcludeBranches);
     Logger.log(
       `✅ PR size exclude branches: ${config.prSizeExcludeBranches.join(', ')} (partial match)`
+    );
+  }
+
+  // レビュー効率除外ブランチ設定
+  if (config.reviewEfficiencyExcludeBranches && config.reviewEfficiencyExcludeBranches.length > 0) {
+    setExcludeReviewEfficiencyBaseBranches(config.reviewEfficiencyExcludeBranches);
+    Logger.log(
+      `✅ Review efficiency exclude branches: ${config.reviewEfficiencyExcludeBranches.join(', ')} (partial match)`
+    );
+  }
+
+  // サイクルタイム除外ブランチ設定
+  if (config.cycleTimeExcludeBranches && config.cycleTimeExcludeBranches.length > 0) {
+    setExcludeCycleTimeBaseBranches(config.cycleTimeExcludeBranches);
+    Logger.log(
+      `✅ Cycle time exclude branches: ${config.cycleTimeExcludeBranches.join(', ')} (partial match)`
+    );
+  }
+
+  // コーディング時間除外ブランチ設定
+  if (config.codingTimeExcludeBranches && config.codingTimeExcludeBranches.length > 0) {
+    setExcludeCodingTimeBaseBranches(config.codingTimeExcludeBranches);
+    Logger.log(
+      `✅ Coding time exclude branches: ${config.codingTimeExcludeBranches.join(', ')} (partial match)`
+    );
+  }
+
+  // 手戻り率除外ブランチ設定
+  if (config.reworkRateExcludeBranches && config.reworkRateExcludeBranches.length > 0) {
+    setExcludeReworkRateBaseBranches(config.reworkRateExcludeBranches);
+    Logger.log(
+      `✅ Rework rate exclude branches: ${config.reworkRateExcludeBranches.join(', ')} (partial match)`
     );
   }
 

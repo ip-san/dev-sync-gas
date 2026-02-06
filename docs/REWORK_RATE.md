@@ -42,6 +42,52 @@ syncReworkRate(90);
 
 ---
 
+## 設定
+
+### デプロイ用PRの除外
+
+デプロイ用PRは通常、開発プロセスが異なるため、統計を歪めることがあります。特定のbaseブランチへのマージを除外できます。
+
+#### init.tsで設定（推奨）
+
+`src/init.ts` に設定を記述して永続化できます：
+
+```typescript
+export const config: InitConfig = {
+  // ... 他の設定 ...
+
+  // 手戻り率計算から除外するbaseブランチ（部分一致）
+  reworkRateExcludeBranches: ['production', 'staging'],
+};
+```
+
+設定後の適用手順：
+1. `bun run push` でデプロイ
+2. GASエディタで `initConfig()` を実行（設定を保存）
+3. `syncReworkRate(90)` を実行（手戻り率を再計算）
+
+#### GASエディタで直接設定
+
+```javascript
+// デプロイ用ブランチを除外（部分一致）
+configureReworkRateExcludeBranches(['production', 'staging']);
+// → ✅ Rework rate exclude branches set to: production, staging (partial match)
+
+// 現在の設定を確認
+showReworkRateExcludeBranches();
+// → 📋 Rework rate exclude branches: production, staging (partial match)
+
+// 設定をリセット（全PR対象に戻す）
+resetReworkRateExcludeBranchesConfig();
+// → ✅ Rework rate exclude branches reset (all PRs will be included)
+```
+
+#### 部分一致による判定
+
+ブランチ名は**部分一致**で判定されます。
+
+---
+
 ## 出力されるシート
 
 ### 「Rework Rate」シート（サマリー）

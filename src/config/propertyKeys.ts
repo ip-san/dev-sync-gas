@@ -103,6 +103,38 @@ export const PR_SIZE_KEYS = {
 } as const;
 
 /**
+ * レビュー効率設定キー
+ */
+export const REVIEW_EFFICIENCY_KEYS = {
+  /** レビュー効率計算から除外するbaseブランチ（JSON配列） */
+  EXCLUDE_BASE_BRANCHES: 'REVIEW_EFFICIENCY_EXCLUDE_BASE_BRANCHES',
+} as const;
+
+/**
+ * サイクルタイム除外設定キー
+ */
+export const CYCLE_TIME_EXCLUDE_KEYS = {
+  /** サイクルタイム計算から除外するbaseブランチ（JSON配列） */
+  EXCLUDE_BASE_BRANCHES: 'CYCLE_TIME_EXCLUDE_BASE_BRANCHES',
+} as const;
+
+/**
+ * コーディング時間除外設定キー
+ */
+export const CODING_TIME_EXCLUDE_KEYS = {
+  /** コーディング時間計算から除外するbaseブランチ（JSON配列） */
+  EXCLUDE_BASE_BRANCHES: 'CODING_TIME_EXCLUDE_BASE_BRANCHES',
+} as const;
+
+/**
+ * 手戻り率除外設定キー
+ */
+export const REWORK_RATE_EXCLUDE_KEYS = {
+  /** 手戻り率計算から除外するbaseブランチ（JSON配列） */
+  EXCLUDE_BASE_BRANCHES: 'REWORK_RATE_EXCLUDE_BASE_BRANCHES',
+} as const;
+
+/**
  * 全ての設定キーを統合したオブジェクト
  */
 export const CONFIG_KEYS = {
@@ -115,6 +147,10 @@ export const CONFIG_KEYS = {
   CODING_TIME: CODING_TIME_KEYS,
   SLACK: SLACK_KEYS,
   PR_SIZE: PR_SIZE_KEYS,
+  REVIEW_EFFICIENCY: REVIEW_EFFICIENCY_KEYS,
+  CYCLE_TIME_EXCLUDE: CYCLE_TIME_EXCLUDE_KEYS,
+  CODING_TIME_EXCLUDE: CODING_TIME_EXCLUDE_KEYS,
+  REWORK_RATE_EXCLUDE: REWORK_RATE_EXCLUDE_KEYS,
 } as const;
 
 /**
@@ -130,4 +166,8 @@ export type ConfigKeyValue =
   | (typeof CYCLE_TIME_KEYS)[keyof typeof CYCLE_TIME_KEYS]
   | (typeof CODING_TIME_KEYS)[keyof typeof CODING_TIME_KEYS]
   | (typeof SLACK_KEYS)[keyof typeof SLACK_KEYS]
-  | (typeof PR_SIZE_KEYS)[keyof typeof PR_SIZE_KEYS];
+  | (typeof PR_SIZE_KEYS)[keyof typeof PR_SIZE_KEYS]
+  | (typeof REVIEW_EFFICIENCY_KEYS)[keyof typeof REVIEW_EFFICIENCY_KEYS]
+  | (typeof CYCLE_TIME_EXCLUDE_KEYS)[keyof typeof CYCLE_TIME_EXCLUDE_KEYS]
+  | (typeof CODING_TIME_EXCLUDE_KEYS)[keyof typeof CODING_TIME_EXCLUDE_KEYS]
+  | (typeof REWORK_RATE_EXCLUDE_KEYS)[keyof typeof REWORK_RATE_EXCLUDE_KEYS];

@@ -67,6 +67,18 @@ export {
   getExcludePRSizeBaseBranches,
   setExcludePRSizeBaseBranches,
   resetExcludePRSizeBaseBranches,
+  getExcludeReviewEfficiencyBaseBranches,
+  setExcludeReviewEfficiencyBaseBranches,
+  resetExcludeReviewEfficiencyBaseBranches,
+  getExcludeCycleTimeBaseBranches,
+  setExcludeCycleTimeBaseBranches,
+  resetExcludeCycleTimeBaseBranches,
+  getExcludeCodingTimeBaseBranches,
+  setExcludeCodingTimeBaseBranches,
+  resetExcludeCodingTimeBaseBranches,
+  getExcludeReworkRateBaseBranches,
+  setExcludeReworkRateBaseBranches,
+  resetExcludeReworkRateBaseBranches,
 } from './metrics.js';
 
 // =============================================================================

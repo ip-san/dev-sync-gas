@@ -57,6 +57,48 @@ resetCodingTimeLabelsConfig();   // 全Issueを対象にリセット
 showCodingTimeConfig();          // 全設定を一覧表示
 ```
 
+### デプロイ用PRの除外
+
+デプロイ用PRは通常、開発プロセスが異なるため、統計を歪めることがあります。特定のbaseブランチへのマージを除外できます。
+
+#### init.tsで設定（推奨）
+
+`src/init.ts` に設定を記述して永続化できます：
+
+```typescript
+export const config: InitConfig = {
+  // ... 他の設定 ...
+
+  // コーディング時間計算から除外するbaseブランチ（部分一致）
+  codingTimeExcludeBranches: ['production', 'staging'],
+};
+```
+
+設定後の適用手順：
+1. `bun run push` でデプロイ
+2. GASエディタで `initConfig()` を実行（設定を保存）
+3. `syncCodingTime(90)` を実行（コーディング時間を再計算）
+
+#### GASエディタで直接設定
+
+```javascript
+// デプロイ用ブランチを除外（部分一致）
+configureCodingTimeExcludeBranches(['production', 'staging']);
+// → ✅ Coding time exclude branches set to: production, staging (partial match)
+
+// 現在の設定を確認
+showCodingTimeExcludeBranches();
+// → 📋 Coding time exclude branches: production, staging (partial match)
+
+// 設定をリセット（全Issue対象に戻す）
+resetCodingTimeExcludeBranchesConfig();
+// → ✅ Coding time exclude branches reset (all issues will be included)
+```
+
+#### 部分一致による判定
+
+ブランチ名は**部分一致**で判定されます。
+
 ---
 
 ## サイクルタイムとの違い

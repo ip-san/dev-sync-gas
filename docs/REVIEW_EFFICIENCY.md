@@ -80,7 +80,82 @@ AIコードが難解な場合:
 
 ---
 
+## デプロイ用PRの除外
+
+デプロイ用PRは通常、レビュープロセスが通常のPRと異なるため、統計を歪めます。特定のbaseブランチへのマージを除外できます。
+
+### 設定方法
+
+#### init.tsで設定（推奨）
+
+`src/init.ts` に設定を記述して永続化できます：
+
+```typescript
+export const config: InitConfig = {
+  // ... 他の設定 ...
+
+  // レビュー効率計算から除外するbaseブランチ（部分一致）
+  reviewEfficiencyExcludeBranches: ['production', 'staging'],
+};
+```
+
+設定後の適用手順：
+1. `bun run push` でデプロイ
+2. GASエディタで `initConfig()` を実行（設定を保存）
+3. `syncReviewEfficiency(90)` を実行（レビュー効率を再計算）
+
+#### GASエディタで直接設定
+
+```javascript
+// デプロイ用ブランチを除外（部分一致）
+configureReviewEfficiencyExcludeBranches(['production', 'staging']);
+// → ✅ Review efficiency exclude branches set to: production, staging (partial match)
+
+// 現在の設定を確認
+showReviewEfficiencyExcludeBranches();
+// → 📋 Review efficiency exclude branches: production, staging (partial match)
+
+// 設定をリセット（全PR対象に戻す）
+resetReviewEfficiencyExcludeBranchesConfig();
+// → ✅ Review efficiency exclude branches reset (all PRs will be included)
+```
+
+### 部分一致による判定
+
+ブランチ名は**部分一致**で判定されます。PRサイズ除外と同じロジックです。
+
+---
+
 ## トラブルシューティング
+
+### 除外設定が反映されない
+
+**症状**: 除外したはずのPRがスプレッドシートに表示される
+
+**原因**: スプレッドシートのデータは最後に `syncReviewEfficiency()` を実行した時点のものです。
+
+**解決手順**:
+
+```javascript
+// 1. 設定が保存されているか確認
+checkConfig();
+// 📊 Review Efficiency Exclude Branches: production, staging
+// ↑ この表示があればOK
+
+// 2. なければ設定を適用
+initConfig();  // init.tsから設定を読み込む
+
+// 3. レビュー効率を再計算
+syncReviewEfficiency(90);
+// Excluded 15 PRs with base branches containing: production, staging
+// ↑ 除外されたPRの数が表示される
+```
+
+### 「No PRs remaining after filtering」
+
+- 除外ブランチ設定が広すぎる可能性があります
+- `showReviewEfficiencyExcludeBranches()` で現在の設定を確認
+- 必要に応じて `resetReviewEfficiencyExcludeBranchesConfig()` でリセット
 
 ### レビュー時間がnull
 

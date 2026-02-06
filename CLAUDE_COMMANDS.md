@@ -87,12 +87,13 @@ configureIncidentLabels(['incident', 'bug', 'p0'])    // インシデントラ�
 resetIncidentLabelsConfig()                           // インシデントラベルをデフォルトに戻す
 ```
 
-### PRサイズ設定
+### PRサイズ・レビュー効率設定
 ```javascript
 // デプロイ用PRを除外（部分一致）
 configurePRSizeExcludeBranches(['production', 'staging'])
-showPRSizeExcludeBranches()                           // 現在の設定を確認
-resetPRSizeExcludeBranchesConfig()                    // 設定をリセット（全PR対象）
+configureReviewEfficiencyExcludeBranches(['production', 'staging'])
+showPRSizeExcludeBranches()                           // PRサイズ設定確認
+showReviewEfficiencyExcludeBranches()                 // レビュー効率設定確認
 ```
 
 ### ログ設定
@@ -123,7 +124,6 @@ initConfig();        // 設定を適用
 syncPRSize(90);      // PRサイズ再計算（除外ブランチが反映される）
 checkConfig();       // 設定確認
 ```
-
 ### エラー調査の流れ
 ```javascript
 // 1. ログレベルをDEBUGに変更

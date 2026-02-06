@@ -19,6 +19,7 @@ import {
   groupCycleTimeDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
+import { formatDateForDisplay } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'サイクルタイム';
 
@@ -101,7 +102,7 @@ export function writeSummarySheet(
     metrics.medianCycleTimeHours ?? 'N/A',
     metrics.minCycleTimeHours ?? 'N/A',
     metrics.maxCycleTimeHours ?? 'N/A',
-    new Date().toISOString(),
+    formatDateForDisplay(new Date()),
   ];
 
   const lastRow = sheet.getLastRow();

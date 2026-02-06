@@ -14,6 +14,7 @@ import {
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
+import { formatDateForDisplay } from '../../utils/dateFormat';
 
 const SHEET_NAME = '手戻り率';
 
@@ -107,7 +108,7 @@ export function writeSummarySheet(
     metrics.forcePushes.avgPerPr ?? 'N/A',
     metrics.forcePushes.prsWithForcePush,
     metrics.forcePushes.forcePushRate ?? 'N/A',
-    new Date().toISOString(),
+    formatDateForDisplay(new Date()),
   ];
 
   const lastRow = sheet.getLastRow();

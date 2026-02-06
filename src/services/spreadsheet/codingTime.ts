@@ -19,6 +19,7 @@ import {
   groupCodingTimeDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
+import { formatDateForDisplay } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'コーディング時間';
 
@@ -100,7 +101,7 @@ export function writeSummarySheet(
     metrics.medianCodingTimeHours ?? 'N/A',
     metrics.minCodingTimeHours ?? 'N/A',
     metrics.maxCodingTimeHours ?? 'N/A',
-    new Date().toISOString(),
+    formatDateForDisplay(new Date()),
   ];
 
   const lastRow = sheet.getLastRow();

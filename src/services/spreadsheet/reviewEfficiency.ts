@@ -20,6 +20,7 @@ import {
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
+import { formatDateForDisplay } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'レビュー効率';
 
@@ -143,7 +144,7 @@ function buildSummaryRow(metrics: ReviewEfficiencyMetrics): (string | number)[] 
     formatMetricValue(metrics.totalTime.medianHours),
     formatMetricValue(metrics.totalTime.minHours),
     formatMetricValue(metrics.totalTime.maxHours),
-    new Date().toISOString(),
+    formatDateForDisplay(new Date()),
   ];
 }
 

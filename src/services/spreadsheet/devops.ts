@@ -19,6 +19,7 @@ import {
   applyDataBorders,
   styleSummaryRow,
 } from './helpers';
+import { formatDateTimeForDisplay, formatDateForDisplay } from '../../utils/dateFormat';
 
 /**
  * DevOps Metrics シートのヘッダー定義
@@ -321,7 +322,7 @@ function buildSummaryRows(
       summary.avgLeadTimeHours,
       summary.avgChangeFailureRate,
       summary.avgMttrHours ?? 'N/A',
-      summary.lastUpdated,
+      formatDateTimeForDisplay(summary.lastUpdated),
     ]);
   }
 
@@ -334,7 +335,7 @@ function buildSummaryRows(
       aggregated.overallSummary.avgLeadTimeHours,
       aggregated.overallSummary.avgChangeFailureRate,
       aggregated.overallSummary.avgMttrHours ?? 'N/A',
-      new Date().toISOString(),
+      formatDateForDisplay(new Date()),
     ]);
   }
 

@@ -21,6 +21,7 @@ import {
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
+import { formatDateForDisplay } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'PRサイズ';
 
@@ -120,7 +121,7 @@ export function writeSummarySheet(
     metrics.filesChanged.median ?? 'N/A',
     metrics.filesChanged.min ?? 'N/A',
     metrics.filesChanged.max ?? 'N/A',
-    new Date().toISOString(),
+    formatDateForDisplay(new Date()),
   ];
 
   const lastRow = sheet.getLastRow();

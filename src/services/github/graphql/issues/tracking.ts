@@ -14,7 +14,7 @@ import {
   type PRFetcher,
   type MinimalPRInfo,
 } from '../../shared/prTracking.js';
-import { getPullRequestWithBranchesGraphQL } from '../pullRequests.js';
+import { getPullRequestWithBranchesGraphQL } from '../pullRequests/index';
 
 /**
  * コミットSHAからPRを検索（GraphQL版）

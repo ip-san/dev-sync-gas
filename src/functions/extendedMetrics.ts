@@ -199,7 +199,7 @@ function fetchMergedPRs(days: number): GitHubPullRequest[] | null {
     });
 
     if (result.success && result.data) {
-      const mergedPRs = result.data.filter((pr) => pr.mergedAt !== null);
+      const mergedPRs = result.data.filter((pr: GitHubPullRequest) => pr.mergedAt !== null);
       allPRs.push(...mergedPRs);
       Logger.log(`   Found ${mergedPRs.length} merged PRs`);
     } else {

@@ -13,7 +13,7 @@
  * - client.ts: GraphQL実行基盤
  * - queries.ts: クエリ定義
  * - types.ts: 型定義
- * - pullRequests.ts: PR関連操作
+ * - pullRequests/: PR関連操作
  * - deployments.ts: デプロイメント関連操作
  * - issues.ts: Issue関連操作
  */
@@ -37,7 +37,7 @@ export {
   getReworkDataForPRsGraphQL,
   getPRSizeDataForPRsGraphQL,
   getReviewEfficiencyDataForPRsGraphQL,
-} from './pullRequests';
+} from './pullRequests/index.js';
 
 // Deployment 操作
 export { getDeploymentsGraphQL } from './deployments';
@@ -87,7 +87,7 @@ import type {
   GitHubIncident,
 } from '../../../types';
 import { getContainer } from '../../../container';
-import { getPullRequestsGraphQL } from './pullRequests';
+import { getPullRequestsGraphQL } from './pullRequests/index.js';
 import { getDeploymentsGraphQL } from './deployments';
 import { getIssuesGraphQL } from './issues';
 import { getWorkflowRuns } from '../deployments'; // ワークフローはREST APIを継続使用

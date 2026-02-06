@@ -14,7 +14,6 @@ import {
   writeMetricsToAllRepositorySheets,
   writeDashboard,
   writeDashboardTrends,
-  createDevOpsSummaryFromMetrics,
 } from '../services/spreadsheet';
 import { calculateMetricsForRepository, calculateDailyMetrics } from '../utils/metrics';
 import { ensureContainerInitialized } from './helpers';
@@ -103,9 +102,6 @@ export async function syncDevOpsMetrics(dateRange?: DateRange): Promise<void> {
   await writeDashboard(config.spreadsheet.id, metrics);
   await writeDashboardTrends(config.spreadsheet.id, metrics);
 
-  // Summary更新
-  createDevOpsSummaryFromMetrics(config.spreadsheet.id, metrics, 'DevOps Summary');
-
   Logger.log(`✅ Synced metrics to ${config.github.repositories.length} repository sheets`);
 
   // Slack通知（日次サマリー）
@@ -182,9 +178,6 @@ export async function syncAllProjects(dateRange?: DateRange): Promise<void> {
     await writeDashboard(project.spreadsheetId, metrics);
     await writeDashboardTrends(project.spreadsheetId, metrics);
 
-    // Summary更新
-    createDevOpsSummaryFromMetrics(project.spreadsheetId, metrics, 'DevOps Summary');
-
     Logger.log(`   ✅ Synced metrics to ${metrics.length} repository sheets`);
   }
 
@@ -237,9 +230,6 @@ export async function syncProject(projectName: string, dateRange?: DateRange): P
   // Dashboard更新
   await writeDashboard(project.spreadsheetId, metrics);
   await writeDashboardTrends(project.spreadsheetId, metrics);
-
-  // Summary更新
-  createDevOpsSummaryFromMetrics(project.spreadsheetId, metrics, 'DevOps Summary');
 
   Logger.log(`✅ Synced metrics to ${metrics.length} repository sheets`);
 }
@@ -344,9 +334,6 @@ export async function syncDailyBackfill(days = 30): Promise<void> {
   await writeDashboard(config.spreadsheet.id, dailyMetrics);
   await writeDashboardTrends(config.spreadsheet.id, dailyMetrics);
 
-  // 6. Summary更新
-  createDevOpsSummaryFromMetrics(config.spreadsheet.id, dailyMetrics, 'DevOps Summary');
-
   Logger.log(`✅ Daily backfill completed`);
 }
 
@@ -415,9 +402,6 @@ export async function backfillAllProjectsDaily(days = 30): Promise<void> {
     // Dashboard更新
     await writeDashboard(project.spreadsheetId, dailyMetrics);
     await writeDashboardTrends(project.spreadsheetId, dailyMetrics);
-
-    // Summary更新
-    createDevOpsSummaryFromMetrics(project.spreadsheetId, dailyMetrics, 'DevOps Summary');
   }
 
   Logger.log(`\n✅ Daily backfill completed for ${projects.length} projects`);

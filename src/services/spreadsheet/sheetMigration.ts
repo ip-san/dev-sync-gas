@@ -10,7 +10,6 @@ import { getContainer } from '../../container';
 import { openSpreadsheet } from './helpers';
 import { writeMetricsToAllRepositorySheets, groupMetricsByRepository } from './repositorySheet';
 import { writeDashboard, writeDashboardTrends } from './dashboard';
-import { createDevOpsSummaryFromMetrics } from './metricsSummary';
 
 /**
  * 文字列が有効なデプロイメント頻度かをチェックする型ガード
@@ -148,7 +147,6 @@ async function performRepositoryMigration(
   metrics: DevOpsMetrics[],
   options: {
     createDashboard: boolean;
-    createSummary: boolean;
   },
   logger: { log: (msg: string) => void }
 ): Promise<string[]> {
@@ -168,11 +166,6 @@ async function performRepositoryMigration(
     await writeDashboard(spreadsheetId, metrics);
     await writeDashboardTrends(spreadsheetId, metrics);
     createdSheets.push('Dashboard', 'Dashboard - Trend');
-  }
-
-  if (options.createSummary) {
-    createDevOpsSummaryFromMetrics(spreadsheetId, metrics, 'DevOps Summary');
-    createdSheets.push('DevOps Summary');
   }
 
   return createdSheets;
@@ -223,8 +216,6 @@ export async function migrateToRepositorySheets(
     keepLegacySheet?: boolean;
     /** Dashboardを作成するか（デフォルト: true） */
     createDashboard?: boolean;
-    /** Summaryを作成するか（デフォルト: true） */
-    createSummary?: boolean;
   } = {}
 ): Promise<SheetMigrationResult> {
   const { logger } = getContainer();
@@ -232,7 +223,6 @@ export async function migrateToRepositorySheets(
 
   const keepLegacySheet = options.keepLegacySheet !== false;
   const createDashboard = options.createDashboard !== false;
-  const createSummary = options.createSummary !== false;
 
   logger.log(`🔄 Starting migration from "${sourceSheetName}"...`);
 
@@ -252,7 +242,7 @@ export async function migrateToRepositorySheets(
     const createdSheets = await performRepositoryMigration(
       spreadsheetId,
       metrics,
-      { createDashboard, createSummary },
+      { createDashboard },
       logger
     );
 

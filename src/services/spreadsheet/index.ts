@@ -7,7 +7,6 @@
  * - helpers.ts: 共通ヘルパー関数
  * - repositorySheet.ts: リポジトリ別シート書き出し
  * - dashboard.ts: Dashboardシート生成
- * - metricsSummary.ts: 指標別Summaryシート生成
  * - cycleTime.ts: サイクルタイム指標書き出し
  * - codingTime.ts: コーディング時間指標書き出し
  * - reworkRate.ts: 手戻り率指標書き出し
@@ -33,12 +32,6 @@ export {
   writeDashboard,
   writeDashboardTrends,
 } from './dashboard';
-
-// 指標別Summary
-export {
-  createDevOpsSummaryFromRepositorySheets,
-  createDevOpsSummaryFromMetrics,
-} from './metricsSummary';
 
 // マイグレーション
 export { migrateToRepositorySheets, previewMigration, removeLegacySheet } from './sheetMigration';

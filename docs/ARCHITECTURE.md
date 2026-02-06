@@ -91,7 +91,6 @@ src/
 │   ├── spreadsheet/        # スプレッドシート書き出し
 │   │   ├── repositorySheet.ts  #   リポジトリ別シート
 │   │   ├── dashboard.ts    #   Dashboardシート
-│   │   ├── metricsSummary.ts   #   Summaryシート
 │   │   ├── cycleTime.ts    #   サイクルタイムシート
 │   │   └── ...             #   その他指標シート
 │   ├── migration.ts        # スキーママイグレーション
@@ -128,7 +127,6 @@ src/
 4. スプレッドシート書き出し
    services/spreadsheet/repositorySheet.ts → リポジトリ別シート
    services/spreadsheet/dashboard.ts → Dashboard, Trend シート
-   services/spreadsheet/metricsSummary.ts → DevOps Summary シート
 ```
 
 ### サイクルタイム計測（syncCycleTime）
@@ -250,7 +248,6 @@ owner/repo-b | 2024-01-02 | 3  | weekly | ...
 プロジェクト (スプレッドシート)
 ├── 📊 Dashboard                    # 全リポ×全指標の俯瞰 + ステータス
 ├── 📈 Dashboard - Trend            # 週次トレンド
-├── 📋 DevOps Summary               # リポジトリ比較サマリー
 ├── 📁 owner/repo-a                 # リポジトリ別データ
 ├── 📁 owner/repo-b
 └── 📁 owner/repo-c
@@ -264,7 +261,7 @@ owner/repo-b | 2024-01-02 | 3  | weekly | ...
 - ステータス（良好/要注意/要対応）を色分け表示
 
 ```typescript
-// DORA指標同期（Dashboard/Summary自動生成）
+// DORA指標同期（Dashboard自動生成）
 syncDevOpsMetrics();
 syncDailyBackfill(30);  // 過去30日分をバックフィル
 syncAllProjects();      // 全プロジェクト一括同期

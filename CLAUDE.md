@@ -21,11 +21,17 @@ GitHub複数リポジトリ → DORA metrics収集 → Googleスプレッドシ�
 - 未使用コードは完全削除（後方互換性ハック不要）
 - セキュリティ脆弱性に注意（XSS/SQLi/Command Injection）
 
+**ドキュメント原則:**
+- CLAUDE_*.mdは670行以下に維持（現在: 606行）
+- 詳細情報はdocs/に委譲（頻出情報のみCLAUDE_*.mdに記載）
+- 追加前チェック: `bun run check:doc`（詳細: [DOC_MAINTENANCE.md](docs/DOC_MAINTENANCE.md)）
+
 ## ⚡️ よく使うコマンド
 
 ```bash
 bun run push              # ビルド + デプロイ
-bun run check:all         # 全品質チェック
+bun run check:all         # 全品質チェック（コード）
+bun run check:doc         # ドキュメントサイズチェック
 bunx tsc --noEmit && bun run lint && bun test && bun run build  # 完了前チェック
 ```
 

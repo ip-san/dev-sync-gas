@@ -48,5 +48,5 @@
     ],
     "max-params": ["warn", 4]
   },
-  "ignorePatterns": ["dist/", "node_modules/", "tests/", "*.js"]
+  "ignorePatterns": ["dist/", "node_modules/", "tests/", "scripts/", "*.js"]
 }

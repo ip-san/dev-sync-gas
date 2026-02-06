@@ -12,25 +12,13 @@ bun run build          # TypeScript → GAS用JSにビルド
 bun run push           # ビルド + GASにデプロイ
 ```
 
-### テスト
+### テスト・品質チェック
 ```bash
 bun test               # テスト実行
 bun run lint           # ESLintチェック
 bun run lint:fix       # ESLint自動修正
-```
-
-### フォーマット
-```bash
 bun run format         # Prettierフォーマット
-bun run format:check   # Prettierチェック（CI用）
-```
-
-### 品質チェック
-```bash
-bun run check:circular # 循環依存チェック
-bun run check:unused   # 未使用コードチェック
-bun run check:types    # 型カバレッジチェック（95%以上）
-bun run check:all      # 全チェックを一括実行
+bun run check:all      # 全チェックを一括実行（循環依存、未使用コード、型カバレッジ）
 ```
 
 ### 完了前の必須チェック
@@ -78,16 +66,12 @@ syncPRSize(30)                   // PRサイズ（過去30日）
 
 ---
 
-## ⚙️ GAS関数（初期設定）
+## ⚙️ GAS関数（設定変更）
 
+### 初期設定
 ```javascript
-// 初回セットアップ
 initConfig()                     // src/init.ts の設定を PropertiesService に保存
 ```
-
----
-
-## 🎛 GAS関数（設定変更）
 
 ### API設定
 ```javascript
@@ -116,20 +100,18 @@ resetLogLevelConfig()            // ログレベルをデフォルト（INFO）�
 ```javascript
 configureSlackWebhook('https://hooks.slack.com/...')  // Slack Webhook URL設定
 removeSlackWebhook()                                  // Slack通知を無効化
-showSlackConfig()                                     // Slack通知設定確認
-```
 
-### Slackトリガー設定
-```javascript
-setupWeeklyReportTrigger()                            // 週次レポートトリガー（月曜9時）
-showWeeklyReportTrigger()                             // 週次レポートトリガー確認
-removeWeeklyReportTrigger()                           // 週次レポートトリガー削除
-sendWeeklyReport()                                    // 週次レポート手動送信（テスト用）
+// 週次レポートトリガー（月曜9時）
+setupWeeklyReportTrigger()
+showWeeklyReportTrigger()
+removeWeeklyReportTrigger()
+sendWeeklyReport()               // 手動送信（テスト用）
 
-setupIncidentDailySummaryTrigger()                    // インシデント日次サマリートリガー（毎日18時）
-showIncidentDailySummaryTrigger()                     // インシデント日次サマリートリガー確認
-removeIncidentDailySummaryTrigger()                   // インシデント日次サマリートリガー削除
-sendIncidentDailySummary()                            // インシデント日次サマリー手動送信（テスト用）
+// インシデント日次サマリートリガー（毎日18時）
+setupIncidentDailySummaryTrigger()
+showIncidentDailySummaryTrigger()
+removeIncidentDailySummaryTrigger()
+sendIncidentDailySummary()       // 手動送信（テスト用）
 ```
 
 ---
@@ -146,8 +128,7 @@ syncDevOpsMetrics();
 
 // 3. ログを確認してエラーコードを特定
 
-// 4. Grep tool でエラーコードを検索
-// 例: "GITHUB_RATE_LIMIT"
+// 4. Grep tool でエラーコードを検索（例: "GITHUB_RATE_LIMIT"）
 
 // 5. src/utils/errors.ts でエラー詳細を確認
 ```
@@ -157,9 +138,7 @@ syncDevOpsMetrics();
 - [ ] Lint通過: `bun run lint`
 - [ ] テスト通過: `bun test`
 - [ ] ビルド成功: `bun run build`
-- [ ] 未使用コードなし: `bun run check:unused`
-- [ ] 循環依存なし: `bun run check:circular`
-- [ ] 型カバレッジ95%以上: `bun run check:types`
+- [ ] 全チェック通過: `bun run check:all`
 - [ ] `/review` 実行済み
 - [ ] 必要に応じてドキュメント更新
 
@@ -171,4 +150,4 @@ syncDevOpsMetrics();
 | 中（機能追加、リファクタリング） | PR Description | "feat: Slack通知機能の追加" |
 | 大（アーキテクチャ変更、技術選定） | [docs/adr/](docs/adr/) | "ADR-0003: スプレッドシート構造の変更" |
 
-ADR作成手順: [docs/adr/README.md](docs/adr/README.md)
+**ADR作成手順**: [docs/adr/README.md](docs/adr/README.md)

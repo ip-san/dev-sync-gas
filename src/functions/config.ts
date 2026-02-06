@@ -21,6 +21,9 @@ import {
   getIncidentLabels,
   setIncidentLabels,
   resetIncidentLabels,
+  getExcludePRSizeBaseBranches,
+  setExcludePRSizeBaseBranches,
+  resetExcludePRSizeBaseBranches,
   getGitHubApiMode,
   setGitHubApiMode,
   resetGitHubApiMode,
@@ -276,4 +279,51 @@ export function resetIncidentLabelsConfig(): void {
   ensureContainerInitialized();
   resetIncidentLabels();
   Logger.log('✅ Incident labels reset to: "incident"');
+}
+
+// =============================================================================
+// PRサイズ除外ブランチ設定
+// =============================================================================
+
+/**
+ * PRサイズ計算から除外するbaseブランチを設定（部分一致）
+ *
+ * @example
+ * setExcludePRSizeBaseBranches(['production', 'staging']);
+ * // 以下のブランチへのマージが除外される:
+ * // - "production", "production-hotfix", "production-v1" など
+ * // - "staging", "staging-test" など
+ *
+ * setExcludePRSizeBaseBranches([]);  // 除外しない（全PR対象）
+ */
+export function configurePRSizeExcludeBranches(branches: string[]): void {
+  ensureContainerInitialized();
+  setExcludePRSizeBaseBranches(branches);
+  if (branches.length > 0) {
+    Logger.log(`✅ PR size exclude branches set to: ${branches.join(', ')} (partial match)`);
+  } else {
+    Logger.log('✅ PR size exclude branches cleared (all PRs will be included)');
+  }
+}
+
+/**
+ * 現在のPRサイズ除外ブランチを表示
+ */
+export function showPRSizeExcludeBranches(): void {
+  ensureContainerInitialized();
+  const branches = getExcludePRSizeBaseBranches();
+  if (branches.length > 0) {
+    Logger.log(`📋 PR size exclude branches: ${branches.join(', ')} (partial match)`);
+  } else {
+    Logger.log('📋 PR size exclude branches: (none - all PRs included)');
+  }
+}
+
+/**
+ * PRサイズ除外ブランチ設定をリセット（全PR対象に戻す）
+ */
+export function resetPRSizeExcludeBranchesConfig(): void {
+  ensureContainerInitialized();
+  resetExcludePRSizeBaseBranches();
+  Logger.log('✅ PR size exclude branches reset (all PRs will be included)');
 }

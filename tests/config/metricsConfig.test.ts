@@ -13,6 +13,9 @@ import {
   getIncidentLabels,
   setIncidentLabels,
   resetIncidentLabels,
+  getExcludePRSizeBaseBranches,
+  setExcludePRSizeBaseBranches,
+  resetExcludePRSizeBaseBranches,
 } from '../../src/config/metrics';
 import { initializeContainer } from '../../src/container';
 import { createMockContainer } from '../mocks';
@@ -125,33 +128,80 @@ describe('metricsConfig', () => {
     });
   });
 
+  describe('excludePRSizeBaseBranches', () => {
+    it('デフォルトは空配列を返す', () => {
+      const branches = getExcludePRSizeBaseBranches();
+      expect(branches).toEqual([]);
+    });
+
+    it('除外ブランチを設定できる', () => {
+      setExcludePRSizeBaseBranches(['production', 'staging']);
+      const branches = getExcludePRSizeBaseBranches();
+      expect(branches).toEqual(['production', 'staging']);
+    });
+
+    it('空配列を設定できる', () => {
+      setExcludePRSizeBaseBranches(['production']);
+      expect(getExcludePRSizeBaseBranches()).toEqual(['production']);
+
+      setExcludePRSizeBaseBranches([]);
+      expect(getExcludePRSizeBaseBranches()).toEqual([]);
+    });
+
+    it('リセットすると空配列に戻る', () => {
+      setExcludePRSizeBaseBranches(['production', 'staging', 'release']);
+      expect(getExcludePRSizeBaseBranches()).toEqual(['production', 'staging', 'release']);
+
+      resetExcludePRSizeBaseBranches();
+      expect(getExcludePRSizeBaseBranches()).toEqual([]);
+    });
+
+    it('複数のブランチを設定できる', () => {
+      setExcludePRSizeBaseBranches(['production', 'production-v1', 'staging', 'release']);
+      const branches = getExcludePRSizeBaseBranches();
+      expect(branches.length).toBe(4);
+      expect(branches).toContain('production');
+      expect(branches).toContain('staging');
+      expect(branches).toContain('release');
+    });
+  });
+
   describe('複数設定の組み合わせ', () => {
     it('すべての設定を独立して管理できる', () => {
       setProductionBranchPattern('main');
       setExcludeMetricsLabels(['bot']);
       setIncidentLabels(['critical']);
+      setExcludePRSizeBaseBranches(['production', 'staging']);
 
       expect(getProductionBranchPattern()).toBe('main');
       expect(getExcludeMetricsLabels()).toEqual(['bot']);
       expect(getIncidentLabels()).toEqual(['critical']);
+      expect(getExcludePRSizeBaseBranches()).toEqual(['production', 'staging']);
     });
 
     it('個別にリセットできる', () => {
       setProductionBranchPattern('release');
       setExcludeMetricsLabels(['bot', 'test']);
       setIncidentLabels(['p0', 'p1']);
+      setExcludePRSizeBaseBranches(['production']);
 
       resetProductionBranchPattern();
       expect(getProductionBranchPattern()).toBe('production');
       expect(getExcludeMetricsLabels()).toEqual(['bot', 'test']);
       expect(getIncidentLabels()).toEqual(['p0', 'p1']);
+      expect(getExcludePRSizeBaseBranches()).toEqual(['production']);
 
       resetExcludeMetricsLabels();
       expect(getExcludeMetricsLabels()).toEqual(['exclude-metrics']);
       expect(getIncidentLabels()).toEqual(['p0', 'p1']);
+      expect(getExcludePRSizeBaseBranches()).toEqual(['production']);
 
       resetIncidentLabels();
       expect(getIncidentLabels()).toEqual(['incident']);
+      expect(getExcludePRSizeBaseBranches()).toEqual(['production']);
+
+      resetExcludePRSizeBaseBranches();
+      expect(getExcludePRSizeBaseBranches()).toEqual([]);
     });
   });
 });

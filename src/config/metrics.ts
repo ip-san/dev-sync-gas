@@ -1,5 +1,5 @@
 import { getContainer } from '../container';
-import { PRODUCTION_KEYS, LABEL_KEYS } from './propertyKeys';
+import { PRODUCTION_KEYS, LABEL_KEYS, PR_SIZE_KEYS } from './propertyKeys';
 
 // ============================================================
 // サイクルタイム設定
@@ -224,4 +224,47 @@ export function setIncidentLabels(labels: string[]): void {
  */
 export function resetIncidentLabels(): void {
   deleteProperty(LABEL_KEYS.INCIDENT);
+}
+
+// ============================================================
+// PRサイズ設定
+// ============================================================
+
+/**
+ * PRサイズ計算から除外するbaseブランチを取得
+ * これらのブランチへのマージはPRサイズ計算から除外される（部分一致）
+ *
+ * @returns ブランチ名配列（デフォルト: []）
+ * @example
+ * // 設定が ["production", "staging"] の場合:
+ * // - "production" → 除外
+ * // - "production-hotfix" → 除外（部分一致）
+ * // - "staging-test" → 除外（部分一致）
+ * // - "main" → 含める
+ */
+export function getExcludePRSizeBaseBranches(): string[] {
+  return getPropertyAsStringArray(PR_SIZE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+/**
+ * PRサイズ計算から除外するbaseブランチを設定
+ * ブランチ名は部分一致で判定される
+ *
+ * @param branches 除外するbaseブランチ名の配列
+ * @example
+ * // デプロイ用PRを除外（部分一致）
+ * setExcludePRSizeBaseBranches(["production", "staging"]);
+ *
+ * // 除外しない
+ * setExcludePRSizeBaseBranches([]);
+ */
+export function setExcludePRSizeBaseBranches(branches: string[]): void {
+  setPropertyAsStringArray(PR_SIZE_KEYS.EXCLUDE_BASE_BRANCHES, branches);
+}
+
+/**
+ * PRサイズ除外ブランチ設定をリセット（全PR対象に戻す）
+ */
+export function resetExcludePRSizeBaseBranches(): void {
+  deleteProperty(PR_SIZE_KEYS.EXCLUDE_BASE_BRANCHES);
 }

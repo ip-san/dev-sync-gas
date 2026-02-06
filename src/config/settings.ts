@@ -64,6 +64,9 @@ export {
   getIncidentLabels,
   setIncidentLabels,
   resetIncidentLabels,
+  getExcludePRSizeBaseBranches,
+  setExcludePRSizeBaseBranches,
+  resetExcludePRSizeBaseBranches,
 } from './metrics.js';
 
 // =============================================================================

@@ -92,12 +92,63 @@ Files Changed: 30
 
 ---
 
+## デプロイ用PRの除外
+
+デプロイ用PRは通常、大量の変更を含むためPRサイズの統計を歪めます。特定のbaseブランチへのマージを除外できます。
+
+### 設定方法
+
+```javascript
+// デプロイ用ブランチを除外（部分一致）
+setExcludePRSizeBaseBranches(['production', 'staging']);
+
+// 現在の設定を確認
+getExcludePRSizeBaseBranches();
+// → ['production', 'staging']
+
+// 設定をリセット（全PR対象に戻す）
+resetExcludePRSizeBaseBranches();
+```
+
+### 部分一致による判定
+
+ブランチ名は**部分一致**で判定されます:
+
+| 設定 | baseブランチ | 判定 |
+|------|-------------|------|
+| `['production']` | `production` | ❌ 除外 |
+| `['production']` | `production-hotfix` | ❌ 除外 |
+| `['production']` | `production-v1` | ❌ 除外 |
+| `['production']` | `main` | ✅ 含める |
+| `['staging']` | `staging-test` | ❌ 除外 |
+
+### 使用例
+
+```javascript
+// 1. デプロイ用ブランチを設定
+setExcludePRSizeBaseBranches(['production', 'staging']);
+
+// 2. PRサイズを計算
+syncPRSize(90);
+// → "Excluded 15 PRs with base branches containing: production, staging"
+
+// 3. スプレッドシートに反映される統計は、通常の開発PRのみ
+```
+
+---
+
 ## トラブルシューティング
 
 ### 「No merged PRs found」
 
 - 期間を広げる
 - `listRepos()` でリポジトリが正しく登録されているか確認
+
+### 「No PRs remaining after filtering」
+
+- 除外ブランチ設定が広すぎる可能性があります
+- `getExcludePRSizeBaseBranches()` で現在の設定を確認
+- 必要に応じて `resetExcludePRSizeBaseBranches()` でリセット
 
 ### サイズが0のPR
 

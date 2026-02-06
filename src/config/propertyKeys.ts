@@ -95,6 +95,14 @@ export const SLACK_KEYS = {
 } as const;
 
 /**
+ * PRサイズ設定キー
+ */
+export const PR_SIZE_KEYS = {
+  /** PRサイズ計算から除外するbaseブランチ（JSON配列） */
+  EXCLUDE_BASE_BRANCHES: 'PR_SIZE_EXCLUDE_BASE_BRANCHES',
+} as const;
+
+/**
  * 全ての設定キーを統合したオブジェクト
  */
 export const CONFIG_KEYS = {
@@ -106,6 +114,7 @@ export const CONFIG_KEYS = {
   CYCLE_TIME: CYCLE_TIME_KEYS,
   CODING_TIME: CODING_TIME_KEYS,
   SLACK: SLACK_KEYS,
+  PR_SIZE: PR_SIZE_KEYS,
 } as const;
 
 /**
@@ -120,4 +129,5 @@ export type ConfigKeyValue =
   | (typeof LABEL_KEYS)[keyof typeof LABEL_KEYS]
   | (typeof CYCLE_TIME_KEYS)[keyof typeof CYCLE_TIME_KEYS]
   | (typeof CODING_TIME_KEYS)[keyof typeof CODING_TIME_KEYS]
-  | (typeof SLACK_KEYS)[keyof typeof SLACK_KEYS];
+  | (typeof SLACK_KEYS)[keyof typeof SLACK_KEYS]
+  | (typeof PR_SIZE_KEYS)[keyof typeof PR_SIZE_KEYS];

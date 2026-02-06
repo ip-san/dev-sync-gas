@@ -70,6 +70,9 @@ export {
   showCodingTimeLabels,
   resetCodingTimeLabelsConfig,
   showCodingTimeConfig,
+  configurePRSizeExcludeBranches,
+  showPRSizeExcludeBranches,
+  resetPRSizeExcludeBranchesConfig,
   // API モード設定
   configureApiMode,
   showApiMode,

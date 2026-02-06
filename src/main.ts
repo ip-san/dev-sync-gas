@@ -54,6 +54,9 @@ import {
   showCodingTimeLabels,
   resetCodingTimeLabelsConfig,
   showCodingTimeConfig,
+  configurePRSizeExcludeBranches,
+  showPRSizeExcludeBranches,
+  resetPRSizeExcludeBranchesConfig,
   // APIモード設定
   configureApiMode,
   showApiMode,
@@ -166,6 +169,11 @@ global.configureCodingTimeLabels = configureCodingTimeLabels;
 global.showCodingTimeLabels = showCodingTimeLabels;
 global.resetCodingTimeLabelsConfig = resetCodingTimeLabelsConfig;
 global.showCodingTimeConfig = showCodingTimeConfig;
+
+// PRサイズ除外ブランチ設定
+global.configurePRSizeExcludeBranches = configurePRSizeExcludeBranches;
+global.showPRSizeExcludeBranches = showPRSizeExcludeBranches;
+global.resetPRSizeExcludeBranchesConfig = resetPRSizeExcludeBranchesConfig;
 
 // APIモード設定
 global.configureApiMode = configureApiMode;

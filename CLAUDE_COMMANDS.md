@@ -87,6 +87,19 @@ configureIncidentLabels(['incident', 'bug', 'p0'])    // インシデントラ�
 resetIncidentLabelsConfig()                           // インシデントラベルをデフォルトに戻す
 ```
 
+### PRサイズ設定
+```javascript
+// デプロイ用PRを除外（部分一致）
+configurePRSizeExcludeBranches(['production', 'staging'])
+showPRSizeExcludeBranches()                           // 現在の設定を確認
+resetPRSizeExcludeBranchesConfig()                    // 設定をリセット（全PR対象）
+
+// 例: productionブランチへのマージを除外
+// - "production" → 除外
+// - "production-hotfix" → 除外（部分一致）
+// - "main" → 含める
+```
+
 ### ログ設定
 ```javascript
 configureLogLevel('DEBUG')       // ログレベル: DEBUG

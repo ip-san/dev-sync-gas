@@ -12,6 +12,7 @@ import {
   getProductionBranchPattern,
   getCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
+  getExcludePRSizeBaseBranches,
 } from '../config/settings';
 import {
   getPullRequestsGraphQL,
@@ -315,9 +316,33 @@ export function syncPRSize(days = 30): void {
     return;
   }
 
-  Logger.log(`📊 Fetching PR size data for ${allPRs.length} PRs...`);
+  // 除外ブランチ設定を取得してフィルタリング（部分一致）
+  const excludeBaseBranches = getExcludePRSizeBaseBranches();
+  let filteredPRs = allPRs;
+
+  if (excludeBaseBranches.length > 0) {
+    const beforeCount = allPRs.length;
+    filteredPRs = allPRs.filter((pr) => {
+      // baseBranchが存在しない、または除外パターンのいずれも含まない場合は含める
+      if (!pr.baseBranch) {
+        return true;
+      }
+      return !excludeBaseBranches.some((pattern) => pr.baseBranch!.includes(pattern));
+    });
+    const excludedCount = beforeCount - filteredPRs.length;
+    Logger.log(
+      `   Excluded ${excludedCount} PRs with base branches containing: ${excludeBaseBranches.join(', ')}`
+    );
+  }
+
+  if (filteredPRs.length === 0) {
+    Logger.log('⚠️ No PRs remaining after filtering');
+    return;
+  }
+
+  Logger.log(`📊 Fetching PR size data for ${filteredPRs.length} PRs...`);
   const token = getGitHubToken();
-  const sizeData = getPRSizeDataForPRsGraphQL(allPRs, token);
+  const sizeData = getPRSizeDataForPRsGraphQL(filteredPRs, token);
 
   const metrics = calculatePRSize(sizeData, period);
 

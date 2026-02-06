@@ -5,7 +5,7 @@
 import type { GitHubPullRequest, PRReviewData } from '../../../../types';
 import { getContainer } from '../../../../container';
 import { executeGraphQLWithRetry } from '../client';
-import { buildBatchPRDetailQuery } from '../queries';
+import { buildBatchPRDetailQuery } from '../queries/pullRequests.js';
 import type { GraphQLPullRequestDetail } from '../types';
 import { DEFAULT_BATCH_SIZE } from '../../../../config/apiConfig';
 import { calculateReviewDataForPR, createDefaultReviewData } from '../reviewEfficiencyHelpers';

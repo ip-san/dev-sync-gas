@@ -7,7 +7,7 @@
 import type { GitHubIssue, GitHubRepository, ApiResponse } from '../../../../types';
 import { getContainer } from '../../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from '../client';
-import { ISSUES_QUERY } from '../queries';
+import { ISSUES_QUERY } from '../queries/issues.js';
 import type { IssuesQueryResponse, GraphQLIssue } from '../types';
 import type { IssueDateRange } from '../../api';
 import { isWithinDateRange } from '../issueHelpers';

@@ -5,7 +5,7 @@
 import type { GitHubPullRequest, GitHubRepository, ApiResponse } from '../../../../types';
 import { getContainer } from '../../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from '../client';
-import { PULL_REQUESTS_QUERY } from '../queries';
+import { PULL_REQUESTS_QUERY } from '../queries/pullRequests.js';
 import { isWithinPRDateRange } from '../issueHelpers';
 import { validatePaginatedResponse } from '../errorHelpers';
 import type { PullRequestsQueryResponse, GraphQLPullRequest } from '../types';

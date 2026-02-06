@@ -6,7 +6,7 @@
 
 import type { ApiResponse } from '../../../../types';
 import { executeGraphQLWithRetry } from '../client';
-import { ISSUE_WITH_LINKED_PRS_QUERY } from '../queries';
+import { ISSUE_WITH_LINKED_PRS_QUERY } from '../queries/issues.js';
 import type { IssueWithLinkedPRsQueryResponse, CrossReferencedEvent } from '../types';
 import { validateSingleResponse } from '../errorHelpers';
 

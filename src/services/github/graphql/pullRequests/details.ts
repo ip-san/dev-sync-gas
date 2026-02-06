@@ -4,7 +4,7 @@
 
 import type { GitHubPullRequest, ApiResponse } from '../../../../types';
 import { executeGraphQLWithRetry } from '../client';
-import { PULL_REQUEST_DETAIL_QUERY } from '../queries';
+import { PULL_REQUEST_DETAIL_QUERY } from '../queries/pullRequests.js';
 import { validateSingleResponse } from '../errorHelpers';
 import type { PullRequestDetailQueryResponse, GraphQLPullRequest } from '../types';
 import { parseGraphQLNodeIdOrZero } from '../../../../utils/graphqlParser';

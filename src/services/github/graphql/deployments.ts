@@ -12,7 +12,7 @@
 import type { GitHubDeployment, GitHubRepository, ApiResponse } from '../../../types';
 import { getContainer } from '../../../container';
 import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
-import { DEPLOYMENTS_QUERY } from './queries';
+import { DEPLOYMENTS_QUERY } from './queries/deployments.js';
 import type { DeploymentsQueryResponse, GraphQLDeployment } from './types';
 import type { DateRange } from '../api';
 import { validatePaginatedResponse } from './errorHelpers.js';

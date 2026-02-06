@@ -7,7 +7,7 @@
 import type { ApiResponse, PRChainItem } from '../../../../types';
 import { getContainer } from '../../../../container';
 import { executeGraphQLWithRetry } from '../client';
-import { COMMIT_ASSOCIATED_PRS_QUERY } from '../queries';
+import { COMMIT_ASSOCIATED_PRS_QUERY } from '../queries/commits.js';
 import type { CommitAssociatedPRsQueryResponse } from '../types';
 import {
   trackToProductionMerge as trackToProductionMergeShared,

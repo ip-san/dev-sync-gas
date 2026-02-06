@@ -12,8 +12,6 @@ import {
   DEFAULT_MAX_PAGES,
   PER_PAGE,
   STATUS_FETCH_WARNING_THRESHOLD,
-  MAX_RETRIES,
-  RETRY_DELAY_MS,
 } from '../../config/apiConfig';
 
 // =============================================================================
@@ -88,56 +86,4 @@ export function fetchGitHub<T>(endpoint: string, token: string): ApiResponse<T> 
       error: `Request failed: ${sanitizeErrorMessage(error)}`,
     };
   }
-}
-
-/**
- * リトライ付きでGitHub REST APIを呼び出す
- *
- * @param endpoint - APIエンドポイント（例: "/repos/owner/repo/pulls"）
- * @param token - GitHub Personal Access Token
- * @param maxRetries - 最大リトライ回数（デフォルト: MAX_RETRIES）
- * @returns APIレスポンス
- */
-export function fetchGitHubWithRetry<T>(
-  endpoint: string,
-  token: string,
-  maxRetries: number = MAX_RETRIES
-): ApiResponse<T> {
-  const { logger } = getContainer();
-  let lastError = '';
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (attempt > 0) {
-      logger.log(`  🔄 Retry attempt ${attempt}/${maxRetries}...`);
-      Utilities.sleep(RETRY_DELAY_MS * attempt);
-    }
-
-    const result = fetchGitHub<T>(endpoint, token);
-
-    if (result.success) {
-      return result;
-    }
-
-    lastError = result.error ?? 'Unknown error';
-
-    // レート制限エラーの場合は長めに待つ
-    if (lastError.includes('rate limit') || lastError.includes('403')) {
-      logger.log('  ⏳ Rate limited, waiting longer...');
-      Utilities.sleep(RETRY_DELAY_MS * 10);
-    }
-
-    // リトライ不可能なエラーの場合は即座に終了
-    if (
-      lastError.includes('404') ||
-      lastError.includes('401') ||
-      lastError.includes('Unauthorized')
-    ) {
-      return result;
-    }
-  }
-
-  return {
-    success: false,
-    error: `Failed after ${maxRetries} retries: ${lastError}`,
-  };
 }

@@ -12,6 +12,7 @@
 | **GraphQL vs REST** | [ADR-0001](docs/adr/0001-graphql-api-default.md) | src/services/github/graphql/, rest/ |
 | **DORA指標計算** | [DORA_METRICS.md](docs/DORA_METRICS.md) | src/services/metrics/ |
 | **拡張指標計算** | [EXTENDED_METRICS.md](docs/EXTENDED_METRICS.md) | src/services/metrics/ |
+| **PRサイズ除外設定** | [PR_SIZE.md](docs/PR_SIZE.md) | src/config/metrics.ts, src/functions/extendedMetrics.ts |
 | **スプレッドシート操作** | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | src/services/spreadsheet/ |
 | **チャート生成** | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | src/services/spreadsheet/charts.ts |
 | **DIコンテナ** | [ADR-0002](docs/adr/0002-di-container-for-gas-abstraction.md) | src/core/container.ts |

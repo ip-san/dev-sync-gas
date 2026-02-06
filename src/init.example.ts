@@ -50,6 +50,15 @@ export const config: InitConfig = {
     // 追加するリポジトリをここに列挙
     // { owner: 'owner2', name: 'repo2' },
   ],
+
+  // PRサイズ計算から除外するbaseブランチ（部分一致）
+  // デプロイ用PRを除外する場合に設定
+  prSizeExcludeBranches: ['production', 'staging'],
+  // 例:
+  // - "production" → 除外
+  // - "production-hotfix" → 除外（部分一致）
+  // - "staging-test" → 除外（部分一致）
+  // - "main" → 含める
 };
 // ======================
 

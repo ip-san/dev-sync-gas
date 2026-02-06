@@ -93,43 +93,36 @@ resetIncidentLabelsConfig()                           // インシデントラ�
 configurePRSizeExcludeBranches(['production', 'staging'])
 showPRSizeExcludeBranches()                           // 現在の設定を確認
 resetPRSizeExcludeBranchesConfig()                    // 設定をリセット（全PR対象）
-
-// 例: productionブランチへのマージを除外
-// - "production" → 除外
-// - "production-hotfix" → 除外（部分一致）
-// - "main" → 含める
 ```
 
 ### ログ設定
 ```javascript
-configureLogLevel('DEBUG')       // ログレベル: DEBUG
-configureLogLevel('INFO')        // ログレベル: INFO（デフォルト）
-configureLogLevel('WARN')        // ログレベル: WARN
-configureLogLevel('ERROR')       // ログレベル: ERROR
-resetLogLevelConfig()            // ログレベルをデフォルト（INFO）に戻す
+configureLogLevel('DEBUG')       // DEBUG/INFO/WARN/ERROR（デフォルト: INFO）
+resetLogLevelConfig()            // デフォルト（INFO）に戻す
 ```
 
 ### Slack通知設定
 ```javascript
-configureSlackWebhook('https://hooks.slack.com/...')  // Slack Webhook URL設定
-removeSlackWebhook()                                  // Slack通知を無効化
+configureSlackWebhook('https://hooks.slack.com/...')  // Webhook URL設定
+removeSlackWebhook()                                  // 通知を無効化
 
-// 週次レポートトリガー（月曜9時）
-setupWeeklyReportTrigger()
-showWeeklyReportTrigger()
-removeWeeklyReportTrigger()
-sendWeeklyReport()               // 手動送信（テスト用）
-
-// インシデント日次サマリートリガー（毎日18時）
-setupIncidentDailySummaryTrigger()
-showIncidentDailySummaryTrigger()
-removeIncidentDailySummaryTrigger()
-sendIncidentDailySummary()       // 手動送信（テスト用）
+setupWeeklyReportTrigger()        // 週次レポート（月曜9時）
+setupIncidentDailySummaryTrigger() // インシデント日次（毎日18時）
+sendWeeklyReport()                // 手動送信テスト
+sendIncidentDailySummary()        // 手動送信テスト
 ```
 
 ---
 
 ## 💡 よくあるパターン
+
+### PRサイズ除外設定の適用
+```javascript
+// init.tsで設定 → デプロイ → GASエディタで実行
+initConfig();        // 設定を適用
+syncPRSize(90);      // PRサイズ再計算（除外ブランチが反映される）
+checkConfig();       // 設定確認
+```
 
 ### エラー調査の流れ
 ```javascript

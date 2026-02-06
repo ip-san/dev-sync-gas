@@ -3,7 +3,7 @@
  * init.ts の設定オブジェクトから実際の設定を適用する
  */
 
-import { setConfig, addRepository } from './settings';
+import { setConfig, addRepository, setExcludePRSizeBaseBranches } from './settings';
 import { initializeContainer, isContainerInitialized } from '../container';
 import { createGasAdapters } from '../adapters/gas';
 
@@ -30,6 +30,8 @@ export interface InitConfig {
     owner: string;
     name: string;
   }>;
+  /** PRサイズ計算から除外するbaseブランチ（部分一致） */
+  prSizeExcludeBranches?: string[];
 }
 
 /**
@@ -75,6 +77,14 @@ export function initializeFromConfig(config: InitConfig): void {
   for (const repo of config.repositories) {
     addRepository(repo.owner, repo.name);
     Logger.log(`✅ Added repository: ${repo.owner}/${repo.name}`);
+  }
+
+  // PRサイズ除外ブランチ設定
+  if (config.prSizeExcludeBranches && config.prSizeExcludeBranches.length > 0) {
+    setExcludePRSizeBaseBranches(config.prSizeExcludeBranches);
+    Logger.log(
+      `✅ PR size exclude branches: ${config.prSizeExcludeBranches.join(', ')} (partial match)`
+    );
   }
 
   Logger.log('✅ 初期設定完了');

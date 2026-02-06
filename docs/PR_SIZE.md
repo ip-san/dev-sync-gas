@@ -98,16 +98,38 @@ Files Changed: 30
 
 ### 設定方法
 
+#### init.tsで設定（推奨）
+
+`src/init.ts` に設定を記述して永続化できます：
+
+```typescript
+export const config: InitConfig = {
+  // ... 他の設定 ...
+
+  // PRサイズ計算から除外するbaseブランチ（部分一致）
+  prSizeExcludeBranches: ['production', 'staging'],
+};
+```
+
+設定後の適用手順：
+1. `bun run push` でデプロイ
+2. GASエディタで `initConfig()` を実行（設定を保存）
+3. `syncPRSize(90)` を実行（PRサイズを再計算）
+
+#### GASエディタで直接設定
+
 ```javascript
 // デプロイ用ブランチを除外（部分一致）
-setExcludePRSizeBaseBranches(['production', 'staging']);
+configurePRSizeExcludeBranches(['production', 'staging']);
+// → ✅ PR size exclude branches set to: production, staging (partial match)
 
 // 現在の設定を確認
-getExcludePRSizeBaseBranches();
-// → ['production', 'staging']
+showPRSizeExcludeBranches();
+// → 📋 PR size exclude branches: production, staging (partial match)
 
 // 設定をリセット（全PR対象に戻す）
-resetExcludePRSizeBaseBranches();
+resetPRSizeExcludeBranchesConfig();
+// → ✅ PR size exclude branches reset (all PRs will be included)
 ```
 
 ### 部分一致による判定
@@ -139,6 +161,29 @@ syncPRSize(90);
 
 ## トラブルシューティング
 
+### 除外設定が反映されない
+
+**症状**: 除外したはずのPRがスプレッドシートに表示される
+
+**原因**: スプレッドシートのデータは最後に `syncPRSize()` を実行した時点のものです。
+
+**解決手順**:
+
+```javascript
+// 1. 設定が保存されているか確認
+checkConfig();
+// 📊 PR Size Exclude Branches: production, staging
+// ↑ この表示があればOK
+
+// 2. なければ設定を適用
+initConfig();  // init.tsから設定を読み込む
+
+// 3. PRサイズを再計算
+syncPRSize(90);
+// Excluded 15 PRs with base branches containing: production, staging
+// ↑ 除外されたPRの数が表示される
+```
+
 ### 「No merged PRs found」
 
 - 期間を広げる
@@ -147,8 +192,8 @@ syncPRSize(90);
 ### 「No PRs remaining after filtering」
 
 - 除外ブランチ設定が広すぎる可能性があります
-- `getExcludePRSizeBaseBranches()` で現在の設定を確認
-- 必要に応じて `resetExcludePRSizeBaseBranches()` でリセット
+- `showPRSizeExcludeBranches()` で現在の設定を確認
+- 必要に応じて `resetPRSizeExcludeBranchesConfig()` でリセット
 
 ### サイズが0のPR
 

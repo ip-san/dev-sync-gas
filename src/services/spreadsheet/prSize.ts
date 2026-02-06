@@ -21,7 +21,7 @@ import {
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
-import { formatDateForDisplay } from '../../utils/dateFormat';
+import { formatDateForDisplay, formatRowsForSheet } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'PRサイズ';
 
@@ -170,7 +170,9 @@ export function writeDetailSheet(
   ]);
 
   const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length).setValues(rows);
+  sheet
+    .getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length)
+    .setValues(formatRowsForSheet(rows));
 
   // 数値列（6-9列目）を整数でフォーマット
   formatIntegerColumns(sheet, 6, 4);
@@ -263,7 +265,9 @@ export function writePRSizeToRepositorySheet(
     ]);
 
     const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
+    sheet
+      .getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length)
+      .setValues(formatRowsForSheet(rows));
 
     formatRepositoryPRSizeSheet(sheet);
     logger.info(`✅ [${repository}] Wrote ${filtered.length} PR size records`);

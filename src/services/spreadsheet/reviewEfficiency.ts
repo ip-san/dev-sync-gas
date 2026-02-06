@@ -20,7 +20,7 @@ import {
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
-import { formatDateForDisplay } from '../../utils/dateFormat';
+import { formatDateForDisplay, formatRowsForSheet } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'レビュー効率';
 
@@ -206,7 +206,9 @@ export function writeDetailSheet(
   ]);
 
   const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length).setValues(rows);
+  sheet
+    .getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length)
+    .setValues(formatRowsForSheet(rows));
 
   // 時間列（9-12列目）を小数点1桁でフォーマット
   formatDecimalColumns(sheet, 9, 4);
@@ -302,7 +304,9 @@ export function writeReviewEfficiencyToRepositorySheet(
     ]);
 
     const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
+    sheet
+      .getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length)
+      .setValues(formatRowsForSheet(rows));
 
     formatRepositoryReviewEfficiencySheet(sheet);
     logger.info(`✅ [${repository}] Wrote ${filtered.length} review efficiency records`);

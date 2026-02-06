@@ -14,7 +14,7 @@ import {
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
-import { formatDateForDisplay } from '../../utils/dateFormat';
+import { formatDateForDisplay, formatRowsForSheet } from '../../utils/dateFormat';
 
 const SHEET_NAME = '手戻り率';
 
@@ -158,7 +158,9 @@ export function writeDetailSheet(
   ]);
 
   const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length).setValues(rows);
+  sheet
+    .getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length)
+    .setValues(formatRowsForSheet(rows));
 
   // データ範囲にボーダーを適用
   const lastRowAfterWrite = sheet.getLastRow();
@@ -247,7 +249,9 @@ export function writeReworkRateToRepositorySheet(
     ]);
 
     const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length).setValues(rows);
+    sheet
+      .getRange(lastRow + 1, 1, rows.length, REPOSITORY_DETAIL_HEADERS.length)
+      .setValues(formatRowsForSheet(rows));
 
     formatRepositoryReworkRateSheet(sheet);
     logger.info(`✅ [${repository}] Wrote ${filtered.length} rework rate records`);

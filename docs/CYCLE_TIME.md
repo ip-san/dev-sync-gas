@@ -58,6 +58,33 @@ syncAllMetrics(90);     // 過去90日
 
 ブランチ名にこのパターンが含まれていればProductionとみなします。
 
+#### init.tsで設定（推奨）
+
+`src/init.ts` に設定を記述して永続化できます：
+
+```typescript
+export const config: InitConfig = {
+  // ... 他の設定 ...
+
+  projects: [
+    {
+      name: 'My Project',
+      // ... 他の設定 ...
+
+      // Productionブランチパターン（部分一致、デフォルト: "production"）
+      productionBranchPattern: 'production',
+    },
+  ],
+};
+```
+
+設定後の適用手順：
+1. `bun run push` でデプロイ
+2. GASエディタで `initConfig()` を実行（設定を保存）
+3. `syncAllMetrics(30)` を実行（サイクルタイムを再計算）
+
+#### GASエディタで直接設定
+
 ```javascript
 configureProductionBranch("production");  // デフォルト
 configureProductionBranch("release");     // "release" ブランチを使用する場合

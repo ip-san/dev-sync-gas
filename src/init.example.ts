@@ -74,6 +74,10 @@ export const config: InitConfig = {
       // デプロイワークフローパターン（部分一致）
       deployWorkflowPatterns: ['deploy'],
 
+      // Productionブランチパターン（部分一致、デフォルト: "production"）
+      // サイクルタイム計測でどのブランチをProductionとみなすかを指定
+      productionBranchPattern: 'production',
+
       // 例:
       // - "production" → 除外
       // - "production-hotfix" → 除外（部分一致）
@@ -93,7 +97,13 @@ export const config: InitConfig = {
     //   ],
     //   excludeBranches: {
     //     prSize: ['main'],
+    //     reviewEfficiency: ['main'],
+    //     cycleTime: ['main'],
+    //     codingTime: ['main'],
+    //     reworkRate: ['main'],
     //   },
+    //   deployWorkflowPatterns: ['deploy'],
+    //   productionBranchPattern: 'main',  // デフォルト: "production"
     // },
   ],
 };

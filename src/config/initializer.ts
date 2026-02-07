@@ -12,6 +12,7 @@ import {
   setExcludeCodingTimeBaseBranches,
   setExcludeReworkRateBaseBranches,
   setDeployWorkflowPatterns,
+  setProductionBranchPattern,
 } from './settings';
 import { initializeContainer, isContainerInitialized } from '../container';
 import { createGasAdapters } from '../adapters/gas';
@@ -72,6 +73,8 @@ export interface ProjectConfig {
   excludeBranches?: ExcludeBranchesConfig;
   /** デプロイワークフローパターン（部分一致） */
   deployWorkflowPatterns?: string[];
+  /** Productionブランチパターン（デフォルト: "production"） */
+  productionBranchPattern?: string;
 }
 
 /**
@@ -231,6 +234,16 @@ function applyDeployWorkflowPatterns(patterns?: string[]): void {
 }
 
 /**
+ * Productionブランチパターンを適用
+ */
+function applyProductionBranchPattern(pattern?: string): void {
+  if (pattern) {
+    setProductionBranchPattern(pattern);
+    Logger.log(`✅ Production branch pattern: ${pattern}`);
+  }
+}
+
+/**
  * プロジェクト設定を初期化
  */
 function initializeProject(project: ProjectConfig, auth: AuthConfig): void {
@@ -249,6 +262,9 @@ function initializeProject(project: ProjectConfig, auth: AuthConfig): void {
 
   // デプロイワークフローパターンを適用
   applyDeployWorkflowPatterns(project.deployWorkflowPatterns);
+
+  // Productionブランチパターンを適用
+  applyProductionBranchPattern(project.productionBranchPattern);
 
   Logger.log(`✅ Project "${project.name}" initialized`);
 }

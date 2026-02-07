@@ -408,6 +408,28 @@ showApiMode();
 
 ### Production環境名の設定
 
+#### init.tsで設定（推奨）
+
+`src/init.ts` に設定を記述して永続化できます：
+
+```typescript
+export const config: InitConfig = {
+  projects: [
+    {
+      name: 'My Project',
+      // ... 他の設定 ...
+
+      // Productionブランチパターン（部分一致、デフォルト: "production"）
+      productionBranchPattern: 'production',
+    },
+  ],
+};
+```
+
+設定後は `bun run push` → `initConfig()` で適用します。
+
+#### GASエディタで直接設定
+
 ```javascript
 // デフォルト: "production"（部分一致）
 showProductionBranch();

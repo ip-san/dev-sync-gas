@@ -95,6 +95,19 @@ PR3 (staging→production) ← このマージ日 = 完了日
 
 ### 設定
 
+**init.tsで設定（推奨）:**
+
+```typescript
+export const config: InitConfig = {
+  projects: [{
+    // ... 他の設定 ...
+    productionBranchPattern: 'production',  // Productionブランチパターン
+  }],
+};
+```
+
+**GASエディタで直接設定:**
+
 ```javascript
 // Productionブランチパターンを設定
 configureProductionBranch("production");  // デフォルト

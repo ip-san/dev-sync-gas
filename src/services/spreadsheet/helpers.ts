@@ -58,25 +58,36 @@ export function getOrCreateSheet(
 /**
  * シートの列幅を自動調整する
  *
+ * ヘッダー行（1行目）の文字数に基づいて列幅を計算し、最小幅・最大幅を適用する。
+ *
  * @param sheet - 対象シート
  * @param columnCount - 調整する列数
  */
 export function autoResizeColumns(sheet: Sheet, columnCount: number): void {
   const MIN_WIDTH = 100; // 最小幅（ピクセル）
   const MAX_WIDTH = 400; // 最大幅（ピクセル）
+  const PIXELS_PER_CHAR = 10; // 1文字あたりのピクセル数
+  const PADDING = 20; // 余白（ピクセル）
+
+  // ヘッダー行のテキストを取得
+  const headerValues = sheet.getRange(1, 1, 1, columnCount).getValues()[0];
 
   for (let i = 1; i <= columnCount; i++) {
-    sheet.autoResizeColumn(i);
+    const headerText = String(headerValues[i - 1] || '');
 
-    // 自動調整後の幅を取得
-    const currentWidth = sheet.getColumnWidth(i);
-
-    // 最小幅・最大幅を保証
-    if (currentWidth < MIN_WIDTH) {
-      sheet.setColumnWidth(i, MIN_WIDTH);
-    } else if (currentWidth > MAX_WIDTH) {
-      sheet.setColumnWidth(i, MAX_WIDTH);
+    // 文字数を計算（日本語などの全角文字は1.5倍として計算）
+    let charCount = 0;
+    for (const char of headerText) {
+      // 全角文字（日本語、中国語など）は幅が広い
+      charCount += char.match(/[\u3000-\u9FFF\uF900-\uFAFF]/) ? 1.5 : 1;
     }
+
+    // 文字数から幅を計算
+    const calculatedWidth = Math.ceil(charCount * PIXELS_PER_CHAR) + PADDING;
+
+    // 最小幅・最大幅を適用
+    const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, calculatedWidth));
+    sheet.setColumnWidth(i, width);
   }
 }
 

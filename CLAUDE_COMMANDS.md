@@ -57,13 +57,6 @@ syncAllMetrics()                 // 全指標を一括同期（DORA + 拡張指�
 // DORA指標同期
 syncDevOpsMetrics()              // DORA指標を同期（Dashboard/チャート自動生成）
 syncDailyBackfill(30)            // 過去30日分をバックフィル
-
-// 拡張指標同期（個別）※引数で日数指定可能（デフォルト: 30日）
-syncCycleTime()                  // サイクルタイム
-syncCodingTime()                 // コーディング時間
-syncReworkRate()                 // 手戻り率
-syncReviewEfficiency()           // レビュー効率
-syncPRSize()                     // PRサイズ
 ```
 
 ---

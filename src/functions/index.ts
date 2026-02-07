@@ -24,15 +24,7 @@ export {
 } from './sync';
 
 // 拡張指標同期
-export {
-  syncCycleTime,
-  syncCodingTime,
-  syncReworkRate,
-  syncReviewEfficiency,
-  syncPRSize,
-  syncAllMetrics,
-  syncAllMetricsFromScratch,
-} from './extendedMetrics';
+export { syncAllMetrics, syncAllMetricsFromScratch } from './extendedMetrics';
 
 // セットアップ・設定
 export {

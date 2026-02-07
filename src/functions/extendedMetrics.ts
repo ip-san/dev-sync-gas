@@ -103,7 +103,7 @@ function filterPRsByExcludeBranches(
  *
  * @param days - 過去何日分のデータを取得するか（デフォルト: 30日）
  */
-export function syncCycleTime(days = 30): void {
+function syncCycleTime(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
   const token = getGitHubToken();
@@ -151,7 +151,7 @@ export function syncCycleTime(days = 30): void {
  *
  * @param days - 過去何日分のデータを取得するか（デフォルト: 30日）
  */
-export function syncCodingTime(days = 30): void {
+function syncCodingTime(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
   const token = getGitHubToken();
@@ -199,7 +199,7 @@ export function syncCodingTime(days = 30): void {
  *
  * @param days - 過去何日分のデータを取得するか（デフォルト: 30日）
  */
-export function syncReworkRate(days = 30): void {
+function syncReworkRate(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
   const token = getGitHubToken();
@@ -253,7 +253,7 @@ export function syncReworkRate(days = 30): void {
  *
  * @param days - 過去何日分のデータを取得するか（デフォルト: 30日）
  */
-export function syncReviewEfficiency(days = 30): void {
+function syncReviewEfficiency(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
   const token = getGitHubToken();
@@ -307,7 +307,7 @@ export function syncReviewEfficiency(days = 30): void {
  *
  * @param days - 過去何日分のデータを取得するか（デフォルト: 30日）
  */
-export function syncPRSize(days = 30): void {
+function syncPRSize(days = 30): void {
   ensureContainerInitialized();
   const config = getConfig();
   const token = getGitHubToken();

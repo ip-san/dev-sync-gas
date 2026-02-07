@@ -15,11 +15,6 @@ import {
   syncDailyBackfill,
   backfillAllProjectsDaily,
   // 拡張指標同期
-  syncCycleTime,
-  syncCodingTime,
-  syncReworkRate,
-  syncReviewEfficiency,
-  syncPRSize,
   syncAllMetrics,
   syncAllMetricsFromScratch,
   // セットアップ・設定
@@ -122,11 +117,6 @@ global.syncDailyBackfill = syncDailyBackfill;
 global.backfillAllProjectsDaily = backfillAllProjectsDaily;
 
 // 拡張指標同期
-global.syncCycleTime = syncCycleTime;
-global.syncCodingTime = syncCodingTime;
-global.syncReworkRate = syncReworkRate;
-global.syncReviewEfficiency = syncReviewEfficiency;
-global.syncPRSize = syncPRSize;
 global.syncAllMetrics = syncAllMetrics;
 global.syncAllMetricsFromScratch = syncAllMetricsFromScratch;
 

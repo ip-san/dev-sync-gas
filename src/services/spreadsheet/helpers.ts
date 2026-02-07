@@ -62,8 +62,21 @@ export function getOrCreateSheet(
  * @param columnCount - 調整する列数
  */
 export function autoResizeColumns(sheet: Sheet, columnCount: number): void {
+  const MIN_WIDTH = 100; // 最小幅（ピクセル）
+  const MAX_WIDTH = 400; // 最大幅（ピクセル）
+
   for (let i = 1; i <= columnCount; i++) {
     sheet.autoResizeColumn(i);
+
+    // 自動調整後の幅を取得
+    const currentWidth = sheet.getColumnWidth(i);
+
+    // 最小幅・最大幅を保証
+    if (currentWidth < MIN_WIDTH) {
+      sheet.setColumnWidth(i, MIN_WIDTH);
+    } else if (currentWidth > MAX_WIDTH) {
+      sheet.setColumnWidth(i, MAX_WIDTH);
+    }
   }
 }
 

@@ -207,6 +207,7 @@ export class MockSheet implements Sheet {
   private frozenRows: number = 0;
   private resizedColumns: number[] = [];
   private charts: EmbeddedChart[] = [];
+  private columnWidths: Map<number, number> = new Map();
 
   constructor(name: string, initialData: unknown[][] = []) {
     this.name = name;
@@ -286,6 +287,14 @@ export class MockSheet implements Sheet {
 
   autoResizeColumn(col: number): void {
     this.resizedColumns.push(col);
+  }
+
+  getColumnWidth(col: number): number {
+    return this.columnWidths.get(col) ?? 100;
+  }
+
+  setColumnWidth(col: number, width: number): void {
+    this.columnWidths.set(col, width);
   }
 
   deleteRow(row: number): void {

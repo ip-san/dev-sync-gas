@@ -44,6 +44,14 @@ export class GasSheet implements Sheet {
     this.sheet.autoResizeColumn(col);
   }
 
+  getColumnWidth(col: number): number {
+    return this.sheet.getColumnWidth(col);
+  }
+
+  setColumnWidth(col: number, width: number): void {
+    this.sheet.setColumnWidth(col, width);
+  }
+
   deleteRow(row: number): void {
     this.sheet.deleteRow(row);
   }

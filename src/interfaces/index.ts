@@ -100,6 +100,8 @@ export interface Sheet {
   getLastColumn(): number;
   setFrozenRows(rows: number): void;
   autoResizeColumn(col: number): void;
+  getColumnWidth(col: number): number;
+  setColumnWidth(col: number, width: number): void;
   deleteRow(row: number): void;
   clear(): void;
   // チャート関連

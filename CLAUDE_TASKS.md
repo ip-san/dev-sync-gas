@@ -46,9 +46,11 @@
 1. 診断ツール実行 → GASエディタで `checkConfig()`
 2. ドキュメント参照 → [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 3. エラーコード確認 → src/utils/errors.ts
-4. 設定変更 → src/init.ts 更新 → 再デプロイ → `initConfig()`
+4. 設定変更 → src/init.ts 更新 → `bun run push` → `initConfig()`
 
-**トラブルシューティング**: `checkConfig()`, `configureLogLevel('DEBUG')`, [SETUP.md](docs/SETUP.md)
+**Note:** 細かい設定変更（API モード、ラベル、除外ブランチ、ログレベル等）は src/init.ts で行い、デプロイして反映します。GAS エディターから直接変更する関数は最小限に抑えられています。
+
+**トラブルシューティング**: `checkConfig()`, [SETUP.md](docs/SETUP.md)
 
 ---
 

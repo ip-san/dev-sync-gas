@@ -33,17 +33,20 @@ bunx tsc --noEmit && bun run lint && bun test && bun run build
 ```javascript
 // 設定診断
 checkConfig()                    // 設定診断（困ったら最初に実行）
+testPermissions()                // GitHub API権限テスト
 showAuthMode()                   // 認証方式確認（PAT/GitHub Apps）
-showApiMode()                    // API選択確認（GraphQL/REST）
+
+// 主要な設定表示
+showCycleTimeConfig()            // サイクルタイム設定確認
+showCodingTimeConfig()           // コーディングタイム設定確認
 showLogLevel()                   // ログレベル確認
-showExcludeLabels()              // 除外ラベル確認
-showIncidentLabels()             // インシデントラベル確認
 showSlackConfig()                // Slack通知設定確認
 
-// リポジトリ管理
+// リポジトリ・プロジェクト管理
 listRepos()                      // 登録リポジトリ一覧
 addRepo('owner', 'repo-name')    // リポジトリ追加
 removeRepo('owner/repo-name')    // リポジトリ削除
+listProjects()                   // プロジェクト一覧
 ```
 
 ---
@@ -65,89 +68,54 @@ syncDailyBackfill(30)            // 過去30日分をバックフィル
 
 ### 初期設定
 ```javascript
-initConfig()                     // src/init.ts の設定を PropertiesService に保存
+initConfig()  // src/init.ts の設定を PropertiesService に保存
 ```
 
-### API設定
-```javascript
-configureApiMode('graphql')      // GraphQL（デフォルト）/REST切替
-```
+> **📝 Note:** 細かい設定（API/ラベル/除外ブランチ/ログレベル等）は `src/init.ts` で設定 → `bun run push` → `initConfig()` で反映。詳細: [init.example.ts](src/init.example.ts)
 
-### ラベル設定
+### Slack通知
 ```javascript
-configureExcludeLabels(['exclude-metrics', 'bot'])    // 除外ラベル設定
-resetExcludeLabelsConfig()                            // 除外ラベルをデフォルトに戻す
-configureIncidentLabels(['incident', 'bug', 'p0'])    // インシデントラベル設定
-resetIncidentLabelsConfig()                           // インシデントラベルをデフォルトに戻す
-```
+// 設定
+configureSlackWebhook('https://hooks.slack.com/...')
+removeSlackWebhook()
 
-### PRサイズ・レビュー効率設定
-```javascript
-// デプロイ用PRを除外（部分一致）
-configurePRSizeExcludeBranches(['production', 'staging'])
-configureReviewEfficiencyExcludeBranches(['production', 'staging'])
-showPRSizeExcludeBranches()                           // PRサイズ設定確認
-showReviewEfficiencyExcludeBranches()                 // レビュー効率設定確認
-```
+// トリガー設定
+setupWeeklyReportTrigger()        // 週次（月曜9時）
+setupIncidentDailySummaryTrigger() // 日次（毎日18時）
+setupAlertTrigger()               // アラート
+setupMonthlyReportTrigger()       // 月次
 
-### ログ設定
-```javascript
-configureLogLevel('DEBUG')       // DEBUG/INFO/WARN/ERROR（デフォルト: INFO）
-resetLogLevelConfig()            // デフォルト（INFO）に戻す
-```
+// 手動送信
+sendWeeklyReport()
+sendIncidentDailySummary()
+sendMonthlyReport()
+checkAndSendAlerts()
 
-### Slack通知設定
-```javascript
-configureSlackWebhook('https://hooks.slack.com/...')  // Webhook URL設定
-removeSlackWebhook()                                  // 通知を無効化
-
-setupWeeklyReportTrigger()        // 週次レポート（月曜9時）
-setupIncidentDailySummaryTrigger() // インシデント日次（毎日18時）
-sendWeeklyReport()                // 手動送信テスト
-sendIncidentDailySummary()        // 手動送信テスト
+// トリガー削除
+removeWeeklyReportTrigger() / removeIncidentDailySummaryTrigger() / removeAlertTrigger() / removeMonthlyReportTrigger()
 ```
 
 ---
 
 ## 💡 よくあるパターン
 
-### PRサイズ除外設定の適用
-```javascript
-// init.tsで設定 → デプロイ → GASエディタで実行
-initConfig();        // 設定を適用
-syncPRSize(90);      // PRサイズ再計算（除外ブランチが反映される）
-checkConfig();       // 設定確認
+### 設定変更
+```bash
+src/init.ts 編集 → bun run push → initConfig() → checkConfig()
 ```
-### エラー調査の流れ
+
+### エラー調査
 ```javascript
-// 1. ログレベルをDEBUGに変更
-configureLogLevel('DEBUG');
-
-// 2. 問題の関数を実行
-syncDevOpsMetrics();
-
-// 3. ログを確認してエラーコードを特定
-
-// 4. Grep tool でエラーコードを検索（例: "GITHUB_RATE_LIMIT"）
-
-// 5. src/utils/errors.ts でエラー詳細を確認
+// 1. init.ts でログレベル DEBUG に変更 → push → initConfig()
+// 2. 関数実行してログ確認
+// 3. エラーコードを Grep で検索 → src/utils/errors.ts 確認
 ```
 
 ### 作業完了チェックリスト
-- [ ] 型エラーなし: `bunx tsc --noEmit`
-- [ ] Lint通過: `bun run lint`
-- [ ] テスト通過: `bun test`
-- [ ] ビルド成功: `bun run build`
-- [ ] 全チェック通過: `bun run check:all`
-- [ ] `/review` 実行済み
-- [ ] 必要に応じてドキュメント更新
+```bash
+bunx tsc --noEmit && bun run lint && bun test && bun run build
+bun run check:all  # 循環依存、未使用コード、型カバレッジ
+/review            # コードレビュー実行
+```
 
-### 設計判断の記録
-
-| 規模 | 記録先 | 例 |
-|------|--------|-----|
-| 小（バグ修正、軽微な改善） | コミットメッセージ | "fix: 日付フォーマットのバグを修正" |
-| 中（機能追加、リファクタリング） | PR Description | "feat: Slack通知機能の追加" |
-| 大（アーキテクチャ変更、技術選定） | [docs/adr/](docs/adr/) | "ADR-0003: スプレッドシート構造の変更" |
-
-**ADR作成手順**: [docs/adr/README.md](docs/adr/README.md)
+詳細: [CLAUDE_TASKS.md](CLAUDE_TASKS.md)

@@ -90,17 +90,25 @@ resetReworkRateExcludeBranchesConfig();
 
 ## 出力されるシート
 
-### 「Rework Rate」シート（サマリー）
+リポジトリごとに2つのシートが生成されます：
 
-| Period | PR Count | Add Commits (Total) | Add Commits (Avg) | Force Pushes (Total) | Force Push Rate (%) |
-|--------|----------|---------------------|-------------------|---------------------|---------------------|
-| 2024-01-01〜01-31 | 25 | 48 | 1.9 | 12 | 32.0 |
+### 集約シート: `{owner/repo} - Rework Rate`
 
-### 「Rework Rate - Details」シート（PR詳細）
+**日付ごとの統計**（トレンド分析用）
 
-| PR # | Title | Repository | Total Commits | Additional Commits | Force Push Count |
-|------|-------|------------|---------------|-------------------|------------------|
-| 123 | Feature X | owner/repo | 5 | 2 | 0 |
+| 日付 | PR数 | 平均追加コミット | 中央値コミット | 平均Force Push | Force Push率 (%) | 記録日時 |
+|------|------|----------------|--------------|---------------|-----------------|---------|
+| 2024-01-10 | 5 | 2.4 | 2 | 0.6 | 40.0 | 2024-01-15 12:00 |
+| 2024-01-11 | 3 | 1.7 | 1 | 0.3 | 33.3 | 2024-01-15 12:00 |
+
+### 詳細シート: `{owner/repo} - Rework Rate - Details`
+
+**PR単位の個別レコード**（ドリルダウン調査用）
+
+| PR # | Title | Repository | Total Commits | Additional Commits | Force Push Count | Merged At |
+|------|-------|------------|---------------|-------------------|------------------|-----------|
+| 123 | Feature X | owner/repo | 5 | 2 | 0 | 2024-01-10T15:00 |
+| 124 | Bug Fix | owner/repo | 3 | 1 | 1 | 2024-01-10T18:00 |
 
 ---
 

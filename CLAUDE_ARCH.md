@@ -125,13 +125,19 @@ PropertiesService（GAS標準のストレージ）に保存:
 | MTTR | Issue（インシデントラベル） |
 
 ### 拡張指標
-| 指標 | データソース |
-|------|------------|
-| Cycle Time | Issue + PR + Merge |
-| Coding Time | Issue + PR |
-| Rework Rate | PR Commits |
-| Review Efficiency | PR Review Events |
-| PR Size | PR Diff Stats |
+| 指標 | データソース | シート構造 |
+|------|------------|----------|
+| Cycle Time | Issue + PR + Merge | 集約 + 詳細 |
+| Coding Time | Issue + PR | 集約 + 詳細 |
+| Rework Rate | PR Commits | 集約 + 詳細 |
+| Review Efficiency | PR Review Events | 集約 + 詳細 |
+| PR Size | PR Diff Stats | 集約 + 詳細 |
+
+**2層構造**: すべての拡張指標はリポジトリ別に2つのシートを生成します。
+- **集約シート** (`{repo} - {metric}`): 日付ごとの統計（平均、中央値、最小、最大）
+- **詳細シート** (`{repo} - {metric} - Details`): Issue/PR単位の個別レコード
+
+この構造により、トレンド分析（マクロ）とドリルダウン調査（ミクロ）の両方に対応。DORA指標との整合性も向上。
 
 **詳細**: [DORA_METRICS.md](docs/DORA_METRICS.md), [EXTENDED_METRICS.md](docs/EXTENDED_METRICS.md)
 

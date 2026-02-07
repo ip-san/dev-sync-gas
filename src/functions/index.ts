@@ -22,13 +22,9 @@ export {
   syncProject,
   syncHistoricalMetrics,
   syncAllProjectsHistorical,
-  syncLast30Days,
-  syncLast90Days,
   // 日別バックフィル
   syncDailyBackfill,
   backfillAllProjectsDaily,
-  backfillLast30Days,
-  backfillLast90Days,
 } from './sync';
 
 // 拡張指標同期
@@ -38,6 +34,8 @@ export {
   syncReworkRate,
   syncReviewEfficiency,
   syncPRSize,
+  syncAllMetrics,
+  syncAllMetricsFromScratch,
 } from './extendedMetrics';
 
 // セットアップ・設定
@@ -61,34 +59,20 @@ export {
 export {
   configureProductionBranch,
   showProductionBranch,
-  resetProductionBranch,
   configureCycleTimeLabels,
   showCycleTimeLabels,
-  resetCycleTimeLabelsConfig,
   showCycleTimeConfig,
   configureCodingTimeLabels,
   showCodingTimeLabels,
-  resetCodingTimeLabelsConfig,
   showCodingTimeConfig,
   configurePRSizeExcludeBranches,
   showPRSizeExcludeBranches,
-  resetPRSizeExcludeBranchesConfig,
-  configureReviewEfficiencyExcludeBranches,
-  showReviewEfficiencyExcludeBranches,
-  resetReviewEfficiencyExcludeBranchesConfig,
-  configureCycleTimeExcludeBranches,
-  showCycleTimeExcludeBranches,
-  resetCycleTimeExcludeBranchesConfig,
-  configureCodingTimeExcludeBranches,
-  showCodingTimeExcludeBranches,
-  resetCodingTimeExcludeBranchesConfig,
-  configureReworkRateExcludeBranches,
-  showReworkRateExcludeBranches,
-  resetReworkRateExcludeBranchesConfig,
+  configureDeployWorkflowPatterns,
+  showDeployWorkflowPatterns,
+  resetDeployWorkflowPatternsConfig,
   // API モード設定
   configureApiMode,
   showApiMode,
-  resetApiMode,
 } from './config';
 
 // マイグレーション
@@ -115,4 +99,4 @@ export {
 } from './secretManager';
 
 // ログレベル設定
-export { showLogLevel, configureLogLevel, resetLogLevelConfig } from './logLevel';
+export { showLogLevel, configureLogLevel } from './logLevel';

@@ -10,44 +10,13 @@ import type { Sheet } from '../../interfaces';
 import { getContainer } from '../../container';
 import { getOrCreateSheet, autoResizeColumns, openSpreadsheet, applyDataBorders } from './helpers';
 import {
-  groupReworkRateDetailsByRepository,
+  groupPRDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 import { SpreadsheetError, ErrorCode, AppError } from '../../utils/errors';
-import { formatDateForDisplay, formatRowsForSheet } from '../../utils/dateFormat';
+import { formatRowsForSheet } from '../../utils/dateFormat';
 
 const SHEET_NAME = '手戻り率';
-
-/**
- * サマリーシートのヘッダー定義
- */
-const SUMMARY_HEADERS = [
-  '期間', // 計測期間
-  'PR数', // 分析対象のPR数
-  '追加コミット数 (合計)', // 全PRの追加コミット数合計
-  '追加コミット数 (平均)', // PRあたりの平均値
-  '追加コミット数 (中央値)', // ソート後の中央値
-  '追加コミット数 (最大)', // 最も多かったPR
-  'Force Push回数 (合計)', // 全PRのForce Push回数合計
-  'Force Push回数 (平均)', // PRあたりの平均値
-  'Force Pushがあった PR数', // Force Pushが発生したPRの数
-  'Force Push率 (%)', // Force Pushが発生したPRの割合
-  '記録日時', // データ記録時刻
-];
-
-/**
- * 詳細シートのヘッダー定義（グローバル）
- */
-const DETAIL_HEADERS = [
-  'PR番号', // GitHubのPR番号
-  'タイトル', // PRタイトル
-  'リポジトリ', // 対象リポジトリ
-  '作成日時', // PR作成日時
-  'マージ日時', // PRマージ日時
-  '総コミット数', // PRの総コミット数
-  '追加コミット数', // PR作成後の追加コミット数
-  'Force Push回数', // Force Push回数
-];
 
 /**
  * リポジトリ別シートのヘッダー定義（リポジトリ列を除く）
@@ -85,90 +54,6 @@ export function writeReworkRateToSheet(spreadsheetId: string, metrics: ReworkRat
       cause: error as Error,
     });
   }
-}
-
-/**
- * サマリーシートに書き込み
- * @deprecated レガシー機能。マイグレーション用に保持。
- */
-export function writeSummarySheet(
-  spreadsheet: ReturnType<typeof openSpreadsheet>,
-  metrics: ReworkRateMetrics
-): void {
-  const sheet = getOrCreateSheet(spreadsheet, SHEET_NAME, SUMMARY_HEADERS);
-
-  const row = [
-    metrics.period,
-    metrics.prCount,
-    metrics.additionalCommits.total,
-    metrics.additionalCommits.avgPerPr ?? 'N/A',
-    metrics.additionalCommits.median ?? 'N/A',
-    metrics.additionalCommits.max ?? 'N/A',
-    metrics.forcePushes.total,
-    metrics.forcePushes.avgPerPr ?? 'N/A',
-    metrics.forcePushes.prsWithForcePush,
-    metrics.forcePushes.forcePushRate ?? 'N/A',
-    formatDateForDisplay(new Date()),
-  ];
-
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, 1, SUMMARY_HEADERS.length).setValues([row]);
-
-  // フォーマット設定
-  const newLastRow = sheet.getLastRow();
-  if (newLastRow > 1) {
-    // 追加コミット数の平均・中央値・最大（4〜6列目）
-    sheet.getRange(2, 4, newLastRow - 1, 3).setNumberFormat('#,##0.0');
-    // Force Push平均（8列目）
-    sheet.getRange(2, 8, newLastRow - 1, 1).setNumberFormat('#,##0.0');
-    // Force Push率（10列目）
-    sheet.getRange(2, 10, newLastRow - 1, 1).setNumberFormat('#,##0.0');
-
-    // データ範囲にボーダーを適用
-    applyDataBorders(sheet, newLastRow - 1, SUMMARY_HEADERS.length);
-  }
-
-  autoResizeColumns(sheet, SUMMARY_HEADERS.length);
-}
-
-/**
- * 詳細シートに書き込み
- * @deprecated レガシー機能。マイグレーション用に保持。
- */
-export function writeDetailSheet(
-  spreadsheet: ReturnType<typeof openSpreadsheet>,
-  metrics: ReworkRateMetrics
-): void {
-  if (metrics.prDetails.length === 0) {
-    return;
-  }
-
-  const detailSheetName = `${SHEET_NAME} - Details`;
-  const sheet = getOrCreateSheet(spreadsheet, detailSheetName, DETAIL_HEADERS);
-
-  const rows = metrics.prDetails.map((pr) => [
-    pr.prNumber,
-    pr.title,
-    pr.repository,
-    pr.createdAt,
-    pr.mergedAt ?? 'Not merged',
-    pr.totalCommits,
-    pr.additionalCommits,
-    pr.forcePushCount,
-  ]);
-
-  const lastRow = sheet.getLastRow();
-  sheet
-    .getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length)
-    .setValues(formatRowsForSheet(rows));
-
-  // データ範囲にボーダーを適用
-  const lastRowAfterWrite = sheet.getLastRow();
-  if (lastRowAfterWrite > 1) {
-    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
-  }
-
-  autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }
 
 /**
@@ -292,7 +177,7 @@ export function writeReworkRateToAllRepositorySheets(
   options: { skipDuplicates?: boolean } = {}
 ): Map<string, { written: number; skipped: number }> {
   const { logger } = getContainer();
-  const grouped = groupReworkRateDetailsByRepository(metrics.prDetails);
+  const grouped = groupPRDetailsByRepository(metrics.prDetails);
   const results = new Map<string, { written: number; skipped: number }>();
 
   logger.info(`📊 Writing rework rate to ${grouped.size} repository sheets...`);

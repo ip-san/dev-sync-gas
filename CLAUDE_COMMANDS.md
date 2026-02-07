@@ -51,17 +51,26 @@ removeRepo('owner/repo-name')    // リポジトリ削除
 ## 📊 GAS関数（データ同期）
 
 ```javascript
-// メイン同期
+// 🚀 一括同期（推奨）
+syncAllMetrics()                 // 全指標を一括同期（DORA + 拡張指標全部、過去30日）
+syncAllMetrics(90)               // 過去90日分を一括同期
+
+// DORA指標同期
 syncDevOpsMetrics()              // DORA指標を同期（Dashboard/チャート自動生成）
 syncDailyBackfill(30)            // 過去30日分をバックフィル
 syncAllProjects()                // 全プロジェクトを同期
 
-// 個別指標同期
-syncCycleTime(30)                // サイクルタイム（過去30日）
-syncCodingTime(30)               // コーディング時間（過去30日）
-syncReworkRate(30)               // 手戻り率（過去30日）
-syncReviewEfficiency(30)         // レビュー効率（過去30日）
-syncPRSize(30)                   // PRサイズ（過去30日）
+// 拡張指標同期（個別）
+syncCycleTime()                  // サイクルタイム（過去30日、デフォルト）
+syncCycleTime(90)                // サイクルタイム（過去90日）
+syncCodingTime()                 // コーディング時間（過去30日、デフォルト）
+syncCodingTime(90)               // コーディング時間（過去90日）
+syncReworkRate()                 // 手戻り率（過去30日、デフォルト）
+syncReworkRate(90)               // 手戻り率（過去90日）
+syncReviewEfficiency()           // レビュー効率（過去30日、デフォルト）
+syncReviewEfficiency(90)         // レビュー効率（過去90日）
+syncPRSize()                     // PRサイズ（過去30日、デフォルト）
+syncPRSize(90)                   // PRサイズ（過去90日）
 ```
 
 ---

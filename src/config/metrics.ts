@@ -7,6 +7,7 @@ import {
   CYCLE_TIME_EXCLUDE_KEYS,
   CODING_TIME_EXCLUDE_KEYS,
   REWORK_RATE_EXCLUDE_KEYS,
+  DEPLOYMENT_KEYS,
 } from './propertyKeys';
 
 // ============================================================
@@ -396,4 +397,56 @@ export function setExcludeReworkRateBaseBranches(branches: string[]): void {
  */
 export function resetExcludeReworkRateBaseBranches(): void {
   deleteProperty(REWORK_RATE_EXCLUDE_KEYS.EXCLUDE_BASE_BRANCHES);
+}
+
+// ============================================================
+// デプロイメント設定
+// ============================================================
+
+/** デフォルトのデプロイワークフローパターン */
+const DEFAULT_DEPLOY_WORKFLOW_PATTERNS = ['deploy'];
+
+/**
+ * デプロイワークフローパターンを取得
+ * これらのパターンを含むワークフロー実行をデプロイとみなす（部分一致）
+ *
+ * @returns ワークフローパターン配列（デフォルト: ['deploy']）
+ * @example
+ * // 設定が ["deploy", "release", "production"] の場合:
+ * // - "Deploy to Production" → デプロイ
+ * // - "release-staging" → デプロイ（部分一致）
+ * // - "production-deploy" → デプロイ（部分一致）
+ * // - "CI Build" → 含めない
+ */
+export function getDeployWorkflowPatterns(): string[] {
+  try {
+    const patterns = getPropertyAsStringArray(DEPLOYMENT_KEYS.WORKFLOW_PATTERNS);
+    return patterns.length > 0 ? patterns : DEFAULT_DEPLOY_WORKFLOW_PATTERNS;
+  } catch (error) {
+    // コンテナ未初期化の場合はデフォルト値を返す
+    return DEFAULT_DEPLOY_WORKFLOW_PATTERNS;
+  }
+}
+
+/**
+ * デプロイワークフローパターンを設定
+ * ワークフロー名は部分一致で判定される（大文字小文字を区別しない）
+ *
+ * @param patterns デプロイとみなすワークフローパターンの配列
+ * @example
+ * // デプロイとみなすパターンを設定（部分一致）
+ * setDeployWorkflowPatterns(["deploy", "release", "production"]);
+ *
+ * // デフォルトに戻す
+ * setDeployWorkflowPatterns(["deploy"]);
+ */
+export function setDeployWorkflowPatterns(patterns: string[]): void {
+  setPropertyAsStringArray(DEPLOYMENT_KEYS.WORKFLOW_PATTERNS, patterns);
+}
+
+/**
+ * デプロイワークフローパターン設定をリセット（デフォルトに戻す）
+ */
+export function resetDeployWorkflowPatterns(): void {
+  deleteProperty(DEPLOYMENT_KEYS.WORKFLOW_PATTERNS);
 }

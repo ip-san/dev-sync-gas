@@ -268,16 +268,6 @@ export async function syncAllProjectsHistorical(days: number): Promise<void> {
   await syncAllProjects({ since, until });
 }
 
-/** 過去30日分を取得 */
-export async function syncLast30Days(): Promise<void> {
-  await syncHistoricalMetrics(30);
-}
-
-/** 過去90日分を取得 */
-export async function syncLast90Days(): Promise<void> {
-  await syncHistoricalMetrics(90);
-}
-
 // =============================================================================
 // 日別バックフィル
 // =============================================================================
@@ -405,16 +395,6 @@ export async function backfillAllProjectsDaily(days = 30): Promise<void> {
   }
 
   Logger.log(`\n✅ Daily backfill completed for ${projects.length} projects`);
-}
-
-/** 過去30日分を日別バックフィル */
-export async function backfillLast30Days(): Promise<void> {
-  await syncDailyBackfill(30);
-}
-
-/** 過去90日分を日別バックフィル */
-export async function backfillLast90Days(): Promise<void> {
-  await syncDailyBackfill(90);
 }
 
 // =============================================================================

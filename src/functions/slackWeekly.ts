@@ -170,19 +170,3 @@ export function removeWeeklyReportTrigger(): void {
     logger.info('No weekly report trigger found to remove');
   }
 }
-
-/**
- * 週次レポートトリガーの状態を表示
- */
-export function showWeeklyReportTrigger(): void {
-  const { triggerClient, logger } = getContainer();
-
-  const triggers = triggerClient.getProjectTriggers();
-  const weeklyTriggers = triggers.filter((t) => t.getHandlerFunction() === 'sendWeeklyReport');
-
-  if (weeklyTriggers.length > 0) {
-    logger.log('Weekly report trigger is set up (Every Monday at 9:00)');
-  } else {
-    logger.log('No weekly report trigger found');
-  }
-}

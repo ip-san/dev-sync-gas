@@ -4,6 +4,7 @@
 
 import type { GitHubDeployment, GitHubWorkflowRun, DevOpsMetrics } from '../../../types';
 import { getFrequencyCategory } from '../../../config/doraThresholds';
+import { getDeployWorkflowPatterns } from '../../../config/metrics';
 
 // =============================================================================
 // Deployment Frequency
@@ -28,14 +29,19 @@ export function calculateDeploymentFrequency(
   // 優先: GitHub Deployments API のデータ（成功のみ）
   const successfulDeploymentCount = deployments.filter((d) => d.status === 'success').length;
 
-  // フォールバック: ワークフロー実行（"deploy"を含む成功したもの）
+  // フォールバック: ワークフロー実行（設定されたパターンを含む成功したもの）
   let count: number;
   if (successfulDeploymentCount > 0) {
     count = successfulDeploymentCount;
   } else {
-    count = runs.filter(
-      (run) => run.conclusion === 'success' && run.name.toLowerCase().includes('deploy')
-    ).length;
+    const patterns = getDeployWorkflowPatterns();
+    count = runs.filter((run) => {
+      if (run.conclusion !== 'success') {
+        return false;
+      }
+      const nameLower = run.name.toLowerCase();
+      return patterns.some((pattern) => nameLower.includes(pattern.toLowerCase()));
+    }).length;
   }
 
   const avgPerDay = count / periodDays;

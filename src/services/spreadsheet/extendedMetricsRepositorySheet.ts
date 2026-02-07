@@ -5,13 +5,6 @@
  * リポジトリ別シートに分離するための共通機能を提供。
  */
 
-import type {
-  IssueCycleTimeDetail,
-  IssueCodingTimeDetail,
-  ReworkRateMetrics,
-  ReviewEfficiencyMetrics,
-  PRSizeMetrics,
-} from '../../types';
 import { REPOSITORY_NAME_MAX_LENGTH } from '../../config/apiConfig';
 
 /**
@@ -74,64 +67,4 @@ export function getExtendedMetricSheetName(repository: string, metricName: strin
   }
 
   return fullName;
-}
-
-/**
- * Cycle Time詳細をリポジトリ別にグループ化（型安全性のためのエイリアス）
- *
- * @param details - Cycle Time詳細の配列
- * @returns リポジトリ名をキーとしたマップ
- */
-export function groupCycleTimeDetailsByRepository(
-  details: IssueCycleTimeDetail[]
-): Map<string, IssueCycleTimeDetail[]> {
-  return groupIssueDetailsByRepository(details);
-}
-
-/**
- * Coding Time詳細をリポジトリ別にグループ化（型安全性のためのエイリアス）
- *
- * @param details - Coding Time詳細の配列
- * @returns リポジトリ名をキーとしたマップ
- */
-export function groupCodingTimeDetailsByRepository(
-  details: IssueCodingTimeDetail[]
-): Map<string, IssueCodingTimeDetail[]> {
-  return groupIssueDetailsByRepository(details);
-}
-
-/**
- * Rework Rate詳細をリポジトリ別にグループ化
- *
- * @param metrics - Rework Rate メトリクス
- * @returns リポジトリ名をキーとしたマップ
- */
-export function groupReworkRateDetailsByRepository(
-  details: ReworkRateMetrics['prDetails']
-): Map<string, ReworkRateMetrics['prDetails']> {
-  return groupPRDetailsByRepository(details);
-}
-
-/**
- * Review Efficiency詳細をリポジトリ別にグループ化
- *
- * @param details - Review Efficiency詳細の配列
- * @returns リポジトリ名をキーとしたマップ
- */
-export function groupReviewEfficiencyDetailsByRepository(
-  details: ReviewEfficiencyMetrics['prDetails']
-): Map<string, ReviewEfficiencyMetrics['prDetails']> {
-  return groupPRDetailsByRepository(details);
-}
-
-/**
- * PR Size詳細をリポジトリ別にグループ化
- *
- * @param details - PR Size詳細の配列
- * @returns リポジトリ名をキーとしたマップ
- */
-export function groupPRSizeDetailsByRepository(
-  details: PRSizeMetrics['prDetails']
-): Map<string, PRSizeMetrics['prDetails']> {
-  return groupPRDetailsByRepository(details);
 }

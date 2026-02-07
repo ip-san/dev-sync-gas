@@ -9,7 +9,6 @@ import {
   sendMonthlyReport,
   setupMonthlyReportTrigger,
   removeMonthlyReportTrigger,
-  showMonthlyReportTrigger,
 } from '../../src/functions/slackMonthly';
 import { createMonthlyReportMessage } from '../../src/services/slack/monthlyReport';
 import { isSlackNotificationEnabled } from '../../src/services/slack/client';
@@ -269,30 +268,6 @@ describe('Slack Monthly Report', () => {
       expect(
         logs.some((log: string) => log.includes('No monthly report trigger found to remove'))
       ).toBe(true);
-    });
-  });
-
-  describe('showMonthlyReportTrigger', () => {
-    it('should display trigger information when exists', () => {
-      const webhookUrl = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX';
-      mockContainer.storageClient.setProperty(CONFIG_KEYS.SLACK.WEBHOOK_URL, webhookUrl);
-
-      setupMonthlyReportTrigger();
-      showMonthlyReportTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(logs.some((log: string) => log.includes('Monthly report trigger is set up'))).toBe(
-        true
-      );
-    });
-
-    it('should display message when no trigger exists', () => {
-      showMonthlyReportTrigger();
-
-      const logs = (mockContainer.logger as any).logs;
-      expect(logs.some((log: string) => log.includes('No monthly report trigger found'))).toBe(
-        true
-      );
     });
   });
 

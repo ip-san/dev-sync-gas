@@ -11,6 +11,7 @@ import {
   setExcludeCycleTimeBaseBranches,
   setExcludeCodingTimeBaseBranches,
   setExcludeReworkRateBaseBranches,
+  setDeployWorkflowPatterns,
 } from './settings';
 import { initializeContainer, isContainerInitialized } from '../container';
 import { createGasAdapters } from '../adapters/gas';
@@ -48,6 +49,8 @@ export interface InitConfig {
   codingTimeExcludeBranches?: string[];
   /** 手戻り率計算から除外するbaseブランチ（部分一致） */
   reworkRateExcludeBranches?: string[];
+  /** デプロイワークフローパターン（部分一致） */
+  deployWorkflowPatterns?: string[];
 }
 
 /**
@@ -132,6 +135,14 @@ export function initializeFromConfig(config: InitConfig): void {
     setExcludeReworkRateBaseBranches(config.reworkRateExcludeBranches);
     Logger.log(
       `✅ Rework rate exclude branches: ${config.reworkRateExcludeBranches.join(', ')} (partial match)`
+    );
+  }
+
+  // デプロイワークフローパターン設定
+  if (config.deployWorkflowPatterns && config.deployWorkflowPatterns.length > 0) {
+    setDeployWorkflowPatterns(config.deployWorkflowPatterns);
+    Logger.log(
+      `✅ Deploy workflow patterns: ${config.deployWorkflowPatterns.join(', ')} (partial match)`
     );
   }
 

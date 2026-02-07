@@ -92,7 +92,7 @@ export function enrichWithExtendedMetrics(
     const spreadsheet = openSpreadsheet(spreadsheetId);
 
     for (const [repository, data] of latestByRepo) {
-      // サイクルタイム (6列目: コーディング時間 (時間))
+      // サイクルタイム (5列目: サイクルタイム (時間))
       const cycleTimeSheetName = getExtendedMetricSheetName(repository, 'サイクルタイム');
       data.cycleTimeHours = calculateAverageFromSheet(spreadsheet, cycleTimeSheetName, 5);
 
@@ -109,10 +109,10 @@ export function enrichWithExtendedMetrics(
       const prSizeSheetName = getExtendedMetricSheetName(repository, 'PRサイズ');
       data.avgLinesOfCode = calculateAverageFromSheet(spreadsheet, prSizeSheetName, 7);
 
-      // 手戻り率 (7列目: 追加コミット数、8列目: Force Push回数)
+      // 手戻り率 (6列目: 追加コミット数、7列目: Force Push回数)
       const reworkRateSheetName = getExtendedMetricSheetName(repository, '手戻り率');
-      data.avgAdditionalCommits = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 7);
-      data.avgForcePushCount = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 8);
+      data.avgAdditionalCommits = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 6);
+      data.avgForcePushCount = calculateAverageFromSheet(spreadsheet, reworkRateSheetName, 7);
     }
   } catch (error) {
     if (error instanceof AppError) {

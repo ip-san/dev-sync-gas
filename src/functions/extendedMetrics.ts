@@ -402,6 +402,15 @@ export async function syncAllMetrics(days = 30): Promise<void> {
     Logger.log(`\n📏 [6/6] Syncing PR Size...`);
     syncPRSize(days);
 
+    // ダッシュボードを再更新（拡張指標を反映）
+    Logger.log(`\n📊 [7/7] Updating Dashboard with extended metrics...`);
+    const config = getConfig();
+    const { writeDashboard, readMetricsFromAllRepositorySheets } =
+      await import('../services/spreadsheet');
+    const repositories = config.github.repositories.map((repo) => repo.fullName);
+    const metrics = readMetricsFromAllRepositorySheets(config.spreadsheet.id, repositories);
+    await writeDashboard(config.spreadsheet.id, metrics);
+
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     Logger.log(`\n✅ All metrics synced successfully in ${elapsed}s`);
     Logger.log(`   Check your spreadsheet for updated data!`);

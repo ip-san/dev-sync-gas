@@ -69,8 +69,10 @@ function calculateAverageFromSheet(
 
   for (const row of data) {
     const value = row[0];
-    if (typeof value === 'number' && !isNaN(value) && value !== null) {
-      validValues.push(value);
+    // 数値または数値に変換可能な文字列を受け入れる
+    const numValue = typeof value === 'number' ? value : Number(value);
+    if (!isNaN(numValue) && isFinite(numValue)) {
+      validValues.push(numValue);
     }
   }
 

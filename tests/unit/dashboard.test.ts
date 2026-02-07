@@ -421,5 +421,49 @@ describe('Dashboard Aggregation', () => {
       // 空シートはnull
       expect(data?.codingTimeHours).toBeNull();
     });
+
+    it('should handle numeric values as strings from spreadsheet', () => {
+      const latestByRepo = new Map();
+      latestByRepo.set('owner/repo', {
+        repository: 'owner/repo',
+        latestDate: '2024-01-01',
+        deploymentFrequency: '1.0',
+        leadTimeHours: 24.0,
+        changeFailureRate: 5.0,
+        mttrHours: 2.0,
+        cycleTimeHours: null,
+        codingTimeHours: null,
+        timeToFirstReviewHours: null,
+        reviewDurationHours: null,
+        avgLinesOfCode: null,
+        avgAdditionalCommits: null,
+        avgForcePushCount: null,
+      });
+
+      // スプレッドシートから取得した数値が文字列として返される場合
+      const spreadsheet = mockContainer.spreadsheetClient.openById(
+        mockContainer.spreadsheetId
+      ) as import('../mocks').MockSpreadsheet;
+      spreadsheet.addSheet('owner/repo - サイクルタイム', [
+        [
+          '日付',
+          '完了Issue数',
+          '平均サイクルタイム (時間)',
+          '平均サイクルタイム (日)',
+          '中央値 (時間)',
+          '最小 (時間)',
+          '最大 (時間)',
+        ],
+        ['2024-01-01', '2', '24.5', '1.0', '24.5', '20.0', '30.0'], // 文字列として返される
+        ['2024-01-02', '3', '36.0', '1.5', '35.0', '25.0', '45.0'], // 文字列として返される
+      ]);
+
+      enrichWithExtendedMetrics(mockContainer.spreadsheetId, latestByRepo);
+
+      const data = latestByRepo.get('owner/repo');
+
+      // 文字列を数値に変換して平均計算: (24.5 + 36.0) / 2 = 30.25
+      expect(data?.cycleTimeHours).toBe(30.25);
+    });
   });
 });

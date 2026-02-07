@@ -58,7 +58,7 @@ export function getOrCreateSheet(
 /**
  * シートの列幅を自動調整する
  *
- * ヘッダー行（1行目）の文字数に基づいて列幅を計算し、最小幅・最大幅を適用する。
+ * ヘッダー行とデータ行（最大20行）をサンプリングし、最も長いテキストに基づいて列幅を計算する。
  *
  * @param sheet - 対象シート
  * @param columnCount - 調整する列数
@@ -68,22 +68,32 @@ export function autoResizeColumns(sheet: Sheet, columnCount: number): void {
   const MAX_WIDTH = 400; // 最大幅（ピクセル）
   const PIXELS_PER_CHAR = 10; // 1文字あたりのピクセル数
   const PADDING = 20; // 余白（ピクセル）
+  const SAMPLE_ROWS = 20; // サンプリングする行数
 
-  // ヘッダー行のテキストを取得
-  const headerValues = sheet.getRange(1, 1, 1, columnCount).getValues()[0];
+  // データ全体を取得（最大サンプル行数まで）
+  const lastRow = sheet.getLastRow();
+  const rowsToSample = Math.min(lastRow, SAMPLE_ROWS);
+  const allValues = sheet.getRange(1, 1, rowsToSample, columnCount).getValues();
 
   for (let i = 1; i <= columnCount; i++) {
-    const headerText = String(headerValues[i - 1] || '');
+    let maxCharCount = 0;
 
-    // 文字数を計算（日本語などの全角文字は1.5倍として計算）
-    let charCount = 0;
-    for (const char of headerText) {
-      // 全角文字（日本語、中国語など）は幅が広い
-      charCount += char.match(/[\u3000-\u9FFF\uF900-\uFAFF]/) ? 1.5 : 1;
+    // 各行のテキストをチェックして最大文字数を取得
+    for (const row of allValues) {
+      const cellText = String(row[i - 1] || '');
+
+      // 文字数を計算（日本語などの全角文字は1.5倍として計算）
+      let charCount = 0;
+      for (const char of cellText) {
+        // 全角文字（日本語、中国語など）は幅が広い
+        charCount += char.match(/[\u3000-\u9FFF\uF900-\uFAFF]/) ? 1.5 : 1;
+      }
+
+      maxCharCount = Math.max(maxCharCount, charCount);
     }
 
     // 文字数から幅を計算
-    const calculatedWidth = Math.ceil(charCount * PIXELS_PER_CHAR) + PADDING;
+    const calculatedWidth = Math.ceil(maxCharCount * PIXELS_PER_CHAR) + PADDING;
 
     // 最小幅・最大幅を適用
     const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, calculatedWidth));

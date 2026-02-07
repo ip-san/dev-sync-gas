@@ -11,7 +11,6 @@
 import {
   // DORA指標同期
   syncDevOpsMetrics,
-  syncHistoricalMetrics,
   // 日別バックフィル
   syncDailyBackfill,
   backfillAllProjectsDaily,
@@ -117,7 +116,6 @@ import './init';
 
 // DORA指標同期
 global.syncDevOpsMetrics = syncDevOpsMetrics;
-global.syncHistoricalMetrics = syncHistoricalMetrics;
 
 // 日別バックフィル
 global.syncDailyBackfill = syncDailyBackfill;

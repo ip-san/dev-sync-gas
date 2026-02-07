@@ -125,25 +125,6 @@ export async function syncDevOpsMetrics(dateRange?: DateRange): Promise<void> {
  */
 
 // =============================================================================
-// 履歴データ同期
-// =============================================================================
-
-/**
- * 過去N日分のメトリクスを取得
- */
-export async function syncHistoricalMetrics(days: number): Promise<void> {
-  const until = new Date();
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-
-  Logger.log(`📅 Fetching metrics for the last ${days} days`);
-  Logger.log(`   From: ${since.toISOString()}`);
-  Logger.log(`   To: ${until.toISOString()}`);
-
-  await syncDevOpsMetrics({ since, until });
-}
-
-// =============================================================================
 // 日別バックフィル
 // =============================================================================
 

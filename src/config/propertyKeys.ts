@@ -135,6 +135,14 @@ export const REWORK_RATE_EXCLUDE_KEYS = {
 } as const;
 
 /**
+ * デプロイメント設定キー
+ */
+export const DEPLOYMENT_KEYS = {
+  /** デプロイワークフローパターン（JSON配列） */
+  WORKFLOW_PATTERNS: 'DEPLOYMENT_WORKFLOW_PATTERNS',
+} as const;
+
+/**
  * 全ての設定キーを統合したオブジェクト
  */
 export const CONFIG_KEYS = {
@@ -151,6 +159,7 @@ export const CONFIG_KEYS = {
   CYCLE_TIME_EXCLUDE: CYCLE_TIME_EXCLUDE_KEYS,
   CODING_TIME_EXCLUDE: CODING_TIME_EXCLUDE_KEYS,
   REWORK_RATE_EXCLUDE: REWORK_RATE_EXCLUDE_KEYS,
+  DEPLOYMENT: DEPLOYMENT_KEYS,
 } as const;
 
 /**
@@ -170,4 +179,5 @@ export type ConfigKeyValue =
   | (typeof REVIEW_EFFICIENCY_KEYS)[keyof typeof REVIEW_EFFICIENCY_KEYS]
   | (typeof CYCLE_TIME_EXCLUDE_KEYS)[keyof typeof CYCLE_TIME_EXCLUDE_KEYS]
   | (typeof CODING_TIME_EXCLUDE_KEYS)[keyof typeof CODING_TIME_EXCLUDE_KEYS]
-  | (typeof REWORK_RATE_EXCLUDE_KEYS)[keyof typeof REWORK_RATE_EXCLUDE_KEYS];
+  | (typeof REWORK_RATE_EXCLUDE_KEYS)[keyof typeof REWORK_RATE_EXCLUDE_KEYS]
+  | (typeof DEPLOYMENT_KEYS)[keyof typeof DEPLOYMENT_KEYS];

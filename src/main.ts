@@ -25,6 +25,7 @@ import {
   syncReviewEfficiency,
   syncPRSize,
   syncAllMetrics,
+  syncAllMetricsFromScratch,
   // セットアップ・設定
   showAuthMode,
   addRepo,
@@ -50,6 +51,9 @@ import {
   showCodingTimeConfig,
   configurePRSizeExcludeBranches,
   showPRSizeExcludeBranches,
+  configureDeployWorkflowPatterns,
+  showDeployWorkflowPatterns,
+  resetDeployWorkflowPatternsConfig,
   // APIモード設定
   configureApiMode,
   showApiMode,
@@ -121,6 +125,7 @@ global.syncReworkRate = syncReworkRate;
 global.syncReviewEfficiency = syncReviewEfficiency;
 global.syncPRSize = syncPRSize;
 global.syncAllMetrics = syncAllMetrics;
+global.syncAllMetricsFromScratch = syncAllMetricsFromScratch;
 
 // セットアップ・設定
 global.showAuthMode = showAuthMode;
@@ -154,6 +159,11 @@ global.showCodingTimeConfig = showCodingTimeConfig;
 // PRサイズ除外ブランチ設定
 global.configurePRSizeExcludeBranches = configurePRSizeExcludeBranches;
 global.showPRSizeExcludeBranches = showPRSizeExcludeBranches;
+
+// デプロイワークフローパターン設定
+global.configureDeployWorkflowPatterns = configureDeployWorkflowPatterns;
+global.showDeployWorkflowPatterns = showDeployWorkflowPatterns;
+global.resetDeployWorkflowPatternsConfig = resetDeployWorkflowPatternsConfig;
 
 // APIモード設定
 global.configureApiMode = configureApiMode;

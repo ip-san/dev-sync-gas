@@ -16,40 +16,11 @@ import {
   applyDataBorders,
 } from './helpers';
 import {
-  groupCodingTimeDetailsByRepository,
+  groupIssueDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
-import { formatDateForDisplay } from '../../utils/dateFormat';
 
 const SHEET_NAME = 'コーディング時間';
-
-/**
- * サマリーシートのヘッダー定義
- */
-const SUMMARY_HEADERS = [
-  '期間', // 計測期間
-  'Issue数', // 計測対象Issue数
-  '平均コーディング時間 (時間)', // 全Issueの平均値
-  '平均コーディング時間 (日)', // 日単位での平均値
-  '中央値 (時間)', // ソート後の中央値
-  '最小 (時間)', // 最も短かったIssue
-  '最大 (時間)', // 最も長かったIssue
-  '記録日時', // データ記録時刻
-];
-
-/**
- * 詳細シートのヘッダー定義（グローバル）
- */
-const DETAIL_HEADERS = [
-  'Issue番号', // GitHubのIssue番号
-  'タイトル', // Issue名
-  'リポジトリ', // 対象リポジトリ
-  'Issue作成日時', // Issue作成日時（着手日）
-  'PR作成日時', // GitHubでPRを作成した日時
-  'PR番号', // リンクされたPR番号
-  'コーディング時間 (時間)', // Issue作成からPR作成までの時間
-  'コーディング時間 (日)', // 日単位でのコーディング時間
-];
 
 /**
  * リポジトリ別シートのヘッダー定義（リポジトリ列を除く）
@@ -76,87 +47,6 @@ export function writeCodingTimeToSheet(spreadsheetId: string, metrics: CodingTim
   writeCodingTimeToAllRepositorySheets(spreadsheetId, metrics);
 
   logger.info(`📝 Wrote coding time metrics to repository sheets`);
-}
-
-/**
- * サマリーシートに書き込み
- * @deprecated レガシー機能。マイグレーション用に保持。
- */
-export function writeSummarySheet(
-  spreadsheet: ReturnType<typeof openSpreadsheet>,
-  metrics: CodingTimeMetrics
-): void {
-  const sheet = getOrCreateSheet(spreadsheet, SHEET_NAME, SUMMARY_HEADERS);
-
-  const avgDays =
-    metrics.avgCodingTimeHours !== null
-      ? Math.round((metrics.avgCodingTimeHours / 24) * 10) / 10
-      : 'N/A';
-
-  const row = [
-    metrics.period,
-    metrics.issueCount,
-    metrics.avgCodingTimeHours ?? 'N/A',
-    avgDays,
-    metrics.medianCodingTimeHours ?? 'N/A',
-    metrics.minCodingTimeHours ?? 'N/A',
-    metrics.maxCodingTimeHours ?? 'N/A',
-    formatDateForDisplay(new Date()),
-  ];
-
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, 1, SUMMARY_HEADERS.length).setValues([row]);
-
-  formatDecimalColumns(sheet, 3, 5);
-
-  // データ範囲にボーダーを適用
-  const lastRowAfterWrite = sheet.getLastRow();
-  if (lastRowAfterWrite > 1) {
-    applyDataBorders(sheet, lastRowAfterWrite - 1, SUMMARY_HEADERS.length);
-  }
-
-  autoResizeColumns(sheet, SUMMARY_HEADERS.length);
-}
-
-/**
- * 詳細シートに書き込み
- * @deprecated レガシー機能。マイグレーション用に保持。
- */
-export function writeDetailSheet(
-  spreadsheet: ReturnType<typeof openSpreadsheet>,
-  metrics: CodingTimeMetrics
-): void {
-  if (metrics.issueDetails.length === 0) {
-    return;
-  }
-
-  const detailSheetName = `${SHEET_NAME} - Details`;
-  const sheet = getOrCreateSheet(spreadsheet, detailSheetName, DETAIL_HEADERS);
-
-  const rows = metrics.issueDetails.map((issue) => [
-    `#${issue.issueNumber}`,
-    issue.title,
-    issue.repository,
-    issue.issueCreatedAt,
-    issue.prCreatedAt,
-    `#${issue.prNumber}`,
-    issue.codingTimeHours,
-    Math.round((issue.codingTimeHours / 24) * 10) / 10,
-  ]);
-
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, rows.length, DETAIL_HEADERS.length).setValues(rows);
-
-  // コーディング時間列（7〜8列目）を小数点1桁でフォーマット
-  formatDecimalColumns(sheet, 7, 2);
-
-  // データ範囲にボーダーを適用
-  const lastRowAfterWrite = sheet.getLastRow();
-  if (lastRowAfterWrite > 1) {
-    applyDataBorders(sheet, lastRowAfterWrite - 1, DETAIL_HEADERS.length);
-  }
-
-  autoResizeColumns(sheet, DETAIL_HEADERS.length);
 }
 
 /**
@@ -259,7 +149,7 @@ export function writeCodingTimeToAllRepositorySheets(
   options: { skipDuplicates?: boolean } = {}
 ): Map<string, { written: number; skipped: number }> {
   const { logger } = getContainer();
-  const grouped = groupCodingTimeDetailsByRepository(metrics.issueDetails);
+  const grouped = groupIssueDetailsByRepository(metrics.issueDetails);
   const results = new Map<string, { written: number; skipped: number }>();
 
   logger.info(`📊 Writing coding time to ${grouped.size} repository sheets...`);

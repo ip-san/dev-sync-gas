@@ -39,11 +39,8 @@ export type { SheetMigrationResult } from './sheetMigration';
 
 // 拡張指標 - 共通ヘルパー
 export {
-  groupCycleTimeDetailsByRepository,
-  groupCodingTimeDetailsByRepository,
-  groupReworkRateDetailsByRepository,
-  groupReviewEfficiencyDetailsByRepository,
-  groupPRSizeDetailsByRepository,
+  groupIssueDetailsByRepository,
+  groupPRDetailsByRepository,
   getExtendedMetricSheetName,
 } from './extendedMetricsRepositorySheet';
 

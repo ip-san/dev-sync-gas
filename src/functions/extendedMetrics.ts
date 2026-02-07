@@ -38,11 +38,36 @@ import {
   calculatePRSize,
 } from '../utils/metrics';
 import { ensureContainerInitialized } from './helpers';
-import type { GitHubPullRequest } from '../types';
+import type { GitHubPullRequest, GitHubRepository } from '../types';
 
 // =============================================================================
 // ヘルパー関数
 // =============================================================================
+
+/**
+ * 全リポジトリからPRを取得
+ *
+ * @param repositories - リポジトリ一覧
+ * @param token - GitHubトークン
+ * @param dateRange - 日付範囲
+ * @returns 全PRのリスト
+ */
+function fetchAllPRs(
+  repositories: GitHubRepository[],
+  token: string,
+  dateRange: DateRange
+): GitHubPullRequest[] {
+  const allPRs: GitHubPullRequest[] = [];
+  for (const repo of repositories) {
+    const prsResult = getPullRequestsGraphQL({ repo, token, state: 'all', dateRange });
+    if (prsResult.success && prsResult.data) {
+      allPRs.push(...prsResult.data);
+    } else {
+      Logger.log(`  ⚠️ Failed to fetch PRs for ${repo.fullName}: ${prsResult.error}`);
+    }
+  }
+  return allPRs;
+}
 
 /**
  * 除外ブランチパターンに基づいてPRをフィルタリング
@@ -186,16 +211,8 @@ export function syncReworkRate(days = 30): void {
   since.setDate(since.getDate() - days);
   const dateRange: DateRange = { since };
 
-  // まずPRを取得（各リポジトリごとに）
-  const allPRs: GitHubPullRequest[] = [];
-  for (const repo of config.github.repositories) {
-    const prsResult = getPullRequestsGraphQL({ repo, token, state: 'all', dateRange });
-    if (prsResult.success && prsResult.data) {
-      allPRs.push(...prsResult.data);
-    } else {
-      Logger.log(`  ⚠️ Failed to fetch PRs for ${repo.fullName}: ${prsResult.error}`);
-    }
-  }
+  // PRを取得
+  const allPRs = fetchAllPRs(config.github.repositories, token, dateRange);
   Logger.log(`📥 Fetched ${allPRs.length} PRs`);
 
   // 除外ブランチでフィルタリング
@@ -248,16 +265,8 @@ export function syncReviewEfficiency(days = 30): void {
   since.setDate(since.getDate() - days);
   const dateRange: DateRange = { since };
 
-  // まずPRを取得（各リポジトリごとに）
-  const allPRs: GitHubPullRequest[] = [];
-  for (const repo of config.github.repositories) {
-    const prsResult = getPullRequestsGraphQL({ repo, token, state: 'all', dateRange });
-    if (prsResult.success && prsResult.data) {
-      allPRs.push(...prsResult.data);
-    } else {
-      Logger.log(`  ⚠️ Failed to fetch PRs for ${repo.fullName}: ${prsResult.error}`);
-    }
-  }
+  // PRを取得
+  const allPRs = fetchAllPRs(config.github.repositories, token, dateRange);
   Logger.log(`📥 Fetched ${allPRs.length} PRs`);
 
   // 除外ブランチでフィルタリング
@@ -310,16 +319,8 @@ export function syncPRSize(days = 30): void {
   since.setDate(since.getDate() - days);
   const dateRange: DateRange = { since };
 
-  // まずPRを取得（各リポジトリごとに）
-  const allPRs: GitHubPullRequest[] = [];
-  for (const repo of config.github.repositories) {
-    const prsResult = getPullRequestsGraphQL({ repo, token, state: 'all', dateRange });
-    if (prsResult.success && prsResult.data) {
-      allPRs.push(...prsResult.data);
-    } else {
-      Logger.log(`  ⚠️ Failed to fetch PRs for ${repo.fullName}: ${prsResult.error}`);
-    }
-  }
+  // PRを取得
+  const allPRs = fetchAllPRs(config.github.repositories, token, dateRange);
   Logger.log(`📥 Fetched ${allPRs.length} PRs`);
 
   // 除外ブランチでフィルタリング
@@ -369,6 +370,7 @@ export function syncPRSize(days = 30): void {
 export async function syncAllMetrics(days = 30): Promise<void> {
   Logger.log(`🚀 Starting full metrics sync (past ${days} days)`);
   Logger.log(`   This will sync all DORA + Extended metrics`);
+  Logger.log(`   📝 Mode: Incremental (skips duplicates)`);
 
   const startTime = Date.now();
 
@@ -405,6 +407,90 @@ export async function syncAllMetrics(days = 30): Promise<void> {
     Logger.log(`   Check your spreadsheet for updated data!`);
   } catch (error) {
     Logger.log(`\n❌ Failed to sync metrics: ${String(error)}`);
+    throw error;
+  }
+}
+
+// =============================================================================
+// 全メトリクス完全再構築
+// =============================================================================
+
+/**
+ * リポジトリ別拡張メトリクスシートをすべてクリア
+ *
+ * 以下のリポジトリ別シートを削除します:
+ * - {repo} - サイクルタイム
+ * - {repo} - コーディング時間
+ * - {repo} - 手戻り率
+ * - {repo} - レビュー効率
+ * - {repo} - PRサイズ
+ */
+function clearAllExtendedMetricSheets(): void {
+  const config = getConfig();
+  const spreadsheet = SpreadsheetApp.openById(config.spreadsheet.id);
+  const metricTypes = [
+    'サイクルタイム',
+    'コーディング時間',
+    '手戻り率',
+    'レビュー効率',
+    'PRサイズ',
+  ];
+
+  let deletedCount = 0;
+
+  for (const repo of config.github.repositories) {
+    for (const metricType of metricTypes) {
+      const sheetName = `${repo.fullName} - ${metricType}`;
+      const sheet = spreadsheet.getSheetByName(sheetName);
+      if (sheet) {
+        spreadsheet.deleteSheet(sheet);
+        deletedCount++;
+      }
+    }
+  }
+
+  Logger.log(`🗑️  Deleted ${deletedCount} repository metric sheets`);
+}
+
+/**
+ * 全メトリクスを完全に再構築（既存データをクリアして同期）
+ *
+ * 既存のリポジトリ別拡張メトリクスシートをすべて削除してから、
+ * 全メトリクスを新規に同期します。
+ *
+ * **使用例:**
+ * - データの不整合を解消したい場合
+ * - 設定変更後に完全に再計算したい場合
+ * - 古いデータを削除してクリーンな状態から始めたい場合
+ *
+ * **注意:**
+ * - DORA指標シートとDashboardは削除されず、更新されます
+ * - リポジトリ別の拡張メトリクス詳細シートのみが削除対象です
+ *
+ * @param days - 過去何日分のデータを取得するか（デフォルト: 30日）
+ */
+export async function syncAllMetricsFromScratch(days = 30): Promise<void> {
+  ensureContainerInitialized();
+
+  Logger.log(`🚀 Starting FULL REBUILD of all metrics (past ${days} days)`);
+  Logger.log(`   ⚠️  Mode: From Scratch (will delete existing repository sheets)`);
+  Logger.log(`   📝 DORA metrics and Dashboard will be recreated`);
+
+  const startTime = Date.now();
+
+  try {
+    // リポジトリ別拡張メトリクスシートをクリア
+    Logger.log(`\n🗑️  Clearing all repository metric sheets...`);
+    clearAllExtendedMetricSheets();
+
+    // 全メトリクスを同期
+    await syncAllMetrics(days);
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    Logger.log(`\n✅ Full rebuild completed in ${elapsed}s`);
+    Logger.log(`   All repository sheets recreated from scratch!`);
+  } catch (error) {
+    Logger.log(`\n❌ Failed to rebuild metrics: ${String(error)}`);
     throw error;
   }
 }

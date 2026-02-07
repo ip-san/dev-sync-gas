@@ -26,6 +26,10 @@ import {
   setExcludeCodingTimeBaseBranches,
   getExcludeReworkRateBaseBranches,
   setExcludeReworkRateBaseBranches,
+  resetExcludeReworkRateBaseBranches,
+  getDeployWorkflowPatterns,
+  setDeployWorkflowPatterns,
+  resetDeployWorkflowPatterns,
   getGitHubApiMode,
   setGitHubApiMode,
 } from '../config/settings';
@@ -455,3 +459,60 @@ export function showReworkRateExcludeBranches(): void {
 /**
  * 手戻り率除外ブランチ設定をリセット（全PR対象に戻す）
  */
+
+export function resetReworkRateExcludeBranchesConfig(): void {
+  ensureContainerInitialized();
+  resetExcludeReworkRateBaseBranches();
+  Logger.log('✅ Rework rate exclude branches reset (all PRs will be included)');
+}
+
+// =============================================================================
+// デプロイワークフローパターン設定
+// =============================================================================
+
+/**
+ * デプロイワークフローパターンを設定
+ *
+ * ワークフロー名にこれらのパターンが含まれていればデプロイとみなします（部分一致、大文字小文字を区別しない）
+ *
+ * @param patterns デプロイとみなすワークフロー名のパターン配列
+ * @example
+ * // デフォルト（"deploy"を含むワークフローをデプロイとみなす）
+ * configureDeployWorkflowPatterns(["deploy"]);
+ *
+ * // 複数パターンを設定
+ * configureDeployWorkflowPatterns(["deploy", "release", "production"]);
+ * // - "Deploy to Production" → デプロイ
+ * // - "release-staging" → デプロイ（部分一致）
+ * // - "production-deploy" → デプロイ（部分一致）
+ * // - "CI Build" → 含めない
+ *
+ * configureDeployWorkflowPatterns([]);  // 設定クリア（デフォルトの["deploy"]が使用される）
+ */
+export function configureDeployWorkflowPatterns(patterns: string[]): void {
+  ensureContainerInitialized();
+  setDeployWorkflowPatterns(patterns);
+  if (patterns.length > 0) {
+    Logger.log(`✅ Deploy workflow patterns set to: ${patterns.join(', ')} (partial match)`);
+  } else {
+    Logger.log('✅ Deploy workflow patterns cleared (default: deploy)');
+  }
+}
+
+/**
+ * 現在のデプロイワークフローパターンを表示
+ */
+export function showDeployWorkflowPatterns(): void {
+  ensureContainerInitialized();
+  const patterns = getDeployWorkflowPatterns();
+  Logger.log(`📋 Deploy workflow patterns: ${patterns.join(', ')} (partial match)`);
+}
+
+/**
+ * デプロイワークフローパターン設定をリセット（デフォルトに戻す）
+ */
+export function resetDeployWorkflowPatternsConfig(): void {
+  ensureContainerInitialized();
+  resetDeployWorkflowPatterns();
+  Logger.log('✅ Deploy workflow patterns reset to default: deploy');
+}

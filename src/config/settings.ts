@@ -79,6 +79,9 @@ export {
   getExcludeReworkRateBaseBranches,
   setExcludeReworkRateBaseBranches,
   resetExcludeReworkRateBaseBranches,
+  getDeployWorkflowPatterns,
+  setDeployWorkflowPatterns,
+  resetDeployWorkflowPatterns,
 } from './metrics.js';
 
 // =============================================================================

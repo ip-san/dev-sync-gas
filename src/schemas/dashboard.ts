@@ -41,7 +41,7 @@ export const DASHBOARD_SCHEMA: SheetSchema = {
       type: 'number',
       numberFormat: '#,##0.0',
     },
-    { id: 'avgLinesOfCode', header: 'PRサイズ (行)', type: 'number', numberFormat: '#,##0' },
+    { id: 'avgLinesOfCode', header: 'PRサイズ (平均行数)', type: 'number', numberFormat: '#,##0' },
     {
       id: 'avgAdditionalCommits',
       header: '追加コミット数 (平均)',

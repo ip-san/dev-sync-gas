@@ -35,6 +35,7 @@ export {
   syncReviewEfficiency,
   syncPRSize,
   syncAllMetrics,
+  syncAllMetricsFromScratch,
 } from './extendedMetrics';
 
 // セットアップ・設定
@@ -66,6 +67,9 @@ export {
   showCodingTimeConfig,
   configurePRSizeExcludeBranches,
   showPRSizeExcludeBranches,
+  configureDeployWorkflowPatterns,
+  showDeployWorkflowPatterns,
+  resetDeployWorkflowPatternsConfig,
   // API モード設定
   configureApiMode,
   showApiMode,

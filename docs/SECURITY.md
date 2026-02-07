@@ -202,7 +202,7 @@ configureLogLevel('WARN');
 configureLogLevel('DEBUG');
 
 // 現在の設定を確認
-showLogLevel();
+checkConfig();
 ```
 
 **推奨設定:**

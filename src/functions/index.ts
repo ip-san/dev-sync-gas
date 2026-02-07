@@ -16,12 +16,7 @@
 export { ensureContainerInitialized } from './helpers';
 
 // DORA指標同期
-export {
-  syncDevOpsMetrics,
-  // 日別バックフィル
-  syncDailyBackfill,
-  backfillAllProjectsDaily,
-} from './sync';
+export { syncDevOpsMetrics } from './sync';
 
 // 拡張指標同期
 export { syncAllMetrics, syncAllMetricsFromScratch } from './extendedMetrics';

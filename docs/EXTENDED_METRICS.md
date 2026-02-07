@@ -104,7 +104,7 @@ configureProductionBranch("release");
 configureCycleTimeLabels(["feature", "bug"]);
 
 // 設定確認
-showCycleTimeConfig();
+checkConfig();
 ```
 
 詳細は [CYCLE_TIME.md](CYCLE_TIME.md) を参照。
@@ -149,7 +149,7 @@ codingTime = (prCreatedAt - issueCreatedAt) / (1000 * 60 * 60); // 時間
 configureCodingTimeLabels(["feature", "enhancement"]);
 
 // 設定確認
-showCodingTimeConfig();
+checkConfig();
 ```
 
 ### 使い分け
@@ -337,19 +337,9 @@ GET /repos/{owner}/{repo}/pulls/{number}
 ### 基本
 
 ```javascript
-// DORA + 拡張指標を全て同期
+// DORA + 拡張指標を全て同期（履歴データ含む）
 syncAllMetrics();       // デフォルト: 過去30日
 syncAllMetrics(90);     // 過去90日
-```
-
-### 日次バックフィル
-
-```javascript
-// 過去30日分を日次で集計
-syncDailyBackfill(30);
-
-// 過去90日分
-syncDailyBackfill(90);
 ```
 
 ## GitHubデータの前提条件

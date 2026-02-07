@@ -62,7 +62,7 @@ configureCodingTimeLabels(["feature", "enhancement"]);
 
 showCodingTimeLabels();          // 現在の設定を確認
 resetCodingTimeLabelsConfig();   // 全Issueを対象にリセット
-showCodingTimeConfig();          // 全設定を一覧表示
+checkConfig();                   // 全設定を一覧表示
 ```
 
 ### デプロイ用PRの除外

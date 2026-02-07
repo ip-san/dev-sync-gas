@@ -76,7 +76,7 @@ configureCycleTimeLabels(["feature", "bug"]);    // 複数ラベル（OR条件�
 
 showCycleTimeLabels();          // 現在の設定を確認
 resetCycleTimeLabelsConfig();   // 全Issueを対象にリセット
-showCycleTimeConfig();          // 全設定を一覧表示
+checkConfig();                  // 全設定を一覧表示
 ```
 
 ### デプロイ用PRの除外

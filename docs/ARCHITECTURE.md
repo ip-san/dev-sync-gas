@@ -272,12 +272,12 @@ owner/repo-b | 2024-01-02 | 3  | weekly | ...
 - ステータス（良好/要注意/要対応）を色分け表示
 
 ```typescript
-// DORA指標同期（Dashboard自動生成）
+// DORA指標のみ同期（Dashboard自動生成）
 syncDevOpsMetrics();
-syncDailyBackfill(30);  // 過去30日分をバックフィル
 
-// DORA + 拡張指標を全て同期（推奨）
+// DORA + 拡張指標を全て同期（推奨、履歴データ含む）
 syncAllMetrics();       // デフォルト: 過去30日
+syncAllMetrics(90);     // 過去90日分
 ```
 
 ---

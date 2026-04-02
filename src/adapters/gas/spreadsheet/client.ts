@@ -2,7 +2,7 @@
  * Spreadsheet Client implementation for Google Apps Script
  */
 
-import type { SpreadsheetClient, Spreadsheet } from '../../../interfaces';
+import type { Spreadsheet, SpreadsheetClient } from '../../../interfaces';
 import { GasSpreadsheet } from './spreadsheet';
 
 export class GasSpreadsheetClient implements SpreadsheetClient {

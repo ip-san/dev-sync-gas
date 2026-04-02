@@ -79,7 +79,7 @@ export class AppError extends Error {
     // Error.captureStackTrace を使用してスタックトレースを適切に設定
     // Node.js環境でのみ利用可能
     const ErrorConstructor = Error as {
-      captureStackTrace?: (target: object, constructor: object) => void;
+      captureStackTrace?: (target: object, ctor: object) => void;
     };
     if (typeof ErrorConstructor.captureStackTrace === 'function') {
       ErrorConstructor.captureStackTrace(this, this.constructor);

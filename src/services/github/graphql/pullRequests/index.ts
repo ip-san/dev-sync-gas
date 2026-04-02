@@ -10,19 +10,15 @@
  * @module services/github/graphql/pullRequests
  */
 
-// Type exports
-export type { GetPullRequestsGraphQLParams } from './types';
-
-// PR listing operations
-export { getPullRequestsGraphQL } from './listing';
-
-// PR detail operations
-export { getPRDetailsGraphQL, getPullRequestWithBranchesGraphQL } from './details';
-
+export { getReviewEfficiencyDataForPRsGraphQL } from './batchReview';
 // Batch operations
 export { getReworkDataForPRsGraphQL } from './batchRework';
 export { getPRSizeDataForPRsGraphQL } from './batchSize';
-export { getReviewEfficiencyDataForPRsGraphQL } from './batchReview';
-
+// PR detail operations
+export { getPRDetailsGraphQL, getPullRequestWithBranchesGraphQL } from './details';
+// PR listing operations
+export { getPullRequestsGraphQL } from './listing';
 // PR Cycle Time operations
 export { getPRCycleTimeDataGraphQL } from './prCycleTime';
+// Type exports
+export type { GetPullRequestsGraphQLParams } from './types';

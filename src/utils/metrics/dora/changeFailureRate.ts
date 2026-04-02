@@ -2,8 +2,8 @@
  * Change Failure Rate 計算
  */
 
-import type { GitHubDeployment, GitHubWorkflowRun } from '../../../types';
 import { DECIMAL_PRECISION_MULTIPLIER } from '../../../config/apiConfig';
+import type { GitHubDeployment, GitHubWorkflowRun } from '../../../types';
 
 // =============================================================================
 // Change Failure Rate

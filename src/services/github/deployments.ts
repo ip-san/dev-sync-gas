@@ -6,17 +6,17 @@
  */
 
 import type {
-  GitHubWorkflowRun,
-  GitHubDeployment,
-  GitHubRepository,
   ApiResponse,
-  GitHubWorkflowRunsResponse,
+  GitHubDeployment,
   GitHubDeploymentResponse,
+  GitHubRepository,
+  GitHubWorkflowRun,
+  GitHubWorkflowRunsResponse,
 } from '../../types';
-import { fetchGitHub, DEFAULT_MAX_PAGES, PER_PAGE, type DateRange } from './api';
+import { type DateRange, DEFAULT_MAX_PAGES, fetchGitHub, PER_PAGE } from './api';
 import {
-  fetchDeploymentStatuses,
   buildDeploymentEndpoint,
+  fetchDeploymentStatuses,
   processDeploymentPage,
 } from './deploymentHelpers.js';
 
@@ -82,6 +82,39 @@ function convertToWorkflowRun(
   };
 }
 
+function buildWorkflowRunsEndpoint(
+  repoFullName: string,
+  page: number,
+  dateRange?: DateRange
+): string {
+  let endpoint = `/repos/${repoFullName}/actions/runs?per_page=${PER_PAGE}&page=${page}`;
+  if (dateRange?.since) {
+    const sinceStr = dateRange.since.toISOString().split('T')[0];
+    endpoint += `&created=${encodeURIComponent(`>=${sinceStr}`)}`;
+  }
+  return endpoint;
+}
+
+function processWorkflowRunsPage(
+  response: ApiResponse<GitHubWorkflowRunsResponse>,
+  repoFullName: string,
+  dateRange: DateRange | undefined,
+  allRuns: GitHubWorkflowRun[]
+): boolean {
+  if (!response.success || !response.data) {
+    return false;
+  }
+  if (!response.data.workflow_runs || response.data.workflow_runs.length === 0) {
+    return false;
+  }
+  for (const run of response.data.workflow_runs) {
+    if (passesWorkflowDateRange(new Date(run.created_at), dateRange)) {
+      allRuns.push(convertToWorkflowRun(run, repoFullName));
+    }
+  }
+  return true;
+}
+
 /**
  * リポジトリのワークフロー実行履歴を取得
  */
@@ -92,39 +125,17 @@ export function getWorkflowRuns(
   maxPages = DEFAULT_MAX_PAGES
 ): ApiResponse<GitHubWorkflowRun[]> {
   const allRuns: GitHubWorkflowRun[] = [];
-  let page = 1;
 
-  while (page <= maxPages) {
-    let endpoint = `/repos/${repo.fullName}/actions/runs?per_page=${PER_PAGE}&page=${page}`;
-
-    // GitHub Actions APIは created パラメータで日付フィルタ可能
-    if (dateRange?.since) {
-      const sinceStr = dateRange.since.toISOString().split('T')[0];
-      endpoint += `&created=${encodeURIComponent('>=' + sinceStr)}`;
-    }
-
+  for (let page = 1; page <= maxPages; page++) {
+    const endpoint = buildWorkflowRunsEndpoint(repo.fullName, page, dateRange);
     const response = fetchGitHub<GitHubWorkflowRunsResponse>(endpoint, token);
 
-    if (!response.success || !response.data) {
-      if (page === 1) {
+    if (!processWorkflowRunsPage(response, repo.fullName, dateRange, allRuns)) {
+      if (page === 1 && !response.success) {
         return { success: false, error: response.error };
       }
       break;
     }
-
-    if (!response.data.workflow_runs || response.data.workflow_runs.length === 0) {
-      break;
-    }
-
-    for (const run of response.data.workflow_runs) {
-      const createdAt = new Date(run.created_at);
-
-      if (passesWorkflowDateRange(createdAt, dateRange)) {
-        allRuns.push(convertToWorkflowRun(run, repo.fullName));
-      }
-    }
-
-    page++;
   }
 
   return { success: true, data: allRuns };

@@ -4,4 +4,4 @@
 
 export { GasTriggerClient } from './client';
 export { GasTrigger } from './trigger';
-export { GasTriggerBuilder, GasTimeTriggerBuilder } from './trigger-builder';
+export { GasTimeTriggerBuilder, GasTriggerBuilder } from './trigger-builder';

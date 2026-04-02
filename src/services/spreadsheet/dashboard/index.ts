@@ -7,8 +7,8 @@
  * - トレンド: 週次の推移
  */
 
-export { determineHealthStatus } from './status';
-export { extractLatestMetricsByRepository, enrichWithExtendedMetrics } from './metrics';
-export { calculateWeeklyTrends } from './trends';
+export { enrichWithExtendedMetrics, extractLatestMetricsByRepository } from './metrics';
 export { writeDashboard } from './sheet';
+export { determineHealthStatus } from './status';
 export { writeDashboardTrends } from './trendSheet';
+export { calculateWeeklyTrends } from './trends';

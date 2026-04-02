@@ -4,14 +4,14 @@
  * デプロイ頻度の計算結果を診断し、なぜ特定の結果になっているかを詳細に表示します。
  */
 
-import { getGitHubToken } from '../../config/settings';
 import { getDeployWorkflowPatterns } from '../../config/metrics';
+import { getGitHubToken } from '../../config/settings';
 import { getContainer } from '../../container';
-import { ensureContainerInitialized } from '../helpers';
-import { calculateDeploymentFrequency } from '../../utils/metrics/dora/deploymentFrequency';
-import { getDeployments, getWorkflowRuns } from '../../services/github/deployments';
 import type { LoggerClient } from '../../interfaces';
-import type { GitHubDeployment, GitHubWorkflowRun, GitHubRepository } from '../../types';
+import { getDeployments, getWorkflowRuns } from '../../services/github/deployments';
+import type { GitHubDeployment, GitHubRepository, GitHubWorkflowRun } from '../../types';
+import { calculateDeploymentFrequency } from '../../utils/metrics/dora/deploymentFrequency';
+import { ensureContainerInitialized } from '../helpers';
 
 /**
  * デプロイメントデータの診断
@@ -61,6 +61,22 @@ function diagnoseDeployments(
 /**
  * ワークフロー実行データの診断
  */
+function logNoMatchingWorkflows(runs: GitHubWorkflowRun[], logger: LoggerClient): void {
+  logger.log(`\n   ❌ No workflows match the deploy patterns`);
+  logger.log(`   💡 Available workflow names in this period:`);
+
+  const uniqueWorkflowNames = [...new Set(runs.map((r) => r.name))];
+  for (const name of uniqueWorkflowNames.slice(0, 10)) {
+    logger.log(`      - "${name}"`);
+  }
+  if (uniqueWorkflowNames.length > 10) {
+    logger.log(`      ... and ${uniqueWorkflowNames.length - 10} more`);
+  }
+
+  logger.log(`\n   💡 To fix, update deploy patterns with:`);
+  logger.log(`      setDeployWorkflowPatterns(["your-workflow-name"])`);
+}
+
 function diagnoseWorkflowRuns(
   runs: GitHubWorkflowRun[],
   patterns: string[],
@@ -76,7 +92,6 @@ function diagnoseWorkflowRuns(
 
   logger.log(`   ✅ Found ${runs.length} workflow run(s)`);
 
-  // パターンに一致するワークフローを検索
   const matchingRuns = runs.filter((run) => {
     const nameLower = run.name.toLowerCase();
     return patterns.some((pattern) => nameLower.includes(pattern.toLowerCase()));
@@ -91,19 +106,7 @@ function diagnoseWorkflowRuns(
   logger.log(`      Failed: ${failedMatches.length}`);
 
   if (matchingRuns.length === 0) {
-    logger.log(`\n   ❌ No workflows match the deploy patterns`);
-    logger.log(`   💡 Available workflow names in this period:`);
-
-    const uniqueWorkflowNames = [...new Set(runs.map((r) => r.name))];
-    for (const name of uniqueWorkflowNames.slice(0, 10)) {
-      logger.log(`      - "${name}"`);
-    }
-    if (uniqueWorkflowNames.length > 10) {
-      logger.log(`      ... and ${uniqueWorkflowNames.length - 10} more`);
-    }
-
-    logger.log(`\n   💡 To fix, update deploy patterns with:`);
-    logger.log(`      setDeployWorkflowPatterns(["your-workflow-name"])`);
+    logNoMatchingWorkflows(runs, logger);
   } else if (successfulMatches.length > 0) {
     logger.log(`\n   📋 Successful deploy workflows:`);
     for (const run of successfulMatches.slice(0, 5)) {
@@ -169,7 +172,6 @@ function diagnoseFrequencyResult(
  * @param repo - リポジトリ名
  * @param periodDays - 集計期間（日数、デフォルト: 30）
  */
-// eslint-disable-next-line max-lines-per-function
 export function debugDeploymentFrequency(
   owner: string,
   repo: string,
@@ -223,7 +225,16 @@ export function debugDeploymentFrequency(
   // 結果の診断
   diagnoseFrequencyResult(count, frequency, periodDays, logger);
 
-  // 最終的な判定
+  logFinalJudgment(count, deploymentsCount, hasDeploymentData, hasWorkflowData, logger);
+}
+
+function logFinalJudgment(
+  count: number,
+  deploymentsCount: number,
+  hasDeploymentData: boolean,
+  hasWorkflowData: boolean,
+  logger: LoggerClient
+): void {
   logger.log(`\n─────────────────────────────────────────────────────────`);
   if (count === 0) {
     logger.log(`\n❌ No deployments detected`);

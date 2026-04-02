@@ -6,15 +6,15 @@
  */
 
 import { getConfig } from '../config/settings';
+import { getContainer } from '../container';
+import { getIssuesGraphQL } from '../services/github/graphql/issues';
 import { isSlackNotificationEnabled } from '../services/slack/client';
 import {
   createIncidentDailySummaryMessage,
+  type IncidentEvent,
   isIncident,
   toIncidentIssue,
-  type IncidentEvent,
 } from '../services/slack/incidents';
-import { getIssuesGraphQL } from '../services/github/graphql/issues';
-import { getContainer } from '../container';
 import type { GitHubRepository } from '../types/github';
 
 /**

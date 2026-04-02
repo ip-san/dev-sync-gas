@@ -11,75 +11,66 @@
  * - migration.ts: マイグレーション関数
  */
 
-// 共通ヘルパー
-export { ensureContainerInitialized } from './helpers';
-
+// 監査ログ
+export { exportAuditLogs, showAuditLogs } from './audit';
+// 設定表示・変更
+export {
+  // API モード設定
+  configureApiMode,
+  configureCodingTimeLabels,
+  configureCycleTimeLabels,
+  configureDeployWorkflowPatterns,
+  configurePRCycleTimeExcludeBranches,
+  configurePRSizeExcludeBranches,
+  configureProductionBranch,
+  resetDeployWorkflowPatternsConfig,
+  showApiMode,
+  showCodingTimeConfig,
+  showCodingTimeLabels,
+  showCycleTimeConfig,
+  showCycleTimeLabels,
+  showDeployWorkflowPatterns,
+  showPRCycleTimeExcludeBranches,
+  showPRSizeExcludeBranches,
+  showProductionBranch,
+} from './config';
+// 診断ツール
+export { debugCycleTimeForIssue, debugDeploymentFrequency } from './diagnostics';
 // メトリクス同期（DORA + 拡張指標）
 export {
   syncAllMetrics,
-  syncAllMetricsIncremental,
   syncAllMetricsFromScratch,
+  syncAllMetricsIncremental,
 } from './extendedMetrics';
-
-// セットアップ・設定
-export {
-  showAuthMode,
-  listRepos,
-  scheduleDailyMetricsSync,
-  checkConfig,
-  testPermissions,
-} from './setup';
-
-// 設定表示・変更
-export {
-  configureProductionBranch,
-  showProductionBranch,
-  configureCycleTimeLabels,
-  showCycleTimeLabels,
-  showCycleTimeConfig,
-  configureCodingTimeLabels,
-  showCodingTimeLabels,
-  showCodingTimeConfig,
-  configurePRCycleTimeExcludeBranches,
-  showPRCycleTimeExcludeBranches,
-  configurePRSizeExcludeBranches,
-  showPRSizeExcludeBranches,
-  configureDeployWorkflowPatterns,
-  showDeployWorkflowPatterns,
-  resetDeployWorkflowPatternsConfig,
-  // API モード設定
-  configureApiMode,
-  showApiMode,
-} from './config';
-
+// 共通ヘルパー
+export { ensureContainerInitialized } from './helpers';
+// ログレベル設定
+export { configureLogLevel, showLogLevel } from './logLevel';
 // マイグレーション
 export {
-  previewMigration,
   migrateAllSchemas,
   migrateSheet,
-  updateHeadersOnly,
+  previewMigration,
   showBackupCleanupHelp,
+  updateHeadersOnly,
 } from './migration';
-
-// 監査ログ
-export { exportAuditLogs, showAuditLogs } from './audit';
-
 // Secret Manager
 export {
-  enableSecretManager,
+  deleteSecret,
   disableSecretManager,
+  enableSecretManager,
+  getSecret,
+  migratePrivateKey,
   showSecretManagerStatus,
   storeSecret,
-  getSecret,
-  deleteSecret,
-  migratePrivateKey,
 } from './secretManager';
-
-// ログレベル設定
-export { showLogLevel, configureLogLevel } from './logLevel';
-
+// セットアップ・設定
+export {
+  checkConfig,
+  listRepos,
+  scheduleDailyMetricsSync,
+  showAuthMode,
+  testPermissions,
+} from './setup';
 // Slack設定
 export { configureSlackWebhook, removeSlackWebhook, showSlackConfig } from './slackConfig';
-
-// 診断ツール
-export { debugCycleTimeForIssue, debugDeploymentFrequency } from './diagnostics';

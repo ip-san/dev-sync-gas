@@ -14,35 +14,33 @@
  * - statsHelpers.ts: 統計計算ヘルパー
  */
 
-// DORA Four Key Metrics
-export {
-  calculateLeadTime,
-  calculateLeadTimeDetailed,
-  calculateDeploymentFrequency,
-  calculateChangeFailureRate,
-  calculateMTTR,
-  calculateIncidentMetrics,
-  calculateMetricsForRepository,
-  // 日別メトリクス計算
-  calculateDailyMetrics,
-  calculateMetricsForDate,
-  generateDateRange,
-  isOnDate,
-  type LeadTimeResult,
-  type IncidentMetricsResult,
-} from './dora';
-
-// 拡張指標
-export { calculateCycleTime } from './cycleTime';
-export { calculateCodingTime } from './codingTime';
-export { calculatePRCycleTime } from './prCycleTime';
-export { calculateReworkRate } from './reworkRate';
-export { calculateReviewEfficiency } from './reviewEfficiency';
-export { calculatePRSize } from './prSize';
-
 // 複数リポジトリ横断集計
 export {
+  type AggregatedSummary,
   aggregateMultiRepoMetrics,
   type RepositorySummary,
-  type AggregatedSummary,
 } from './aggregate';
+export { calculateCodingTime } from './codingTime';
+// 拡張指標
+export { calculateCycleTime } from './cycleTime';
+// DORA Four Key Metrics
+export {
+  calculateChangeFailureRate,
+  // 日別メトリクス計算
+  calculateDailyMetrics,
+  calculateDeploymentFrequency,
+  calculateIncidentMetrics,
+  calculateLeadTime,
+  calculateLeadTimeDetailed,
+  calculateMetricsForDate,
+  calculateMetricsForRepository,
+  calculateMTTR,
+  generateDateRange,
+  type IncidentMetricsResult,
+  isOnDate,
+  type LeadTimeResult,
+} from './dora';
+export { calculatePRCycleTime } from './prCycleTime';
+export { calculatePRSize } from './prSize';
+export { calculateReviewEfficiency } from './reviewEfficiency';
+export { calculateReworkRate } from './reworkRate';

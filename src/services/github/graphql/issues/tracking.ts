@@ -4,21 +4,21 @@
  * PRチェーンの追跡とproductionブランチマージ検出
  */
 
-import type { ApiResponse, PRChainItem } from '../../../../types';
 import { getContainer } from '../../../../container';
+import type { ApiResponse, PRChainItem } from '../../../../types';
+import {
+  type MinimalPRInfo,
+  type PRFetcher,
+  trackToProductionMerge as trackToProductionMergeShared,
+} from '../../shared/prTracking.js';
 import { executeGraphQLWithRetry } from '../client';
+import { getPullRequestWithBranchesGraphQL } from '../pullRequests/index';
 import { COMMIT_ASSOCIATED_PRS_QUERY } from '../queries/commits.js';
 import { MERGED_PRS_BY_HEAD_BRANCH_QUERY } from '../queries/pullRequests.js';
 import type {
   CommitAssociatedPRsQueryResponse,
   MergedPRsByHeadBranchQueryResponse,
 } from '../types';
-import {
-  trackToProductionMerge as trackToProductionMergeShared,
-  type PRFetcher,
-  type MinimalPRInfo,
-} from '../../shared/prTracking.js';
-import { getPullRequestWithBranchesGraphQL } from '../pullRequests/index';
 
 /**
  * コミットSHAからPRを検索（GraphQL版）
@@ -118,7 +118,7 @@ function findNextPRByBranchAdapter(
   const mergedAfterTime = new Date(mergedAfter).getTime();
   const candidates = prs
     .filter((pr) => pr.mergedAt && new Date(pr.mergedAt).getTime() >= mergedAfterTime)
-    .sort((a, b) => new Date(a.mergedAt!).getTime() - new Date(b.mergedAt!).getTime());
+    .sort((a, b) => new Date(a.mergedAt ?? 0).getTime() - new Date(b.mergedAt ?? 0).getTime());
 
   if (candidates.length === 0) {
     return { success: true, data: null };

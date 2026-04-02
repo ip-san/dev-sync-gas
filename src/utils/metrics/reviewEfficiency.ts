@@ -4,7 +4,7 @@
  * PRの各フェーズでの滞留時間を測定する。
  */
 
-import type { ReviewEfficiencyMetrics, PRReviewData } from '../../types';
+import type { PRReviewData, ReviewEfficiencyMetrics } from '../../types';
 import { calculateStats } from './statsHelpers.js';
 
 /**

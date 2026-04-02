@@ -4,12 +4,12 @@
  * リポジトリ別の最新メトリクスを抽出し、拡張指標を統合
  */
 
-import type { DevOpsMetrics } from '../../../types';
 import type { Spreadsheet } from '../../../interfaces';
+import type { DevOpsMetrics } from '../../../types';
+import { AppError, ErrorCode, SpreadsheetError } from '../../../utils/errors';
 import type { RepositoryLatestData } from '../dashboardTypes';
-import { openSpreadsheet } from '../helpers';
 import { getExtendedMetricSheetName } from '../extendedMetricsRepositorySheet';
-import { SpreadsheetError, ErrorCode, AppError } from '../../../utils/errors';
+import { openSpreadsheet } from '../helpers';
 
 /**
  * メトリクスから各リポジトリの最新データを抽出
@@ -72,7 +72,7 @@ function calculateAverageFromSheet(
     const value = row[0];
     // 数値または数値に変換可能な文字列を受け入れる
     const numValue = typeof value === 'number' ? value : Number(value);
-    if (!isNaN(numValue) && isFinite(numValue)) {
+    if (!Number.isNaN(numValue) && Number.isFinite(numValue)) {
       validValues.push(numValue);
     }
   }

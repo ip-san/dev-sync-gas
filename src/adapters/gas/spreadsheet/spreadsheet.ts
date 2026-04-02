@@ -2,7 +2,7 @@
  * Spreadsheet implementation for Google Apps Script
  */
 
-import type { Spreadsheet, Sheet } from '../../../interfaces';
+import type { Sheet, Spreadsheet } from '../../../interfaces';
 import { GasSheet } from './sheet';
 
 export class GasSpreadsheet implements Spreadsheet {

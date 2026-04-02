@@ -5,12 +5,12 @@
  */
 
 import { getGitHubToken, getProductionBranchPattern } from '../../config/settings';
+import { getContainer } from '../../container';
+import type { LoggerClient } from '../../interfaces';
 import { getLinkedPRsForIssueGraphQL } from '../../services/github/graphql/issues/linkedPRs';
 import { trackToProductionMergeGraphQL } from '../../services/github/graphql/issues/tracking';
-import { getContainer } from '../../container';
-import { ensureContainerInitialized } from '../helpers';
-import type { LoggerClient } from '../../interfaces';
 import type { PRChainItem } from '../../types';
+import { ensureContainerInitialized } from '../helpers';
 
 /**
  * PRチェーンの詳細を診断

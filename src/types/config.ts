@@ -4,8 +4,8 @@
  * GitHub認証設定、プロジェクトグループ、アプリケーション設定の型定義。
  */
 
-import type { GitHubRepository } from './github';
 import type { HealthThresholds } from './dashboard';
+import type { GitHubRepository } from './github';
 
 // =============================================================================
 // GitHub Apps認証

@@ -3,21 +3,21 @@
  * init.ts の設定オブジェクトから実際の設定を適用する
  */
 
+import { createGasAdapters } from '../adapters/gas';
+import { initializeContainer, isContainerInitialized } from '../container';
+import { setAuditLogSheetName, setSheetNames } from './display';
 import {
-  setConfig,
+  addProject,
   addRepository,
+  setConfig,
+  setDeployWorkflowPatterns,
+  setExcludeCodingTimeBaseBranches,
+  setExcludeCycleTimeBaseBranches,
   setExcludePRSizeBaseBranches,
   setExcludeReviewEfficiencyBaseBranches,
-  setExcludeCycleTimeBaseBranches,
-  setExcludeCodingTimeBaseBranches,
   setExcludeReworkRateBaseBranches,
-  setDeployWorkflowPatterns,
   setProductionBranchPattern,
-  addProject,
 } from './settings';
-import { setSheetNames, setAuditLogSheetName } from './display';
-import { initializeContainer, isContainerInitialized } from '../container';
-import { createGasAdapters } from '../adapters/gas';
 
 /**
  * 認証設定の型定義

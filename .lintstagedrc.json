@@ -1,6 +1,3 @@
 {
-  "*.ts": [
-    "eslint --fix",
-    "prettier --write"
-  ]
+  "*.ts": "biome check --write --no-errors-on-unmatched"
 }

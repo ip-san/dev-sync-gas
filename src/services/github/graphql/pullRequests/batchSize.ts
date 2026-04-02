@@ -2,12 +2,12 @@
  * Pull Request size data batch operations
  */
 
-import type { GitHubPullRequest, PRSizeData } from '../../../../types';
-import { getContainer } from '../../../../container';
-import { executeGraphQLWithRetry } from '../client';
 import { DEFAULT_BATCH_SIZE } from '../../../../config/apiConfig';
-import { calculatePRSizeData } from '../prSizeHelpers';
+import { getContainer } from '../../../../container';
+import type { GitHubPullRequest, PRSizeData } from '../../../../types';
 import { groupPRsByRepository, parseRepository } from '../batchProcessing';
+import { executeGraphQLWithRetry } from '../client';
+import { calculatePRSizeData } from '../prSizeHelpers';
 import type { ProcessBatchSizeDataParams } from './types';
 
 /**

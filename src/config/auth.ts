@@ -1,9 +1,9 @@
-import type { Config } from '../types';
 import { getContainer } from '../container';
 import { resolveGitHubToken } from '../services/githubAuth';
+import type { Config } from '../types';
 import { auditLog } from '../utils/auditLog';
-import { CONFIG_KEYS } from './propertyKeys';
 import { getConfig } from './core';
+import { CONFIG_KEYS } from './propertyKeys';
 
 /**
  * GitHub Apps設定をクリア（PAT認証に戻す際に使用）

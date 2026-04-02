@@ -4,8 +4,8 @@
  * 複数のGraphQL関数で共通のパターンを抽出
  */
 
-import type { GitHubPullRequest } from '../../../types/index.js';
 import { getContainer } from '../../../container.js';
+import type { GitHubPullRequest } from '../../../types/index.js';
 import { parseRepositorySafe } from '../../../utils/repositoryParser.js';
 
 /**

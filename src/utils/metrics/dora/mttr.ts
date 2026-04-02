@@ -2,7 +2,7 @@
  * Mean Time to Recovery (MTTR) 計算
  */
 
-import type { GitHubDeployment, GitHubWorkflowRun, GitHubIncident } from '../../../types';
+import type { GitHubDeployment, GitHubIncident, GitHubWorkflowRun } from '../../../types';
 import { MS_TO_HOURS } from './constants';
 
 // =============================================================================
@@ -113,7 +113,7 @@ export function calculateIncidentMetrics(incidents: GitHubIncident[]): IncidentM
 
   const recoveryTimes = closedIncidents.map((incident) => {
     const created = new Date(incident.createdAt).getTime();
-    const closed = new Date(incident.closedAt!).getTime();
+    const closed = new Date(incident.closedAt as string).getTime();
     return (closed - created) / MS_TO_HOURS;
   });
 

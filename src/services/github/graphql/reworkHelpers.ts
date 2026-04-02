@@ -5,7 +5,7 @@
  */
 
 import type { PRReworkData } from '../../../types/index.js';
-import type { GraphQLPullRequestDetail, GraphQLCommit, GraphQLTimelineEvent } from './types.js';
+import type { GraphQLCommit, GraphQLPullRequestDetail, GraphQLTimelineEvent } from './types.js';
 
 /**
  * PR作成後の追加コミット数を計算

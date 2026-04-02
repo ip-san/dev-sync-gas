@@ -6,14 +6,14 @@
  */
 
 import {
-  getConfig,
-  getGitHubAuthMode,
   diagnoseConfig,
   formatDiagnosticResult,
+  getConfig,
+  getGitHubAuthMode,
 } from '../config/settings';
 import { getContainer } from '../container';
-import { ensureContainerInitialized } from './helpers';
 import { auditLog } from '../utils/auditLog';
+import { ensureContainerInitialized } from './helpers';
 
 // =============================================================================
 // 初期セットアップ

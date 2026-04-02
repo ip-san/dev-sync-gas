@@ -2,17 +2,17 @@
  * Pull Request listing operations
  */
 
-import type { GitHubPullRequest, GitHubRepository, ApiResponse } from '../../../../types';
+import { getExcludeMetricsLabels } from '../../../../config/settings';
 import { getContainer } from '../../../../container';
-import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from '../client';
-import { PULL_REQUESTS_QUERY } from '../queries/pullRequests.js';
-import { isWithinPRDateRange } from '../issueHelpers';
-import { validatePaginatedResponse } from '../errorHelpers';
-import type { PullRequestsQueryResponse, GraphQLPullRequest } from '../types';
-import type { DateRange } from '../../api';
+import type { ApiResponse, GitHubPullRequest, GitHubRepository } from '../../../../types';
 import { parseGraphQLNodeIdOrZero } from '../../../../utils/graphqlParser';
 import { shouldExcludeByLabels } from '../../../../utils/labelFilter';
-import { getExcludeMetricsLabels } from '../../../../config/settings';
+import type { DateRange } from '../../api';
+import { DEFAULT_PAGE_SIZE, executeGraphQLWithRetry } from '../client';
+import { validatePaginatedResponse } from '../errorHelpers';
+import { isWithinPRDateRange } from '../issueHelpers';
+import { PULL_REQUESTS_QUERY } from '../queries/pullRequests.js';
+import type { GraphQLPullRequest, PullRequestsQueryResponse } from '../types';
 import type { GetPullRequestsGraphQLParams } from './types';
 
 /**
@@ -135,7 +135,10 @@ export function getPullRequestsGraphQL(
       break;
     }
 
-    const prsData = queryResult.data!.repository!.pullRequests;
+    const prsData = queryResult.data?.repository?.pullRequests;
+    if (!prsData) {
+      break;
+    }
     const filteredPRs = filterPRsByDateRange(prsData.nodes, dateRange, repo.fullName);
     allPRs.push(...filteredPRs);
 

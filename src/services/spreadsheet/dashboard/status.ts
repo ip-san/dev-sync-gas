@@ -11,7 +11,6 @@ import { evaluateMetric, selectWorstStatus } from '../../../utils/healthStatus';
 /**
  * 健全性ステータスを判定
  */
-// eslint-disable-next-line max-params
 export function determineHealthStatus(
   leadTimeHours: number | null,
   changeFailureRate: number | null,

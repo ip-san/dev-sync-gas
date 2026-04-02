@@ -26,7 +26,10 @@ export function extractReadyForReviewTime(
 export function filterAndSortReviews(reviews: GraphQLReview[]): GraphQLReview[] {
   return reviews
     .filter((r) => r.state !== 'PENDING' && r.submittedAt)
-    .sort((a, b) => new Date(a.submittedAt!).getTime() - new Date(b.submittedAt!).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.submittedAt as string).getTime() - new Date(b.submittedAt as string).getTime()
+    );
 }
 
 /**

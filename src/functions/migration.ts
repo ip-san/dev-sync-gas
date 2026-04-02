@@ -10,12 +10,12 @@ import { getContainer } from '../container';
 import { ALL_SCHEMAS, findSchemaBySheetName } from '../schemas';
 import {
   getMigrationPreview,
-  migrateSheetSchema,
-  updateSheetHeadersOnly,
+  logBackupCleanupInstructions,
   logMigrationPreview,
   logMigrationResult,
   logMigrationSummary,
-  logBackupCleanupInstructions,
+  migrateSheetSchema,
+  updateSheetHeadersOnly,
 } from '../services/migration';
 import { ensureContainerInitialized } from './helpers';
 
@@ -72,7 +72,9 @@ export function migrateSheet(sheetName: string): void {
   if (!schema) {
     logger.error(`❌ Error: Unknown sheet name: ${sheetName}`);
     logger.info('Available sheets:');
-    ALL_SCHEMAS.forEach((s) => logger.info(`  - ${s.sheetName}`));
+    for (const s of ALL_SCHEMAS) {
+      logger.info(`  - ${s.sheetName}`);
+    }
     return;
   }
 

@@ -2,11 +2,11 @@
  * Lead Time for Changes 計算
  */
 
-import type { GitHubPullRequest, GitHubDeployment } from '../../../types';
 import {
-  LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS,
   DECIMAL_PRECISION_MULTIPLIER,
+  LEAD_TIME_DEPLOY_MATCH_THRESHOLD_HOURS,
 } from '../../../config/apiConfig';
+import type { GitHubDeployment, GitHubPullRequest } from '../../../types';
 import { MS_TO_HOURS } from './constants';
 
 // =============================================================================
@@ -59,7 +59,7 @@ function calculatePRLeadTime(
   successfulDeployments: GitHubDeployment[]
 ): PRLeadTimeResult {
   const createdAt = new Date(pr.createdAt).getTime();
-  const mergedAt = new Date(pr.mergedAt!).getTime();
+  const mergedAt = new Date(pr.mergedAt as string).getTime();
 
   // デプロイメントデータがない場合は早期リターン
   if (successfulDeployments.length === 0) {

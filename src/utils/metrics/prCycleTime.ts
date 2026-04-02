@@ -5,7 +5,7 @@
  * Issue有無は問わず、全てのマージ済みPRを対象とする。
  */
 
-import type { PRCycleTimeMetrics, PRCycleTime, PRCycleTimeDetail } from '../../types';
+import type { PRCycleTime, PRCycleTimeDetail, PRCycleTimeMetrics } from '../../types';
 import { calculateStats } from './statsHelpers.js';
 
 /**
@@ -34,13 +34,14 @@ export function calculatePRCycleTime(
     };
   }
 
+  // validPRs は prMergedAt !== null && prCycleTimeHours !== null でフィルタ済み
   const prDetails: PRCycleTimeDetail[] = validPRs.map((pr) => ({
     prNumber: pr.prNumber,
     title: pr.prTitle,
     repository: pr.repository,
     prCreatedAt: pr.prCreatedAt,
-    prMergedAt: pr.prMergedAt!,
-    prCycleTimeHours: pr.prCycleTimeHours!,
+    prMergedAt: pr.prMergedAt as string,
+    prCycleTimeHours: pr.prCycleTimeHours as number,
     linkedIssueNumber: pr.linkedIssueNumber,
     baseBranch: pr.baseBranch,
   }));

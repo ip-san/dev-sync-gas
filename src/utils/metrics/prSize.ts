@@ -4,7 +4,7 @@
  * PRの変更行数と変更ファイル数を測定する。
  */
 
-import type { PRSizeMetrics, PRSizeData } from '../../types';
+import type { PRSizeData, PRSizeMetrics } from '../../types';
 import { calculateStats } from './statsHelpers.js';
 
 /**

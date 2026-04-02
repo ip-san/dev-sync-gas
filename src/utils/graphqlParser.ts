@@ -41,7 +41,7 @@ export function parseGraphQLNodeId(graphqlId: string | null | undefined): number
   const parsed = parseInt(digits, 10);
 
   // 有効な数値かチェック
-  if (isNaN(parsed) || !isFinite(parsed)) {
+  if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
     return null;
   }
 
@@ -105,7 +105,7 @@ export function parseGraphQLDateTime(dateTimeString: string | null | undefined):
   const date = new Date(dateTimeString);
 
   // 有効な日付かチェック
-  if (isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     return null;
   }
 
@@ -142,7 +142,7 @@ export function parseGraphQLInt(value: number | null | undefined, defaultValue =
     return defaultValue;
   }
 
-  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
     return defaultValue;
   }
 

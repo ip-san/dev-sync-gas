@@ -2,9 +2,9 @@
  * 監査ログ関連のGASエントリーポイント関数
  */
 
+import { getConfig } from '../config/settings';
 import { exportAuditLogsToSheet, getAuditLogs } from '../utils/auditLog';
 import { ensureContainerInitialized } from './helpers';
-import { getConfig } from '../config/settings';
 
 /**
  * 監査ログをスプレッドシートに書き出す

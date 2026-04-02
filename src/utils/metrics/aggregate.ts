@@ -4,8 +4,8 @@
  * 複数リポジトリのDevOps指標を集計してサマリーを生成する。
  */
 
-import type { DevOpsMetrics } from '../../types';
 import { DECIMAL_PRECISION_MULTIPLIER } from '../../config/apiConfig';
+import type { DevOpsMetrics } from '../../types';
 
 // =============================================================================
 // 型定義

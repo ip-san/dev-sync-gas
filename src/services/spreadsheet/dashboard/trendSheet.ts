@@ -4,12 +4,12 @@
  * トレンドシートへのデータ出力とフォーマット
  */
 
-import type { DevOpsMetrics } from '../../../types';
-import type { Sheet, Spreadsheet } from '../../../interfaces';
-import type { WeeklyTrendData } from '../dashboardTypes';
 import { getContainer } from '../../../container';
-import { autoResizeColumns, openSpreadsheet, styleHeaderRow, applyDataBorders } from '../helpers';
-import { calculateWeeklyTrends, calculateChange } from './trends';
+import type { Sheet, Spreadsheet } from '../../../interfaces';
+import type { DevOpsMetrics } from '../../../types';
+import type { WeeklyTrendData } from '../dashboardTypes';
+import { applyDataBorders, autoResizeColumns, openSpreadsheet, styleHeaderRow } from '../helpers';
+import { calculateChange, calculateWeeklyTrends } from './trends';
 
 /**
  * トレンドシート用のヘッダー

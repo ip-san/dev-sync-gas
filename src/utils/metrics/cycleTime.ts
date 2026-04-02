@@ -42,8 +42,8 @@ export function calculateCycleTime(
       title: issue.issueTitle,
       repository: issue.repository,
       issueCreatedAt: issue.issueCreatedAt,
-      productionMergedAt: issue.productionMergedAt!,
-      cycleTimeHours: issue.cycleTimeHours!,
+      productionMergedAt: issue.productionMergedAt as string,
+      cycleTimeHours: issue.cycleTimeHours as number,
       prChainSummary,
     };
   });

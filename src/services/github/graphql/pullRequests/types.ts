@@ -2,7 +2,7 @@
  * Internal type definitions for Pull Request operations
  */
 
-import type { GitHubRepository, GitHubPullRequest } from '../../../../types';
+import type { GitHubPullRequest, GitHubRepository } from '../../../../types';
 import type { DateRange } from '../../api';
 
 /**

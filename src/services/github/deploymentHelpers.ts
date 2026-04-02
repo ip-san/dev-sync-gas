@@ -4,14 +4,14 @@
  * getDeployments の複雑度削減のため分離
  */
 
-import type { DateRange } from './api.js';
+import { getContainer } from '../../container.js';
 import type {
-  GitHubDeploymentResponse,
   GitHubDeployment,
+  GitHubDeploymentResponse,
   GitHubDeploymentStatusResponse,
 } from '../../types/index.js';
+import type { DateRange } from './api.js';
 import { fetchGitHub, STATUS_FETCH_WARNING_THRESHOLD } from './api.js';
-import { getContainer } from '../../container.js';
 
 /**
  * デプロイメントが期間範囲内かチェック

@@ -5,11 +5,11 @@
  * 既存データを保持しながら新構造に移行する。
  */
 
-import type { DevOpsMetrics } from '../../types';
 import { getContainer } from '../../container';
-import { openSpreadsheet } from './helpers';
-import { writeMetricsToAllRepositorySheets, groupMetricsByRepository } from './repositorySheet';
+import type { DevOpsMetrics } from '../../types';
 import { writeDashboard, writeDashboardTrends } from './dashboard';
+import { openSpreadsheet } from './helpers';
+import { groupMetricsByRepository, writeMetricsToAllRepositorySheets } from './repositorySheet';
 
 /**
  * レガシー形式のデプロイ頻度（文字列）を数値に変換

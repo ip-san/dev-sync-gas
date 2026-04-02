@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.ts",
+    "src/functions/**/*.ts",
+    "src/init.example.ts",
+    "src/init.simple.example.ts",
+    "src/init.fallback.ts"
+  ],
+  "project": ["src/**/*.ts"],
+  "ignoreDependencies": ["lint-staged"],
+  "ignoreExportsUsedInFile": true,
+  "rules": {
+    "files": "error",
+    "exports": "warn",
+    "types": "warn"
+  }
+}

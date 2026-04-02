@@ -4,12 +4,12 @@
  * DevOps指標が閾値を超えた場合にアラートを送信
  */
 
-import type { DevOpsMetrics } from '../../types';
-import type { SlackMessage, SlackBlock } from '../../interfaces';
-import { determineHealthStatus } from '../spreadsheet/dashboard';
-import { DEFAULT_HEALTH_THRESHOLDS } from '../../types/dashboard';
 import { getHealthThresholdsForRepository } from '../../config/settings';
 import { getContainer } from '../../container';
+import type { SlackBlock, SlackMessage } from '../../interfaces';
+import type { DevOpsMetrics } from '../../types';
+import { DEFAULT_HEALTH_THRESHOLDS } from '../../types/dashboard';
+import { determineHealthStatus } from '../spreadsheet/dashboard';
 
 /**
  * アラートの種類

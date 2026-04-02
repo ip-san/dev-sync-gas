@@ -2,8 +2,8 @@
  * マイグレーション内部型定義
  */
 
-import type { ColumnDefinition, SheetSchema } from '../../schemas';
 import type { Sheet } from '../../interfaces';
+import type { ColumnDefinition, SheetSchema } from '../../schemas';
 
 /**
  * カラムマッピング情報

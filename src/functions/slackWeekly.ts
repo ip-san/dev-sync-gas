@@ -3,12 +3,12 @@
  */
 
 import { getConfig } from '../config/settings';
-import type { DevOpsMetrics } from '../types';
-import { createWeeklyReportMessage } from '../services/slack/weeklyReport';
-import { isSlackNotificationEnabled } from '../services/slack/client';
-import { readMetricsFromAllRepositorySheets } from '../services/spreadsheet/repositorySheet';
-import { calculateWeeklyTrends } from '../services/spreadsheet/dashboard';
 import { getContainer } from '../container';
+import { isSlackNotificationEnabled } from '../services/slack/client';
+import { createWeeklyReportMessage } from '../services/slack/weeklyReport';
+import { calculateWeeklyTrends } from '../services/spreadsheet/dashboard';
+import { readMetricsFromAllRepositorySheets } from '../services/spreadsheet/repositorySheet';
+import type { DevOpsMetrics } from '../types';
 
 /**
  * 週の開始日（月曜日）を取得

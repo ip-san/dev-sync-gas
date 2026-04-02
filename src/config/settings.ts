@@ -29,19 +29,19 @@ export { clearGitHubAppConfig, getGitHubToken } from './auth.js';
 // Repository Management
 // =============================================================================
 
-export { addRepository, removeRepository, getRepositories } from './repositories.js';
+export { addRepository, getRepositories, removeRepository } from './repositories.js';
 
 // =============================================================================
 // Project Group Management
 // =============================================================================
 
 export {
-  getProjects,
   addProject,
-  updateProject,
-  removeProject,
   addRepositoryToProject,
+  getProjects,
+  removeProject,
   removeRepositoryFromProject,
+  updateProject,
 } from './projects.js';
 
 // =============================================================================
@@ -49,43 +49,43 @@ export {
 // =============================================================================
 
 export {
-  getProductionBranchPattern,
-  setProductionBranchPattern,
-  resetProductionBranchPattern,
-  getCycleTimeIssueLabels,
-  setCycleTimeIssueLabels,
-  resetCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
-  setCodingTimeIssueLabels,
-  resetCodingTimeIssueLabels,
-  getExcludeMetricsLabels,
-  setExcludeMetricsLabels,
-  resetExcludeMetricsLabels,
-  getIncidentLabels,
-  setIncidentLabels,
-  resetIncidentLabels,
-  getIncidentLabelsForRepository,
-  getExcludePRSizeBaseBranches,
-  setExcludePRSizeBaseBranches,
-  resetExcludePRSizeBaseBranches,
-  getExcludeReviewEfficiencyBaseBranches,
-  setExcludeReviewEfficiencyBaseBranches,
-  resetExcludeReviewEfficiencyBaseBranches,
-  getExcludeCycleTimeBaseBranches,
-  setExcludeCycleTimeBaseBranches,
-  resetExcludeCycleTimeBaseBranches,
-  getExcludeCodingTimeBaseBranches,
-  setExcludeCodingTimeBaseBranches,
-  resetExcludeCodingTimeBaseBranches,
-  getExcludeReworkRateBaseBranches,
-  setExcludeReworkRateBaseBranches,
-  resetExcludeReworkRateBaseBranches,
-  getExcludePRCycleTimeBaseBranches,
-  setExcludePRCycleTimeBaseBranches,
-  resetExcludePRCycleTimeBaseBranches,
+  getCycleTimeIssueLabels,
   getDeployWorkflowPatterns,
-  setDeployWorkflowPatterns,
+  getExcludeCodingTimeBaseBranches,
+  getExcludeCycleTimeBaseBranches,
+  getExcludeMetricsLabels,
+  getExcludePRCycleTimeBaseBranches,
+  getExcludePRSizeBaseBranches,
+  getExcludeReviewEfficiencyBaseBranches,
+  getExcludeReworkRateBaseBranches,
+  getIncidentLabels,
+  getIncidentLabelsForRepository,
+  getProductionBranchPattern,
+  resetCodingTimeIssueLabels,
+  resetCycleTimeIssueLabels,
   resetDeployWorkflowPatterns,
+  resetExcludeCodingTimeBaseBranches,
+  resetExcludeCycleTimeBaseBranches,
+  resetExcludeMetricsLabels,
+  resetExcludePRCycleTimeBaseBranches,
+  resetExcludePRSizeBaseBranches,
+  resetExcludeReviewEfficiencyBaseBranches,
+  resetExcludeReworkRateBaseBranches,
+  resetIncidentLabels,
+  resetProductionBranchPattern,
+  setCodingTimeIssueLabels,
+  setCycleTimeIssueLabels,
+  setDeployWorkflowPatterns,
+  setExcludeCodingTimeBaseBranches,
+  setExcludeCycleTimeBaseBranches,
+  setExcludeMetricsLabels,
+  setExcludePRCycleTimeBaseBranches,
+  setExcludePRSizeBaseBranches,
+  setExcludeReviewEfficiencyBaseBranches,
+  setExcludeReworkRateBaseBranches,
+  setIncidentLabels,
+  setProductionBranchPattern,
 } from './metrics.js';
 
 // =============================================================================
@@ -93,7 +93,7 @@ export {
 // =============================================================================
 
 export type { GitHubApiMode } from './apiMode.js';
-export { getGitHubApiMode, setGitHubApiMode, resetGitHubApiMode } from './apiMode.js';
+export { getGitHubApiMode, resetGitHubApiMode, setGitHubApiMode } from './apiMode.js';
 
 // =============================================================================
 // Authentication Mode (Re-export from authMode.ts)
@@ -114,10 +114,10 @@ export { diagnoseConfig, formatDiagnosticResult } from './diagnostics.js';
 
 export type { SheetNamesConfig } from './display.js';
 export {
-  getSheetNames,
-  setSheetNames,
   getAuditLogSheetName,
+  getSheetNames,
   setAuditLogSheetName,
+  setSheetNames,
 } from './display.js';
 
 // =============================================================================
@@ -125,7 +125,7 @@ export {
 // =============================================================================
 
 export {
-  getInitialSyncDaysForRepository,
-  getHealthThresholdsForRepository,
   getExcludeMetricsLabelsForRepository,
+  getHealthThresholdsForRepository,
+  getInitialSyncDaysForRepository,
 } from './projectSettings.js';

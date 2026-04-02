@@ -2,7 +2,7 @@
  * Trigger Client implementation for Google Apps Script
  */
 
-import type { TriggerClient, Trigger, TriggerBuilder } from '../../../interfaces';
+import type { Trigger, TriggerBuilder, TriggerClient } from '../../../interfaces';
 import { GasTrigger } from './trigger';
 import { GasTriggerBuilder } from './trigger-builder';
 

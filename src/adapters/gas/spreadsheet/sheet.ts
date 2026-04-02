@@ -2,7 +2,7 @@
  * Sheet implementation for Google Apps Script
  */
 
-import type { Sheet, SheetRange, EmbeddedChart } from '../../../interfaces';
+import type { EmbeddedChart, Sheet, SheetRange } from '../../../interfaces';
 import { GasSheetRange } from './sheet-range';
 
 export class GasSheet implements Sheet {

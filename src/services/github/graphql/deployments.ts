@@ -9,13 +9,13 @@
  * - GraphQLでは1リクエストでステータスも含めて取得
  */
 
-import type { GitHubDeployment, GitHubRepository, ApiResponse } from '../../../types';
 import { getContainer } from '../../../container';
-import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from './client';
+import type { ApiResponse, GitHubDeployment, GitHubRepository } from '../../../types';
+import type { DateRange } from '../api';
+import { DEFAULT_PAGE_SIZE, executeGraphQLWithRetry } from './client';
+import { validatePaginatedResponse } from './errorHelpers.js';
 import { DEPLOYMENTS_QUERY } from './queries/deployments.js';
 import type { DeploymentsQueryResponse, GraphQLDeployment } from './types';
-import type { DateRange } from '../api';
-import { validatePaginatedResponse } from './errorHelpers.js';
 
 // =============================================================================
 // 型定義
@@ -99,58 +99,103 @@ function shouldIncludeDeployment(
  * - ステータスも同時に取得（追加リクエスト不要）
  * - environments パラメータで環境フィルタ可能
  */
+function fetchDeploymentsPage(
+  repo: GitHubRepository,
+  token: string,
+  cursor: string | null,
+  environments: string[] | null
+): ApiResponse<DeploymentsQueryResponse> {
+  return executeGraphQLWithRetry<DeploymentsQueryResponse>(
+    DEPLOYMENTS_QUERY,
+    {
+      owner: repo.owner,
+      name: repo.name,
+      first: DEFAULT_PAGE_SIZE,
+      after: cursor,
+      environments,
+    },
+    token
+  );
+}
+
+function collectDeployments(
+  nodes: GraphQLDeployment[],
+  repoFullName: string,
+  environment: string | undefined,
+  environmentMatchMode: EnvironmentMatchMode,
+  dateRange: DateRange | undefined,
+  allDeployments: GitHubDeployment[]
+): void {
+  for (const deployment of nodes) {
+    if (shouldIncludeDeployment(deployment, environment, environmentMatchMode, dateRange)) {
+      allDeployments.push(convertToDeployment(deployment, repoFullName));
+    }
+  }
+}
+
+type DeploymentsPageResult =
+  | { type: 'error'; error: ApiResponse<GitHubDeployment[]> }
+  | { type: 'done' }
+  | { type: 'next'; cursor: string | null };
+
+function processDeploymentsPage(
+  queryResult: ApiResponse<DeploymentsQueryResponse>,
+  page: number,
+  repo: GitHubRepository,
+  options: GetDeploymentsOptions,
+  allDeployments: GitHubDeployment[]
+): DeploymentsPageResult {
+  const validationError = validatePaginatedResponse(queryResult, page, 'repository.deployments');
+  if (validationError) {
+    return { type: 'error', error: validationError };
+  }
+  if (!queryResult.success) {
+    return { type: 'done' };
+  }
+
+  const deploymentsData = queryResult.data?.repository?.deployments;
+  if (!deploymentsData) {
+    return { type: 'done' };
+  }
+
+  collectDeployments(
+    deploymentsData.nodes,
+    repo.fullName,
+    options.environment,
+    options.environmentMatchMode ?? 'exact',
+    options.dateRange,
+    allDeployments
+  );
+
+  if (!deploymentsData.pageInfo.hasNextPage) {
+    return { type: 'done' };
+  }
+  return { type: 'next', cursor: deploymentsData.pageInfo.endCursor };
+}
+
 export function getDeploymentsGraphQL(
   repo: GitHubRepository,
   token: string,
   options: GetDeploymentsOptions = {}
 ): ApiResponse<GitHubDeployment[]> {
   const { logger } = getContainer();
-  const { environment, environmentMatchMode = 'exact', dateRange, maxPages = 5 } = options;
+  const { environment, environmentMatchMode = 'exact', maxPages = 5 } = options;
 
   const allDeployments: GitHubDeployment[] = [];
   let cursor: string | null = null;
-  let page = 0;
-
-  // 完全一致の場合のみAPIフィルタを使用
   const environments = environment && environmentMatchMode === 'exact' ? [environment] : null;
 
-  while (page < maxPages) {
-    const queryResult: ApiResponse<DeploymentsQueryResponse> =
-      executeGraphQLWithRetry<DeploymentsQueryResponse>(
-        DEPLOYMENTS_QUERY,
-        {
-          owner: repo.owner,
-          name: repo.name,
-          first: DEFAULT_PAGE_SIZE,
-          after: cursor,
-          environments,
-        },
-        token
-      );
+  for (let page = 0; page < maxPages; page++) {
+    const queryResult = fetchDeploymentsPage(repo, token, cursor, environments);
+    const pageResult = processDeploymentsPage(queryResult, page, repo, options, allDeployments);
 
-    const validationError = validatePaginatedResponse(queryResult, page, 'repository.deployments');
-    if (validationError) {
-      return validationError;
+    if (pageResult.type === 'error') {
+      return pageResult.error;
     }
-    if (!queryResult.success) {
-      break; // 2ページ目以降のエラー
-    }
-
-    const deploymentsData = queryResult.data!.repository!.deployments;
-    const nodes: GraphQLDeployment[] = deploymentsData.nodes;
-    const pageInfo = deploymentsData.pageInfo;
-
-    for (const deployment of nodes) {
-      if (shouldIncludeDeployment(deployment, environment, environmentMatchMode, dateRange)) {
-        allDeployments.push(convertToDeployment(deployment, repo.fullName));
-      }
-    }
-
-    if (!pageInfo.hasNextPage) {
+    if (pageResult.type === 'done') {
       break;
     }
-    cursor = pageInfo.endCursor;
-    page++;
+    cursor = pageResult.cursor;
   }
 
   logger.log(`  📦 Fetched ${allDeployments.length} deployments via GraphQL`);

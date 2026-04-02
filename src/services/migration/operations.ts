@@ -4,13 +4,13 @@
 
 import { getContainer } from '../../container';
 import type { Sheet, Spreadsheet } from '../../interfaces';
-import type { SheetSchema, MigrationResult } from '../../schemas';
-import type { PerformDataMigrationParams, HandleMigrationErrorParams } from './types';
-import { createColumnMapping, findRemovedColumns } from './mapping';
-import { migrateData } from './transform';
-import { analyzeChanges } from './preview';
-import { initializeSheet, applySheetFormat } from './formatting';
+import type { MigrationResult, SheetSchema } from '../../schemas';
 import { restoreFromBackup } from './backup';
+import { applySheetFormat, initializeSheet } from './formatting';
+import { createColumnMapping, findRemovedColumns } from './mapping';
+import { analyzeChanges } from './preview';
+import { migrateData } from './transform';
+import type { HandleMigrationErrorParams, PerformDataMigrationParams } from './types';
 
 /**
  * 新しいシートを作成して初期化

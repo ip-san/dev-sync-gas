@@ -2,14 +2,14 @@
  * Pull Request rework data batch operations
  */
 
-import type { GitHubPullRequest, PRReworkData } from '../../../../types';
+import { DEFAULT_BATCH_SIZE } from '../../../../config/apiConfig';
 import { getContainer } from '../../../../container';
+import type { GitHubPullRequest, PRReworkData } from '../../../../types';
+import { groupPRsByRepository, parseRepository } from '../batchProcessing';
 import { executeGraphQLWithRetry } from '../client';
 import { buildBatchPRDetailQuery } from '../queries/pullRequests.js';
-import type { GraphQLPullRequestDetail } from '../types';
-import { DEFAULT_BATCH_SIZE } from '../../../../config/apiConfig';
 import { calculateReworkDataForPR, createDefaultReworkData } from '../reworkHelpers';
-import { groupPRsByRepository, parseRepository } from '../batchProcessing';
+import type { GraphQLPullRequestDetail } from '../types';
 import type { ProcessBatchReworkDataParams } from './types';
 
 /**

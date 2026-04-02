@@ -18,83 +18,81 @@
  * - issues.ts: Issue関連操作
  */
 
+export type { GraphQLError, GraphQLResponse, PageInfo, RateLimitInfo } from './client';
 // クライアント基盤
 export {
+  DEFAULT_PAGE_SIZE,
   executeGraphQL,
   executeGraphQLWithRetry,
-  getRateLimitInfo,
   GITHUB_GRAPHQL_ENDPOINT,
-  DEFAULT_PAGE_SIZE,
+  getRateLimitInfo,
   MAX_RETRIES,
 } from './client';
-export type { GraphQLError, GraphQLResponse, PageInfo, RateLimitInfo } from './client';
-
-// Pull Request 操作
-export {
-  getPullRequestsGraphQL,
-  getPRDetailsGraphQL,
-  getPullRequestWithBranchesGraphQL,
-  getReworkDataForPRsGraphQL,
-  getPRSizeDataForPRsGraphQL,
-  getReviewEfficiencyDataForPRsGraphQL,
-  getPRCycleTimeDataGraphQL,
-} from './pullRequests/index.js';
+export type { EnvironmentMatchMode, GetDeploymentsOptions } from './deployments';
 
 // Deployment 操作
 export { getDeploymentsGraphQL } from './deployments';
-export type { EnvironmentMatchMode, GetDeploymentsOptions } from './deployments';
-
 // Issue 操作
 export {
+  findPRContainingCommitGraphQL,
+  getCodingTimeDataGraphQL,
+  getCycleTimeDataGraphQL,
   getIssuesGraphQL,
   getLinkedPRsForIssueGraphQL,
-  findPRContainingCommitGraphQL,
   trackToProductionMergeGraphQL,
-  getCycleTimeDataGraphQL,
-  getCodingTimeDataGraphQL,
 } from './issues';
+// Pull Request 操作
+export {
+  getPRCycleTimeDataGraphQL,
+  getPRDetailsGraphQL,
+  getPRSizeDataForPRsGraphQL,
+  getPullRequestsGraphQL,
+  getPullRequestWithBranchesGraphQL,
+  getReviewEfficiencyDataForPRsGraphQL,
+  getReworkDataForPRsGraphQL,
+} from './pullRequests/index.js';
 
 // 型定義
 export type {
-  GraphQLNode,
-  Connection,
   Actor,
-  PullRequestState,
-  ReviewState,
-  GraphQLPullRequest,
-  GraphQLReview,
-  GraphQLCommit,
-  GraphQLTimelineEvent,
-  GraphQLPullRequestDetail,
+  Connection,
+  CrossReferencedEvent,
   DeploymentState,
   DeploymentStatusState,
+  GraphQLCommit,
   GraphQLDeployment,
-  IssueState,
-  GraphQLLabel,
   GraphQLIssue,
-  CrossReferencedEvent,
   GraphQLIssueWithLinkedPRs,
+  GraphQLLabel,
+  GraphQLNode,
+  GraphQLPullRequest,
+  GraphQLPullRequestDetail,
+  GraphQLReview,
+  GraphQLTimelineEvent,
+  IssueState,
+  PullRequestState,
+  ReviewState,
 } from './types';
 
 // =============================================================================
 // 複合機能（REST API互換）
 // =============================================================================
 
-import type {
-  GitHubPullRequest,
-  GitHubWorkflowRun,
-  GitHubDeployment,
-  GitHubRepository,
-  GitHubIncident,
-} from '../../../types';
+import { getIncidentLabels } from '../../../config/settings';
 import { getContainer } from '../../../container';
-import { getPullRequestsGraphQL } from './pullRequests/index.js';
+import type {
+  GitHubDeployment,
+  GitHubIncident,
+  GitHubPullRequest,
+  GitHubRepository,
+  GitHubWorkflowRun,
+} from '../../../types';
+import type { DateRange } from '../api';
+import { getWorkflowRuns } from '../deployments'; // ワークフローはREST APIを継続使用
+import type { EnvironmentMatchMode } from './deployments';
 import { getDeploymentsGraphQL } from './deployments';
 import { getIssuesGraphQL } from './issues';
-import { getWorkflowRuns } from '../deployments'; // ワークフローはREST APIを継続使用
-import { getIncidentLabels } from '../../../config/settings';
-import type { DateRange } from '../api';
-import type { EnvironmentMatchMode } from './deployments';
+import { getPullRequestsGraphQL } from './pullRequests/index.js';
 
 /**
  * 複数リポジトリからデータを一括取得する際のオプション

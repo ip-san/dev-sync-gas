@@ -8,44 +8,44 @@
  */
 
 import {
-  getConfig,
-  getGitHubToken,
-  getProductionBranchPattern,
-  getCycleTimeIssueLabels,
   getCodingTimeIssueLabels,
-  getExcludeReworkRateBaseBranches,
+  getConfig,
+  getCycleTimeIssueLabels,
+  getExcludePRCycleTimeBaseBranches,
   getExcludePRSizeBaseBranches,
   getExcludeReviewEfficiencyBaseBranches,
-  getExcludePRCycleTimeBaseBranches,
+  getExcludeReworkRateBaseBranches,
+  getGitHubToken,
+  getProductionBranchPattern,
 } from '../config/settings';
 import {
-  getCycleTimeDataGraphQL,
+  type DateRange,
   getCodingTimeDataGraphQL,
+  getCycleTimeDataGraphQL,
   getPRCycleTimeDataGraphQL,
-  getReworkDataForPRsGraphQL,
-  getReviewEfficiencyDataForPRsGraphQL,
   getPRSizeDataForPRsGraphQL,
   getPullRequestsGraphQL,
-  type DateRange,
+  getReviewEfficiencyDataForPRsGraphQL,
+  getReworkDataForPRsGraphQL,
 } from '../services/github';
 import {
-  writeCycleTimeToSheet,
   writeCodingTimeToSheet,
+  writeCycleTimeToSheet,
   writePRCycleTimeToSheet,
-  writeReworkRateToSheet,
-  writeReviewEfficiencyToSheet,
   writePRSizeToSheet,
+  writeReviewEfficiencyToSheet,
+  writeReworkRateToSheet,
 } from '../services/spreadsheet';
+import type { GitHubPullRequest, GitHubRepository } from '../types';
 import {
-  calculateCycleTime,
   calculateCodingTime,
+  calculateCycleTime,
   calculatePRCycleTime,
-  calculateReworkRate,
-  calculateReviewEfficiency,
   calculatePRSize,
+  calculateReviewEfficiency,
+  calculateReworkRate,
 } from '../utils/metrics';
 import { ensureContainerInitialized } from './helpers';
-import type { GitHubPullRequest, GitHubRepository } from '../types';
 
 // =============================================================================
 // ヘルパー関数
@@ -487,8 +487,9 @@ function syncAllExtendedMetrics(days: number): void {
 async function updateDashboard(): Promise<void> {
   Logger.log(`\n📊 [8/8] ダッシュボードを更新中...`);
   const config = getConfig();
-  const { writeDashboard, readMetricsFromAllRepositorySheets } =
-    await import('../services/spreadsheet');
+  const { writeDashboard, readMetricsFromAllRepositorySheets } = await import(
+    '../services/spreadsheet'
+  );
   const repositories = config.github.repositories.map((repo) => repo.fullName);
   const metrics = readMetricsFromAllRepositorySheets(config.spreadsheet.id, repositories);
   await writeDashboard(config.spreadsheet.id, metrics);

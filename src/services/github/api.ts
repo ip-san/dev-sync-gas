@@ -5,14 +5,14 @@
  * 認証ヘッダーの付与、エラーハンドリング、ページネーションの基盤となる。
  */
 
-import type { ApiResponse } from '../../types';
-import { getContainer } from '../../container';
-import { sanitizeGitHubError, sanitizeErrorMessage } from '../../utils/errorSanitizer';
 import {
   DEFAULT_MAX_PAGES,
   PER_PAGE,
   STATUS_FETCH_WARNING_THRESHOLD,
 } from '../../config/apiConfig';
+import { getContainer } from '../../container';
+import type { ApiResponse } from '../../types';
+import { sanitizeErrorMessage, sanitizeGitHubError } from '../../utils/errorSanitizer';
 
 // =============================================================================
 // 定数

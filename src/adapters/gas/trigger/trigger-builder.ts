@@ -2,7 +2,7 @@
  * Trigger Builder implementations for Google Apps Script
  */
 
-import type { TriggerBuilder, TimeTriggerBuilder, Trigger } from '../../../interfaces';
+import type { TimeTriggerBuilder, Trigger, TriggerBuilder } from '../../../interfaces';
 import { GasTrigger } from './trigger';
 
 export class GasTimeTriggerBuilder implements TimeTriggerBuilder {

@@ -10,21 +10,17 @@
  * - サイクルタイム計測に必要なPRブランチ情報も同時取得
  */
 
+// コーディングタイム計算
+export { getCodingTimeDataGraphQL } from './codingTime';
+// サイクルタイム計算
+export { getCycleTimeDataGraphQL } from './cycleTime';
 // Issue取得
 export { getIssuesGraphQL } from './fetch';
-
 // リンクPR取得
 export { getLinkedPRsForIssueGraphQL } from './linkedPRs';
-
 // PR追跡
 export {
   findPRContainingCommitGraphQL,
-  trackToProductionMergeGraphQL,
   type TrackToProductionGraphQLOptions,
+  trackToProductionMergeGraphQL,
 } from './tracking';
-
-// サイクルタイム計算
-export { getCycleTimeDataGraphQL } from './cycleTime';
-
-// コーディングタイム計算
-export { getCodingTimeDataGraphQL } from './codingTime';

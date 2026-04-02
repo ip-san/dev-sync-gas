@@ -4,9 +4,9 @@
  * Slack Incoming Webhooksを使用してメッセージを送信
  */
 
-import type { SlackClient, SlackMessage, HttpClient } from '../../interfaces';
-import { getContainer } from '../../container';
 import { CONFIG_KEYS } from '../../config/propertyKeys';
+import { getContainer } from '../../container';
+import type { HttpClient, SlackClient, SlackMessage } from '../../interfaces';
 
 /**
  * Slack Webhook URLを取得

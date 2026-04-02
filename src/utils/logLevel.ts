@@ -5,8 +5,8 @@
  * 本番環境での機密情報露出リスクを低減します。
  */
 
-import type { LogLevel } from '../interfaces';
 import { getContainer } from '../container';
+import type { LogLevel } from '../interfaces';
 
 /**
  * ログレベルの設定キー

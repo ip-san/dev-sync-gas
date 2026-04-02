@@ -3,10 +3,10 @@
  */
 
 import { getConfig } from '../config/settings';
-import { readMetricsFromAllRepositorySheets } from '../services/spreadsheet/repositorySheet';
-import { detectAlerts, createAlertMessage } from '../services/slack/alerts';
-import { isSlackNotificationEnabled } from '../services/slack/client';
 import { getContainer } from '../container';
+import { createAlertMessage, detectAlerts } from '../services/slack/alerts';
+import { isSlackNotificationEnabled } from '../services/slack/client';
+import { readMetricsFromAllRepositorySheets } from '../services/spreadsheet/repositorySheet';
 
 /**
  * 最新のメトリクスをチェックしてアラートを送信

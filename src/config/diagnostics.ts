@@ -6,11 +6,11 @@
 
 import { getContainer } from '../container.js';
 import type { GitHubRepository } from '../types/index.js';
-import { getGitHubAuthMode } from './authMode.js';
 import { GitHubRepositoriesSchema } from '../utils/configSchemas.js';
 import { SPREADSHEET_ID_DISPLAY_LENGTH } from './apiConfig.js';
-import { getProjects } from './projects.js';
+import { getGitHubAuthMode } from './authMode.js';
 import { getProductionBranchPattern } from './metrics.js';
+import { getProjects } from './projects.js';
 
 export interface ConfigDiagnosticItem {
   name: string;
@@ -342,22 +342,28 @@ export function diagnoseConfig(): ConfigDiagnosticResult {
 /**
  * 設定診断結果をフォーマットして文字列で返す
  */
-export function formatDiagnosticResult(result: ConfigDiagnosticResult): string {
-  const lines: string[] = [];
-  lines.push('=== DevSyncGAS 設定診断 ===\n');
+function statusIcon(status: string): string {
+  if (status === 'ok') return '✅';
+  return status === 'warning' ? '⚠️' : '❌';
+}
 
-  for (const item of result.items) {
-    const icon = item.status === 'ok' ? '✅' : item.status === 'warning' ? '⚠️' : '❌';
-    lines.push(`${icon} ${item.name}: ${item.message}`);
+function formatDiagnosticItems(items: ConfigDiagnosticResult['items']): string[] {
+  const lines: string[] = [];
+  for (const item of items) {
+    lines.push(`${statusIcon(item.status)} ${item.name}: ${item.message}`);
     if (item.hint) {
       lines.push(`   → ${item.hint}`);
     }
     if (item.details) {
-      lines.push('');
-      lines.push(...item.details);
+      lines.push('', ...item.details);
     }
   }
+  return lines;
+}
 
+export function formatDiagnosticResult(result: ConfigDiagnosticResult): string {
+  const lines: string[] = ['=== DevSyncGAS 設定診断 ===\n'];
+  lines.push(...formatDiagnosticItems(result.items));
   lines.push('');
 
   if (result.hasErrors) {

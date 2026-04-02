@@ -2,8 +2,8 @@
  * Deployment Frequency 計算
  */
 
-import type { GitHubDeployment, GitHubWorkflowRun, DevOpsMetrics } from '../../../types';
 import { getDeployWorkflowPatterns } from '../../../config/metrics';
+import type { DevOpsMetrics, GitHubDeployment, GitHubWorkflowRun } from '../../../types';
 
 // =============================================================================
 // Deployment Frequency

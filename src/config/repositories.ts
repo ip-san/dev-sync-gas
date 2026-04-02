@@ -5,8 +5,8 @@
  */
 
 import type { GitHubRepository } from '../types';
-import { validateRepositoryOwner, validateRepositoryName } from '../utils/validation';
 import { auditLog } from '../utils/auditLog';
+import { validateRepositoryName, validateRepositoryOwner } from '../utils/validation';
 import { getConfig, setConfig } from './core';
 
 /**

@@ -2,8 +2,8 @@
  * ログレベル設定のGASエントリーポイント関数
  */
 
-import { getLogLevel, setLogLevel } from '../utils/logLevel';
 import type { LogLevel } from '../interfaces';
+import { getLogLevel, setLogLevel } from '../utils/logLevel';
 
 /**
  * 現在のログレベルを表示

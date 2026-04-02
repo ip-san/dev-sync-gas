@@ -14,75 +14,67 @@
  * - prSize.ts: PRサイズ指標書き出し
  */
 
+// コーディング時間指標
+export {
+  writeCodingTimeToAllRepositorySheets,
+  writeCodingTimeToRepositorySheet,
+  writeCodingTimeToSheet,
+} from './codingTime';
+// サイクルタイム指標
+export {
+  writeCycleTimeToAllRepositorySheets,
+  writeCycleTimeToRepositorySheet,
+  writeCycleTimeToSheet,
+} from './cycleTime';
+// Dashboard
+export {
+  calculateWeeklyTrends,
+  determineHealthStatus,
+  extractLatestMetricsByRepository,
+  writeDashboard,
+  writeDashboardTrends,
+} from './dashboard';
+// 拡張指標 - 共通ヘルパー
+export {
+  getExtendedMetricDetailSheetName,
+  getExtendedMetricSheetName,
+  groupIssueDetailsByRepository,
+  groupPRDetailsByRepository,
+} from './extendedMetricsRepositorySheet';
+// PR Cycle Time指標
+export {
+  writePRCycleTimeDetailsToRepositorySheet,
+  writePRCycleTimeToAllRepositorySheets,
+  writePRCycleTimeToSheet,
+} from './prCycleTime';
+// PRサイズ指標
+export {
+  writePRSizeToAllRepositorySheets,
+  writePRSizeToRepositorySheet,
+  writePRSizeToSheet,
+} from './prSize';
 // リポジトリ別シート
 export {
   getRepositorySheetName,
   groupMetricsByRepository,
-  writeMetricsToRepositorySheet,
-  writeMetricsToAllRepositorySheets,
-  readMetricsFromRepositorySheet,
   readMetricsFromAllRepositorySheets,
+  readMetricsFromRepositorySheet,
+  writeMetricsToAllRepositorySheets,
+  writeMetricsToRepositorySheet,
 } from './repositorySheet';
-
-// Dashboard
+// レビュー効率指標
 export {
-  determineHealthStatus,
-  extractLatestMetricsByRepository,
-  calculateWeeklyTrends,
-  writeDashboard,
-  writeDashboardTrends,
-} from './dashboard';
-
-// マイグレーション
-export { migrateToRepositorySheets, previewMigration, removeLegacySheet } from './sheetMigration';
-export type { SheetMigrationResult } from './sheetMigration';
-
-// 拡張指標 - 共通ヘルパー
-export {
-  groupIssueDetailsByRepository,
-  groupPRDetailsByRepository,
-  getExtendedMetricSheetName,
-  getExtendedMetricDetailSheetName,
-} from './extendedMetricsRepositorySheet';
-
-// サイクルタイム指標
-export {
-  writeCycleTimeToSheet,
-  writeCycleTimeToRepositorySheet,
-  writeCycleTimeToAllRepositorySheets,
-} from './cycleTime';
-
-// コーディング時間指標
-export {
-  writeCodingTimeToSheet,
-  writeCodingTimeToRepositorySheet,
-  writeCodingTimeToAllRepositorySheets,
-} from './codingTime';
-
-// PR Cycle Time指標
-export {
-  writePRCycleTimeToSheet,
-  writePRCycleTimeDetailsToRepositorySheet,
-  writePRCycleTimeToAllRepositorySheets,
-} from './prCycleTime';
+  writeReviewEfficiencyToAllRepositorySheets,
+  writeReviewEfficiencyToRepositorySheet,
+  writeReviewEfficiencyToSheet,
+} from './reviewEfficiency';
 
 // 手戻り率指標
 export {
-  writeReworkRateToSheet,
-  writeReworkRateToRepositorySheet,
   writeReworkRateToAllRepositorySheets,
+  writeReworkRateToRepositorySheet,
+  writeReworkRateToSheet,
 } from './reworkRate';
-
-// レビュー効率指標
-export {
-  writeReviewEfficiencyToSheet,
-  writeReviewEfficiencyToRepositorySheet,
-  writeReviewEfficiencyToAllRepositorySheets,
-} from './reviewEfficiency';
-
-// PRサイズ指標
-export {
-  writePRSizeToSheet,
-  writePRSizeToRepositorySheet,
-  writePRSizeToAllRepositorySheets,
-} from './prSize';
+export type { SheetMigrationResult } from './sheetMigration';
+// マイグレーション
+export { migrateToRepositorySheets, previewMigration, removeLegacySheet } from './sheetMigration';

@@ -5,8 +5,8 @@
  * Strategy パターンを使用して API呼び出し方法を抽象化。
  */
 
-import type { ApiResponse, PRChainItem } from '../../../types';
 import type { LoggerClient } from '../../../interfaces/index.js';
+import type { ApiResponse, PRChainItem } from '../../../types';
 
 /** PRチェーン追跡の最大深度 */
 export const MAX_PR_CHAIN_DEPTH = 5;
@@ -65,7 +65,7 @@ function checkProductionMerge(
   productionPattern: string,
   logger: LoggerClient
 ): TrackStepResult | null {
-  if (pr.baseBranch && pr.baseBranch.toLowerCase().includes(productionPattern.toLowerCase())) {
+  if (pr.baseBranch?.toLowerCase().includes(productionPattern.toLowerCase())) {
     if (pr.mergedAt) {
       logger.log(
         `    ✅ Found production merge: PR #${pr.number} → ${pr.baseBranch} at ${pr.mergedAt}`
@@ -201,7 +201,7 @@ export function trackToProductionMerge(
       break;
     }
 
-    currentPRNumber = result.nextPRNumber!;
+    currentPRNumber = result.nextPRNumber as number;
   }
 
   return { success: true, data: { productionMergedAt, prChain } };
@@ -220,27 +220,23 @@ export function selectBestTrackResult(
     prChain: PRChainItem[];
   } | null>
 ): { productionMergedAt: string | null; prChain: PRChainItem[] } {
-  let bestResult: { productionMergedAt: string | null; prChain: PRChainItem[] } | null = null;
+  const defaultResult = { productionMergedAt: null, prChain: [] as PRChainItem[] };
+  const validResults = results.filter(
+    (r): r is { productionMergedAt: string | null; prChain: PRChainItem[] } => r !== null
+  );
 
-  for (const result of results) {
-    if (!result) {
-      continue;
-    }
-
-    // productionにマージされたものを優先
-    if (result.productionMergedAt) {
-      const shouldUpdate =
-        !bestResult?.productionMergedAt ||
-        new Date(result.productionMergedAt) < new Date(bestResult.productionMergedAt);
-
-      if (shouldUpdate) {
-        bestResult = result;
-      }
-    } else if (!bestResult) {
-      // productionマージがない場合は最初の結果を使用
-      bestResult = result;
-    }
+  if (validResults.length === 0) {
+    return defaultResult;
   }
 
-  return bestResult ?? { productionMergedAt: null, prChain: [] };
+  // productionにマージされたもののうち最も早いものを優先
+  const mergedResults = validResults
+    .filter((r) => r.productionMergedAt !== null)
+    .sort(
+      (a, b) =>
+        new Date(a.productionMergedAt as string).getTime() -
+        new Date(b.productionMergedAt as string).getTime()
+    );
+
+  return mergedResults[0] ?? validResults[0] ?? defaultResult;
 }

@@ -4,15 +4,15 @@
  * Issue作成からPR作成までのコーディングタイム計測
  */
 
+import { getContainer } from '../../../../container';
 import type {
+  ApiResponse,
   GitHubIssue,
   GitHubRepository,
-  ApiResponse,
   IssueCodingTime,
 } from '../../../../types';
-import { getContainer } from '../../../../container';
-import type { IssueDateRange } from '../../api';
 import { MS_TO_HOURS } from '../../../../utils/timeConstants.js';
+import type { IssueDateRange } from '../../api';
 import { getIssuesGraphQL } from './fetch';
 import { getLinkedPRsForIssueGraphQL } from './linkedPRs';
 

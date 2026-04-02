@@ -2,12 +2,12 @@
  * Pull Request detail operations
  */
 
-import type { GitHubPullRequest, ApiResponse } from '../../../../types';
-import { executeGraphQLWithRetry } from '../client';
-import { PULL_REQUEST_DETAIL_QUERY } from '../queries/pullRequests.js';
-import { validateSingleResponse } from '../errorHelpers';
-import type { PullRequestDetailQueryResponse, GraphQLPullRequest } from '../types';
+import type { ApiResponse, GitHubPullRequest } from '../../../../types';
 import { parseGraphQLNodeIdOrZero } from '../../../../utils/graphqlParser';
+import { executeGraphQLWithRetry } from '../client';
+import { validateSingleResponse } from '../errorHelpers';
+import { PULL_REQUEST_DETAIL_QUERY } from '../queries/pullRequests.js';
+import type { GraphQLPullRequest, PullRequestDetailQueryResponse } from '../types';
 
 /**
  * GraphQL PRノードを内部型に変換
@@ -60,7 +60,10 @@ export function getPRDetailsGraphQL(
     return validationError;
   }
 
-  const pr = result.data!.repository!.pullRequest!;
+  const pr = result.data?.repository?.pullRequest;
+  if (!pr) {
+    return { success: false, error: 'Pull request data not found in response' };
+  }
   return {
     success: true,
     data: {
@@ -95,7 +98,10 @@ export function getPullRequestWithBranchesGraphQL(
     return validationError;
   }
 
-  const pr = result.data!.repository!.pullRequest!;
+  const pr = result.data?.repository?.pullRequest;
+  if (!pr) {
+    return { success: false, error: 'Pull request data not found in response' };
+  }
   return {
     success: true,
     data: convertToPullRequest(pr, `${owner}/${repo}`),

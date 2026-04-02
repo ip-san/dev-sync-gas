@@ -145,7 +145,7 @@ export class GasHttpClient implements HttpClient {
 
       if (retryAfter) {
         const seconds = parseInt(String(retryAfter), 10);
-        if (!isNaN(seconds)) {
+        if (!Number.isNaN(seconds)) {
           return seconds * 1000; // ミリ秒に変換
         }
       }
@@ -159,6 +159,6 @@ export class GasHttpClient implements HttpClient {
    * Exponential backoffで待機時間を計算
    */
   private calculateBackoff(retryCount: number): number {
-    return this.INITIAL_BACKOFF_MS * Math.pow(2, retryCount);
+    return this.INITIAL_BACKOFF_MS * 2 ** retryCount;
   }
 }

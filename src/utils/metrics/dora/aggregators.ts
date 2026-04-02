@@ -5,17 +5,17 @@
  */
 
 import type {
-  GitHubPullRequest,
-  GitHubWorkflowRun,
+  DevOpsMetrics,
   GitHubDeployment,
   GitHubIncident,
-  DevOpsMetrics,
+  GitHubPullRequest,
+  GitHubWorkflowRun,
 } from '../../../types';
-import { calculateLeadTimeDetailed } from './leadTime';
-import { calculateDeploymentFrequency } from './deploymentFrequency';
 import { calculateChangeFailureRate } from './changeFailureRate';
-import { calculateMTTR, calculateIncidentMetrics } from './mttr';
 import { generateDateRange, isOnDate } from './dateUtils';
+import { calculateDeploymentFrequency } from './deploymentFrequency';
+import { calculateLeadTimeDetailed } from './leadTime';
+import { calculateIncidentMetrics, calculateMTTR, type IncidentMetricsResult } from './mttr';
 
 // =============================================================================
 // 日別メトリクス計算
@@ -159,7 +159,7 @@ export function calculateMetricsForRepository(
 
   // MTTR: Incident Issueを優先、フォールバックはデプロイメント/ワークフロー
   let mttrHours: number | null = null;
-  let incidentMetrics;
+  let incidentMetrics: IncidentMetricsResult | undefined;
 
   if (repoIncidents.length > 0) {
     // 優先: Incident Issueベースの真のMTTR

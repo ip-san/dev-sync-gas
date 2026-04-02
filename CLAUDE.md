@@ -46,10 +46,12 @@ syncAllMetricsIncremental()    // 差分更新（定期実行用）
 
 **Claude Code カスタムskill:**
 - `/review` - コード変更レビュー + lint/test/型チェック実行
-- `/pr-check` - PR作成前セルフチェック（lint/test/build）
+- `/pr-check` - PR作成前セルフチェック（全品質チェック + build）
+- `/quality-check` - 全品質チェック一括実行（Biome/tsc/test/circular/knip/type-coverage/jscpd）
 - `/dora-validate` - DORA metrics計算ロジックの正当性検証
 
 **技術スタック:** TypeScript + Bun + esbuild + clasp → Google Apps Script
+**静的解析:** Biome (lint + format) + knip (未使用コード検出) + jscpd (コピペ検出) + madge (循環参照) + type-coverage
 
 ## 📚 詳細情報
 

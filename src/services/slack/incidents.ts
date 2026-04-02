@@ -5,9 +5,9 @@
  * リアルタイム通知は他ツール（PagerDuty/OpsGenie等）が担当。
  */
 
-import type { SlackMessage, SlackBlock } from '../../interfaces';
-import type { GitHubIssue } from '../../types/github';
 import { getIncidentLabelsForRepository } from '../../config/metrics';
+import type { SlackBlock, SlackMessage } from '../../interfaces';
+import type { GitHubIssue } from '../../types/github';
 
 export type IncidentEventType = 'opened' | 'closed';
 

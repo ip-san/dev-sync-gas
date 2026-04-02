@@ -3,7 +3,7 @@
  * セキュリティ: アクセス権限を事前に確認し、適切なエラーメッセージを提供
  */
 
-import { SpreadsheetError, ValidationError, ErrorCode } from './errors';
+import { ErrorCode, SpreadsheetError, ValidationError } from './errors';
 
 /**
  * スプレッドシートのアクセステストを実行

@@ -7,10 +7,10 @@
  * - ネストしたデータを1回のリクエストで取得可能
  */
 
-import type { ApiResponse } from '../../../types';
-import type { HttpRequestOptions } from '../../../interfaces';
-import { getContainer } from '../../../container';
 import { DEFAULT_PAGE_SIZE, MAX_RETRIES, RETRY_DELAY_MS } from '../../../config/apiConfig';
+import { getContainer } from '../../../container';
+import type { HttpRequestOptions } from '../../../interfaces';
+import type { ApiResponse } from '../../../types';
 
 // =============================================================================
 // 定数
@@ -181,6 +181,10 @@ export function executeGraphQL<T>(
  * @param maxRetries - 最大リトライ回数
  * @returns APIレスポンス
  */
+function isNonRetryableError(error: string): boolean {
+  return error.includes('NOT_FOUND') || error.includes('FORBIDDEN') || error.includes('401');
+}
+
 export function executeGraphQLWithRetry<T>(
   query: string,
   variables: Record<string, unknown>,
@@ -193,30 +197,22 @@ export function executeGraphQLWithRetry<T>(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       logger.log(`  🔄 Retry attempt ${attempt}/${maxRetries}...`);
-      // GASではUtilities.sleepを使用
       Utilities.sleep(RETRY_DELAY_MS * attempt);
     }
 
     const result = executeGraphQL<T>(query, variables, token);
-
     if (result.success) {
       return result;
     }
 
     lastError = result.error ?? 'Unknown error';
 
-    // レート制限エラーの場合は長めに待つ
     if (lastError.includes('Rate limited')) {
       logger.log('  ⏳ Rate limited, waiting longer...');
       Utilities.sleep(RETRY_DELAY_MS * 10);
     }
 
-    // リトライ不可能なエラーの場合は即座に終了
-    if (
-      lastError.includes('NOT_FOUND') ||
-      lastError.includes('FORBIDDEN') ||
-      lastError.includes('401')
-    ) {
+    if (isNonRetryableError(lastError)) {
       return result;
     }
   }

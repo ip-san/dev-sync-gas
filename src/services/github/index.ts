@@ -17,43 +17,41 @@
  * - レート制限の効率的な使用（5,000ポイント/時間）
  */
 
-// API基盤
-export { fetchGitHub, GITHUB_API_BASE, DEFAULT_MAX_PAGES, PER_PAGE } from './api';
 export type { DateRange, IssueDateRange } from './api';
-
-// Deployment・Workflow関連（REST版は部分的に維持、GraphQL移行中）
-export { getWorkflowRuns, getDeployments } from './deployments';
+// API基盤
+export { DEFAULT_MAX_PAGES, fetchGitHub, GITHUB_API_BASE, PER_PAGE } from './api';
 export type { EnvironmentMatchMode } from './deployments';
+// Deployment・Workflow関連（REST版は部分的に維持、GraphQL移行中）
+export { getDeployments, getWorkflowRuns } from './deployments';
 
 // =============================================================================
 // GraphQL API版（効率的なデータ取得）
 // =============================================================================
 
+export type { GraphQLError, GraphQLResponse, PageInfo, RateLimitInfo } from './graphql';
 export {
   // クライアント基盤
   executeGraphQL,
   executeGraphQLWithRetry,
-  getRateLimitInfo,
+  findPRContainingCommitGraphQL,
   GITHUB_GRAPHQL_ENDPOINT,
-  // Pull Request 操作
-  getPullRequestsGraphQL,
-  getPRDetailsGraphQL,
-  getPullRequestWithBranchesGraphQL,
-  getReworkDataForPRsGraphQL,
-  getPRSizeDataForPRsGraphQL,
-  getReviewEfficiencyDataForPRsGraphQL,
+  // 複合機能
+  getAllRepositoriesDataGraphQL,
+  getCodingTimeDataGraphQL,
+  getCycleTimeDataGraphQL,
   // Deployment 操作
   getDeploymentsGraphQL,
   // Issue 操作
   getIssuesGraphQL,
   getLinkedPRsForIssueGraphQL,
-  findPRContainingCommitGraphQL,
-  trackToProductionMergeGraphQL,
-  getCycleTimeDataGraphQL,
-  getCodingTimeDataGraphQL,
   getPRCycleTimeDataGraphQL,
-  // 複合機能
-  getAllRepositoriesDataGraphQL,
+  getPRDetailsGraphQL,
+  getPRSizeDataForPRsGraphQL,
+  // Pull Request 操作
+  getPullRequestsGraphQL,
+  getPullRequestWithBranchesGraphQL,
+  getRateLimitInfo,
+  getReviewEfficiencyDataForPRsGraphQL,
+  getReworkDataForPRsGraphQL,
+  trackToProductionMergeGraphQL,
 } from './graphql';
-
-export type { GraphQLError, GraphQLResponse, PageInfo, RateLimitInfo } from './graphql';

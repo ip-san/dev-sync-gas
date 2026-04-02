@@ -14,40 +14,40 @@
  * - トリガーから呼ばれる関数は公開が必須
  */
 import {
-  // メトリクス同期（DORA + 拡張指標）
-  syncAllMetrics,
-  syncAllMetricsIncremental,
-  syncAllMetricsFromScratch,
-  // 診断・設定
-  showAuthMode,
-  listRepos,
   checkConfig,
-  testPermissions,
-  scheduleDailyMetricsSync,
   // Slack設定
   configureSlackWebhook,
-  removeSlackWebhook,
-  showSlackConfig,
   // 診断ツール
   debugCycleTimeForIssue,
   debugDeploymentFrequency,
+  listRepos,
+  removeSlackWebhook,
+  scheduleDailyMetricsSync,
+  // 診断・設定
+  showAuthMode,
+  showSlackConfig,
+  // メトリクス同期（DORA + 拡張指標）
+  syncAllMetrics,
+  syncAllMetricsFromScratch,
+  syncAllMetricsIncremental,
+  testPermissions,
 } from './functions';
-import {
-  // Slack週次レポート
-  sendWeeklyReport,
-} from './functions/slackWeekly';
 import {
   // Slackアラート通知
   checkAndSendAlerts,
 } from './functions/slackAlerts';
 import {
+  // Slackインシデント日次サマリー
+  sendIncidentDailySummary,
+} from './functions/slackIncidents';
+import {
   // Slack月次レポート
   sendMonthlyReport,
 } from './functions/slackMonthly';
 import {
-  // Slackインシデント日次サマリー
-  sendIncidentDailySummary,
-} from './functions/slackIncidents';
+  // Slack週次レポート
+  sendWeeklyReport,
+} from './functions/slackWeekly';
 
 // init.tsをインポート（グローバル関数として自動エクスポートされる）
 import './init';

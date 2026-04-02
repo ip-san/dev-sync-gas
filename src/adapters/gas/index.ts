@@ -7,16 +7,16 @@ import { GasSlackClient } from '../../services/slack/client';
 
 // Re-export all clients
 export { GasHttpClient } from './http-client';
-export { GasStorageClient } from './storage-client';
 export { GasLoggerClient } from './logger-client';
 export { GasSpreadsheetClient } from './spreadsheet';
+export { GasStorageClient } from './storage-client';
 export { GasTriggerClient } from './trigger';
 
 // Import for factory function
 import { GasHttpClient } from './http-client';
-import { GasStorageClient } from './storage-client';
 import { GasLoggerClient } from './logger-client';
 import { GasSpreadsheetClient } from './spreadsheet';
+import { GasStorageClient } from './storage-client';
 import { GasTriggerClient } from './trigger';
 
 /**

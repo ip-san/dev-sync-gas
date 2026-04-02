@@ -3,7 +3,7 @@
  */
 
 import type { Spreadsheet } from '../../interfaces';
-import type { SheetSchema, MigrationPreview } from '../../schemas';
+import type { MigrationPreview, SheetSchema } from '../../schemas';
 import { getHeadersFromSchema } from '../../schemas';
 
 /**

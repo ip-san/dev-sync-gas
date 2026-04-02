@@ -3,16 +3,16 @@
  */
 
 import { getContainer } from '../../container';
-import type { Spreadsheet, Sheet } from '../../interfaces';
-import type { SheetSchema, MigrationResult } from '../../schemas';
+import type { Sheet, Spreadsheet } from '../../interfaces';
+import type { MigrationResult, SheetSchema } from '../../schemas';
 import { getHeadersFromSchema } from '../../schemas';
 import { createBackup } from './backup';
 import {
-  createNewSheet,
-  initializeEmptySheet,
   checkSchemaUpToDate,
-  performDataMigration,
+  createNewSheet,
   handleMigrationError,
+  initializeEmptySheet,
+  performDataMigration,
 } from './operations';
 
 /**

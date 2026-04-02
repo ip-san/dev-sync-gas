@@ -27,11 +27,14 @@ bun run push           # ビルド + GASにデプロイ
 ### テスト・品質チェック
 ```bash
 bun test                # テスト実行
-bun run lint            # ESLintチェック
-bun run lint:fix        # ESLint自動修正
-bun run format          # Prettierフォーマット
-bun run check:all       # 全チェックを一括実行（循環依存、未使用コード、型カバレッジ）
-bun run check:unused    # 未使用エクスポート（ノイズ除外済み）
+bun run lint            # Biome lintチェック
+bun run lint:fix        # Biome lint自動修正
+bun run format          # Biomeフォーマット
+bun run check           # Biome check（lint + format一括）
+bun run check:fix       # Biome check + 自動修正
+bun run check:all       # 全チェックを一括実行（Biome + 循環依存 + knip + 型カバレッジ + tsc）
+bun run check:unused    # 未使用コード検出（knip）
+bun run cpd             # コピペ検出（jscpd）
 ```
 
 ### ワンコマンド便利スクリプト

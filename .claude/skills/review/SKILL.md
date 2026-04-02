@@ -20,8 +20,7 @@ DevSyncGASプロジェクトのコード変更をレビューします。
 2. **自動チェックの実行**
    以下のコマンドを順番に実行し、結果を報告してください：
    ```bash
-   bun run lint
-   bun run format:check
+   bun run check
    bunx tsc --noEmit
    bun test
    ```
@@ -71,8 +70,7 @@ DevSyncGASプロジェクトのコード変更をレビューします。
    ## レビュー結果
 
    ### 自動チェック
-   - ESLint: PASS / FAIL (エラー数)
-   - Prettier: PASS / FAIL
+   - Biome (lint + format): PASS / FAIL (エラー数)
    - TypeScript: PASS / FAIL (エラー数)
    - Tests: PASS / FAIL
 

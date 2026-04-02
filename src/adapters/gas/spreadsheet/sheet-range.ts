@@ -2,7 +2,7 @@
  * Sheet Range implementation for Google Apps Script
  */
 
-import type { SheetRange, BorderStyle } from '../../../interfaces';
+import type { BorderStyle, SheetRange } from '../../../interfaces';
 import { toGasBorderStyle } from './border-style';
 
 export class GasSheetRange implements SheetRange {

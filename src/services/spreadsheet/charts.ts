@@ -8,9 +8,9 @@
  * Note: チャート生成はGAS環境でのみ動作し、テスト環境ではスキップされます。
  */
 
-import type { Sheet, EmbeddedChart } from '../../interfaces';
-import type { WeeklyTrendData, RepositoryLatestData } from './dashboardTypes';
 import { getContainer } from '../../container';
+import type { EmbeddedChart, Sheet } from '../../interfaces';
+import type { RepositoryLatestData, WeeklyTrendData } from './dashboardTypes';
 
 /**
  * Mock EmbeddedChart for testing

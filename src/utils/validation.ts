@@ -3,7 +3,7 @@
  * セキュリティ: XSS、インジェクション攻撃を防ぐための検証機能
  */
 
-import { ValidationError, ErrorCode } from './errors';
+import { ErrorCode, ValidationError } from './errors';
 
 /**
  * GitHubリポジトリオーナー名の検証

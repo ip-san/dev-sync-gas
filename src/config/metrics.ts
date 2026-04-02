@@ -1,14 +1,14 @@
 import { getContainer } from '../container';
 import {
-  PRODUCTION_KEYS,
-  LABEL_KEYS,
-  PR_SIZE_KEYS,
-  REVIEW_EFFICIENCY_KEYS,
-  CYCLE_TIME_EXCLUDE_KEYS,
   CODING_TIME_EXCLUDE_KEYS,
-  REWORK_RATE_EXCLUDE_KEYS,
-  PR_CYCLE_TIME_EXCLUDE_KEYS,
+  CYCLE_TIME_EXCLUDE_KEYS,
   DEPLOYMENT_KEYS,
+  LABEL_KEYS,
+  PR_CYCLE_TIME_EXCLUDE_KEYS,
+  PR_SIZE_KEYS,
+  PRODUCTION_KEYS,
+  REVIEW_EFFICIENCY_KEYS,
+  REWORK_RATE_EXCLUDE_KEYS,
 } from './propertyKeys';
 
 // ============================================================
@@ -282,7 +282,7 @@ export function getIncidentLabelsForRepository(owner: string, repoName: string):
 
     // プロジェクトが見つからないか、インシデントラベルが設定されていない場合はデフォルト
     return ['incident'];
-  } catch (error) {
+  } catch {
     // パースエラーの場合はデフォルト値を返す
     return ['incident'];
   }
@@ -475,7 +475,7 @@ export function getDeployWorkflowPatterns(): string[] {
   try {
     const patterns = getPropertyAsStringArray(DEPLOYMENT_KEYS.WORKFLOW_PATTERNS);
     return patterns.length > 0 ? patterns : DEFAULT_DEPLOY_WORKFLOW_PATTERNS;
-  } catch (error) {
+  } catch {
     // コンテナ未初期化の場合はデフォルト値を返す
     return DEFAULT_DEPLOY_WORKFLOW_PATTERNS;
   }

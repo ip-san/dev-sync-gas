@@ -17,21 +17,31 @@ PRを作成する前にセルフチェックを行います。
    git log --oneline -5
    ```
 
-2. **自動チェックの実行**
-   以下をすべて実行し、**すべてパスするまで**PRを作成しないでください：
+2. **品質チェック一括実行**
+   以下をすべて実行し、各結果を記録してください。
+   エラーが発生しても途中で止めず、**すべてのチェックを最後まで実行**してください：
 
    ```bash
-   # Lintチェック
-   bun run lint
-
-   # フォーマットチェック
-   bun run format:check
+   # Biome check（lint + format一括）
+   bun run check
 
    # 型チェック
    bunx tsc --noEmit
 
    # テスト実行
    bun test
+
+   # 循環参照チェック
+   bun run check:circular
+
+   # 未使用コード検出（knip）
+   bun run check:unused
+
+   # 型カバレッジ
+   bun run check:types
+
+   # コピペ検出（jscpd）
+   bun run cpd
 
    # ビルド確認
    bun run build
@@ -49,11 +59,16 @@ PRを作成する前にセルフチェックを行います。
    ## PR作成準備完了
 
    ### チェック結果
-   - ESLint: PASS
-   - Prettier: PASS
-   - TypeScript: PASS
-   - Tests: PASS
-   - Build: PASS
+   | チェック項目 | 結果 | 詳細 |
+   |---|---|---|
+   | Biome (lint + format) | PASS / FAIL | エラー数、warning数 |
+   | TypeScript型チェック | PASS / FAIL | エラー数 |
+   | テスト | PASS / FAIL | パス数 / 失敗数 |
+   | 循環参照 | PASS / FAIL | 検出数 |
+   | 未使用コード (knip) | PASS / FAIL | 検出数 |
+   | 型カバレッジ | PASS / FAIL | カバレッジ率 |
+   | コピペ検出 (jscpd) | PASS / FAIL | 重複率 |
+   | ビルド | PASS / FAIL | - |
 
    ### 変更ファイル
    - file1.ts

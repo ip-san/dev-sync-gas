@@ -10,75 +10,70 @@
  * - api.ts: API関連（ApiResponse）
  */
 
+// API関連の型
+export type { ApiResponse } from './api';
+// 設定関連の型
+export type { Config, GitHubAppConfig, GitHubAuthConfig, ProjectGroup } from './config';
+// ダッシュボード関連の型
+export type {
+  DashboardData,
+  HealthStatus,
+  HealthThresholds,
+  ProjectLatestSummary,
+  RepositoryLatestMetrics,
+  TrendSummary,
+  WeeklyTrend,
+} from './dashboard';
+export { DEFAULT_HEALTH_THRESHOLDS } from './dashboard';
 // GitHub関連の型
 export type {
-  GitHubRepository,
-  GitHubPullRequest,
   GitHubDeployment,
-  GitHubWorkflowRun,
   GitHubIncident,
   GitHubIssue,
-  PRChainItem,
-  IssueCycleTime,
+  GitHubPullRequest,
+  GitHubRepository,
+  GitHubWorkflowRun,
   IssueCodingTime,
+  IssueCycleTime,
+  PRChainItem,
   PRCycleTime,
 } from './github';
-
+// GitHub API レスポンス型
+export type {
+  GitHubCommitResponse,
+  GitHubDeploymentResponse,
+  GitHubDeploymentStatusResponse,
+  GitHubEventResponse,
+  GitHubIssueResponse,
+  GitHubPRResponse,
+  GitHubReviewResponse,
+  GitHubTimelineCrossReferenceEvent,
+  GitHubTimelineEventResponse,
+  GitHubWorkflowRunResponse,
+  GitHubWorkflowRunsResponse,
+} from './github-api';
 // DevOps指標の型
 export type {
-  // サイクルタイム
-  IssueCycleTimeDetail,
+  AggregatedMetrics,
+  CodingTimeMetrics,
   CycleTimeMetrics,
+  // DORA指標
+  DevOpsMetrics,
   // コーディング時間
   IssueCodingTimeDetail,
-  CodingTimeMetrics,
+  // サイクルタイム
+  IssueCycleTimeDetail,
+  MetricsSummary,
   // PR Cycle Time
   PRCycleTimeDetail,
   PRCycleTimeMetrics,
-  // 手戻り率
-  PRReworkData,
-  ReworkRateMetrics,
   // レビュー効率
   PRReviewData,
-  ReviewEfficiencyMetrics,
+  // 手戻り率
+  PRReworkData,
   // PRサイズ
   PRSizeData,
   PRSizeMetrics,
-  // DORA指標
-  DevOpsMetrics,
-  AggregatedMetrics,
-  MetricsSummary,
+  ReviewEfficiencyMetrics,
+  ReworkRateMetrics,
 } from './metrics';
-
-// 設定関連の型
-export type { GitHubAppConfig, GitHubAuthConfig, ProjectGroup, Config } from './config';
-
-// API関連の型
-export type { ApiResponse } from './api';
-
-// GitHub API レスポンス型
-export type {
-  GitHubPRResponse,
-  GitHubCommitResponse,
-  GitHubTimelineEventResponse,
-  GitHubReviewResponse,
-  GitHubIssueResponse,
-  GitHubDeploymentResponse,
-  GitHubDeploymentStatusResponse,
-  GitHubWorkflowRunResponse,
-  GitHubWorkflowRunsResponse,
-  GitHubEventResponse,
-  GitHubTimelineCrossReferenceEvent,
-} from './github-api';
-
-// ダッシュボード関連の型
-export type {
-  HealthStatus,
-  RepositoryLatestMetrics,
-  ProjectLatestSummary,
-  WeeklyTrend,
-  TrendSummary,
-  DashboardData,
-  HealthThresholds,
-} from './dashboard';
-export { DEFAULT_HEALTH_THRESHOLDS } from './dashboard';

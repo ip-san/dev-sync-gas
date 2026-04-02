@@ -6,9 +6,9 @@
 
 import type { ApiResponse } from '../../../../types';
 import { executeGraphQLWithRetry } from '../client';
-import { ISSUE_WITH_LINKED_PRS_QUERY } from '../queries/issues.js';
-import type { IssueWithLinkedPRsQueryResponse, CrossReferencedEvent } from '../types';
 import { validateSingleResponse } from '../errorHelpers';
+import { ISSUE_WITH_LINKED_PRS_QUERY } from '../queries/issues.js';
+import type { CrossReferencedEvent, IssueWithLinkedPRsQueryResponse } from '../types';
 
 /**
  * タイムラインイベントから有効なPRを抽出するかチェック
@@ -49,7 +49,7 @@ function extractPRInfo(source: NonNullable<CrossReferencedEvent['source']>): {
   mergeCommitSha: string | null;
 } {
   return {
-    number: source.number!,
+    number: source.number ?? 0,
     createdAt: source.createdAt ?? '',
     mergedAt: source.mergedAt ?? null,
     baseRefName: source.baseRefName ?? '',
@@ -94,7 +94,10 @@ export function getLinkedPRsForIssueGraphQL(
     return validationError;
   }
 
-  const timeline = result.data!.repository!.issue!.timelineItems.nodes;
+  const timeline = result.data?.repository?.issue?.timelineItems.nodes;
+  if (!timeline) {
+    return { success: false, error: 'Issue timeline data not found in response' };
+  }
   const linkedPRs: {
     number: number;
     createdAt: string;

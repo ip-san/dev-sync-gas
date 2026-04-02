@@ -4,7 +4,7 @@
  * PR作成後の追加コミット数とForce Push回数を測定する。
  */
 
-import type { ReworkRateMetrics, PRReworkData } from '../../types';
+import type { PRReworkData, ReworkRateMetrics } from '../../types';
 import { calculateStats } from './statsHelpers.js';
 
 /**

@@ -4,16 +4,16 @@
  * Issue一覧の取得とフィルタリング処理
  */
 
-import type { GitHubIssue, GitHubRepository, ApiResponse } from '../../../../types';
-import { getContainer } from '../../../../container';
-import { executeGraphQLWithRetry, DEFAULT_PAGE_SIZE } from '../client';
-import { ISSUES_QUERY } from '../queries/issues.js';
-import type { IssuesQueryResponse, GraphQLIssue } from '../types';
-import type { IssueDateRange } from '../../api';
-import { isWithinDateRange } from '../issueHelpers';
-import { validatePaginatedResponse } from '../errorHelpers';
-import { shouldExcludeByLabels } from '../../../../utils/labelFilter';
 import { getExcludeMetricsLabels } from '../../../../config/settings';
+import { getContainer } from '../../../../container';
+import type { ApiResponse, GitHubIssue, GitHubRepository } from '../../../../types';
+import { shouldExcludeByLabels } from '../../../../utils/labelFilter';
+import type { IssueDateRange } from '../../api';
+import { DEFAULT_PAGE_SIZE, executeGraphQLWithRetry } from '../client';
+import { validatePaginatedResponse } from '../errorHelpers';
+import { isWithinDateRange } from '../issueHelpers';
+import { ISSUES_QUERY } from '../queries/issues.js';
+import type { GraphQLIssue, IssuesQueryResponse } from '../types';
 
 /**
  * GraphQL Issues Query用の変数を構築
@@ -121,7 +121,10 @@ export function getIssuesGraphQL(
       break;
     }
 
-    const issuesData = queryResult.data!.repository!.issues;
+    const issuesData = queryResult.data?.repository?.issues;
+    if (!issuesData) {
+      break;
+    }
     const filteredIssues = filterIssuesByDateRange(
       issuesData.nodes,
       options?.dateRange,

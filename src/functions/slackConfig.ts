@@ -4,9 +4,9 @@
  * Slack Webhook URLの設定・管理機能
  */
 
-import { getContainer } from '../container';
 import { CONFIG_KEYS } from '../config/propertyKeys';
-import { ValidationError, ErrorCode } from '../utils/errors';
+import { getContainer } from '../container';
+import { ErrorCode, ValidationError } from '../utils/errors';
 
 /**
  * Slack Webhook URLを設定
@@ -57,7 +57,7 @@ export function showSlackConfig(): void {
 
   if (webhookUrl) {
     // セキュリティのため、URLの一部のみ表示
-    const maskedUrl = webhookUrl.substring(0, 30) + '...';
+    const maskedUrl = `${webhookUrl.substring(0, 30)}...`;
     logger.log(`📢 Slack通知: 有効 (${maskedUrl})`);
   } else {
     logger.log('📢 Slack通知: 無効（Webhook URLが未設定）');

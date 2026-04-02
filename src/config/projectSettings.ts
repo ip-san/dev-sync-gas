@@ -4,11 +4,11 @@
  */
 
 import { getContainer } from '../container';
-import { DEFAULT_HEALTH_THRESHOLDS } from '../types/dashboard';
-import type { HealthThresholds } from '../types/dashboard';
-import { CONFIG_KEYS } from './propertyKeys';
-import { safeParseJSON, ProjectGroupsSchema } from '../utils/configSchemas';
 import type { ProjectGroup } from '../types';
+import type { HealthThresholds } from '../types/dashboard';
+import { DEFAULT_HEALTH_THRESHOLDS } from '../types/dashboard';
+import { ProjectGroupsSchema, safeParseJSON } from '../utils/configSchemas';
+import { CONFIG_KEYS } from './propertyKeys';
 
 /**
  * プロジェクト設定を検索するヘルパー関数

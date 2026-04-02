@@ -4,8 +4,8 @@
  */
 
 import { getContainer } from '../container';
-import { DISPLAY_KEYS } from './propertyKeys';
 import { SHEET_NAMES as DEFAULT_SHEET_NAMES } from './apiConfig';
+import { DISPLAY_KEYS } from './propertyKeys';
 
 /**
  * シート名設定の型

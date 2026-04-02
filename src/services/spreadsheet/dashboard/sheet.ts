@@ -4,20 +4,20 @@
  * メインのDashboardシートへのデータ出力とフォーマット
  */
 
-import type { DevOpsMetrics } from '../../../types';
-import type { Sheet, Spreadsheet } from '../../../interfaces';
-import type { RepositoryLatestData } from '../dashboardTypes';
 import { getContainer } from '../../../container';
+import type { Sheet, Spreadsheet } from '../../../interfaces';
+import { DASHBOARD_SCHEMA, getHeadersFromSchema } from '../../../schemas';
+import type { DevOpsMetrics } from '../../../types';
+import type { RepositoryLatestData } from '../dashboardTypes';
 import {
+  addHeaderNotes,
+  applyDataBorders,
   autoResizeColumns,
   openSpreadsheet,
   styleHeaderRow,
-  applyDataBorders,
   styleSummaryRow,
-  addHeaderNotes,
 } from '../helpers';
-import { DASHBOARD_SCHEMA, getHeadersFromSchema } from '../../../schemas';
-import { extractLatestMetricsByRepository, enrichWithExtendedMetrics } from './metrics';
+import { enrichWithExtendedMetrics, extractLatestMetricsByRepository } from './metrics';
 import { determineHealthStatus, formatStatus } from './status';
 
 const DASHBOARD_HEADERS = getHeadersFromSchema(DASHBOARD_SCHEMA);

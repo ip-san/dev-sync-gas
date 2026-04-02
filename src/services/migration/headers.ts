@@ -4,14 +4,14 @@
 
 import { getContainer } from '../../container';
 import type { Spreadsheet } from '../../interfaces';
-import type { SheetSchema, MigrationResult } from '../../schemas';
+import type { MigrationResult, SheetSchema } from '../../schemas';
 import { getHeadersFromSchema } from '../../schemas';
 import { initializeSheet } from './formatting';
 import {
-  createSheetNotFoundResult,
-  createSheetCreatedResult,
   createHeadersUpdatedResult,
   createMigrationErrorResult,
+  createSheetCreatedResult,
+  createSheetNotFoundResult,
 } from './results';
 
 /**

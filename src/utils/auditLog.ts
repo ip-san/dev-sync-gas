@@ -4,9 +4,9 @@
  */
 
 import { z } from 'zod';
-import { getContainer } from '../container';
 import { AUDIT_LOG_VALUE_MAX_LENGTH } from '../config/apiConfig';
 import { getAuditLogSheetName } from '../config/display';
+import { getContainer } from '../container';
 
 /**
  * 監査ログエントリのzodスキーマ
@@ -116,7 +116,7 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
       sanitized[key] = '[REDACTED]';
     } else if (typeof value === 'string' && value.length > AUDIT_LOG_VALUE_MAX_LENGTH) {
       // 長い文字列は切り詰め
-      sanitized[key] = value.substring(0, AUDIT_LOG_VALUE_MAX_LENGTH) + '... (truncated)';
+      sanitized[key] = `${value.substring(0, AUDIT_LOG_VALUE_MAX_LENGTH)}... (truncated)`;
     } else if (typeof value === 'object' && value !== null) {
       // ネストされたオブジェクトは再帰的にサニタイズ
       sanitized[key] = sanitizeDetails(value as Record<string, unknown>);

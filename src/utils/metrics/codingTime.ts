@@ -39,9 +39,9 @@ export function calculateCodingTime(
     title: issue.issueTitle,
     repository: issue.repository,
     issueCreatedAt: issue.issueCreatedAt,
-    prCreatedAt: issue.prCreatedAt!,
-    prNumber: issue.prNumber!,
-    codingTimeHours: issue.codingTimeHours!,
+    prCreatedAt: issue.prCreatedAt as string,
+    prNumber: issue.prNumber as number,
+    codingTimeHours: issue.codingTimeHours as number,
   }));
 
   const codingTimes = issueDetails.map((t) => t.codingTimeHours);

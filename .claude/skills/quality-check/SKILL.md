@@ -1,11 +1,11 @@
 ---
 name: quality-check
-description: 全品質チェック（Biome lint/format、型チェック、テスト、循環参照、未使用コード、コピペ検出）を一括実行し結果を報告
-user-invocable: true
-allowed-tools: Bash, Read, Grep, Glob
+description: 全品質チェック（Biome/tsc/test/circular/knip/type-coverage/jscpd）を一括実行し結果を報告
+disable-model-invocation: true
+allowed-tools: Bash Read Grep Glob
 ---
 
-# 品質チェック一括実行スキル
+# 品質チェック一括実行
 
 全静的解析・テストを一括実行し、結果をサマリーで報告します。
 

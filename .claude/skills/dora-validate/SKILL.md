@@ -1,13 +1,18 @@
 ---
 name: dora-validate
-description: DORA metrics計算ロジックの正当性を検証し、公式基準との整合性をチェック
-user-invocable: true
-allowed-tools: Bash, Read, Grep, Glob, WebFetch
+description: DORA metrics計算ロジックの正当性を検証。公式基準との整合性チェック
+disable-model-invocation: true
+allowed-tools: Bash Read Grep Glob WebFetch
+argument-hint: [metric-name]
 ---
 
-# DORA metrics検証スキル
+# DORA metrics検証
 
 DORA metrics計算ロジックの正当性を検証します。
+引数でメトリクス名を指定すると、そのメトリクスのみ検証します（例: `/dora-validate lead-time`）。
+引数なしの場合は全メトリクスを検証します。
+
+対象メトリクス: $ARGUMENTS
 
 ## 実行手順
 
@@ -31,18 +36,17 @@ DORA metrics計算ロジックの正当性を検証します。
 3. **計算ロジックの検証**
 
    以下のファイルを確認し、計算が正しいか検証：
-   - `src/utils/metrics/dora.ts`
-   - `src/utils/metrics/extended.ts`
+   - `src/utils/metrics/dora/`
 
    チェック項目：
-   - [ ] Deployment Frequency: マージ数/期間の計算は正しいか
-   - [ ] Lead Time: 最初のコミット〜マージまでの時間計算は正しいか
-   - [ ] CFR: (障害PR数 / 全PR数) × 100 の計算は正しいか
+   - [ ] Deployment Frequency: デプロイ数/期間の計算は正しいか
+   - [ ] Lead Time: PR作成〜本番反映までの時間計算は正しいか
+   - [ ] CFR: (障害デプロイ数 / 全デプロイ数) × 100 の計算は正しいか
    - [ ] MTTR: 障害発生〜復旧までの平均時間計算は正しいか
 
 4. **テストの確認**
    ```bash
-   bun test tests/unit/metrics.test.ts
+   bun test
    ```
 
 5. **検証結果の報告**
@@ -65,7 +69,3 @@ DORA metrics計算ロジックの正当性を検証します。
    ### 推奨事項
    - (あれば記載)
    ```
-
-## 参考リンク
-- DORA公式: https://dora.dev/
-- State of DevOps Report: https://dora.dev/research/

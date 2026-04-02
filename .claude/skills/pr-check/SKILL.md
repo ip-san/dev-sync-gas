@@ -1,11 +1,11 @@
 ---
 name: pr-check
-description: PR作成前にlint/test/buildのセルフチェックを実行し、CI失敗を防ぐ
-user-invocable: true
-allowed-tools: Bash, Read, Grep, Glob
+description: PR作成前セルフチェック。全品質チェック + build実行でCI失敗を防ぐ
+disable-model-invocation: true
+allowed-tools: Bash Read Grep Glob
 ---
 
-# PR作成前チェックスキル
+# PR作成前チェック
 
 PRを作成する前にセルフチェックを行います。
 
@@ -22,28 +22,13 @@ PRを作成する前にセルフチェックを行います。
    エラーが発生しても途中で止めず、**すべてのチェックを最後まで実行**してください：
 
    ```bash
-   # Biome check（lint + format一括）
    bun run check
-
-   # 型チェック
    bunx tsc --noEmit
-
-   # テスト実行
    bun test
-
-   # 循環参照チェック
    bun run check:circular
-
-   # 未使用コード検出（knip）
    bun run check:unused
-
-   # 型カバレッジ
    bun run check:types
-
-   # コピペ検出（jscpd）
    bun run cpd
-
-   # ビルド確認
    bun run build
    ```
 
@@ -72,11 +57,9 @@ PRを作成する前にセルフチェックを行います。
 
    ### 変更ファイル
    - file1.ts
-   - file2.ts
 
    ### コミット内容
    - commit message 1
-   - commit message 2
 
    PRを作成する準備ができました。
    ```
